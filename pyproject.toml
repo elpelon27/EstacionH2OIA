@@ -1,0 +1,27 @@
+[project]
+name = "hermes-agent"
+version = "0.1.0"
+description = "Orquestador IA para Estación H2O / Valentina Proactiva"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP", "B", "C4", "SIM"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+addopts = "-v --cov=core --cov=agents --cov=api --cov-report=term-missing"
+
+[tool.coverage.run]
+source = ["core", "agents", "api"]
+omit = ["tests/*"]

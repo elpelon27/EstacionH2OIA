@@ -1,0 +1,29 @@
+title = "Hermes Agent Custom Gitleaks Config"
+
+[extend]
+useDefault = true
+
+[[rules]]
+id = "openrouter-api-key"
+description = "OpenRouter API Key"
+regex = '''sk-or-v1-[a-zA-Z0-9-_]{64,}'''
+tags = ["key", "openrouter"]
+
+[[rules]]
+id = "telegram-bot-token"
+description = "Telegram Bot Token"
+regex = '''[0-9]{8,10}:AA[A-Za-z0-9_-]{35}'''
+tags = ["key", "telegram"]
+
+[[rules]]
+id = "github-pat-fine-grained"
+description = "GitHub PAT Fine-grained"
+regex = '''github_pat_[a-zA-Z0-9_]{82}'''
+tags = ["key", "github"]
+
+[allowlist]
+description = "Allowed paths"
+paths = [
+  '''config/.env\.example''',
+  '''.env\.example''',
+]

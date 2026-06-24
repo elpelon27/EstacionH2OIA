@@ -1,0 +1,40 @@
+# Core
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+python-dotenv==1.0.1
+
+# HTTP
+httpx==0.28.1
+aiohttp==3.11.11
+
+# DB
+sqlalchemy==2.0.36
+alembic==1.14.0
+aiosqlite==0.20.0
+
+# IA local
+ollama==0.4.4
+
+# IA cloud (OpenRouter compatible con OpenAI SDK)
+openai==1.59.6
+
+# Memoria
+mem0ai==0.1.68
+qdrant-client==1.12.2
+
+# Telegram
+python-telegram-bot==21.10
+
+# Observabilidad
+structlog==24.4.0
+prometheus-client==0.21.1
+
+# Rate limiting
+slowapi==0.1.9
+
+# Utils
+python-dateutil==2.9.0.post0
+pytz==2024.2
+PyYAML==6.0.2
