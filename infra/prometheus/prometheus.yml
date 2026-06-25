@@ -11,7 +11,8 @@ scrape_configs:
     static_configs:
       - targets: ['node_exporter:9100']
 
+  # Hermes Agent metrics (cuando esté corriendo)
   - job_name: 'hermes'
     static_configs:
-      - targets: ['host.docker.internal:8000']
+      - targets: ['172.17.0.1:8000']
     metrics_path: /metrics
