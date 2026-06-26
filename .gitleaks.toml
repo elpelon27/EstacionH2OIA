@@ -26,4 +26,5 @@ description = "Allowed paths"
 paths = [
   '''config/.env\.example''',
   '''.env\.example''',
+  '''tests/.*''',
 ]
