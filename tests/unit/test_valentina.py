@@ -125,10 +125,11 @@ async def test_process_message_human_escalation(valentina):
     mock_router = MagicMock()
     mock_router.execute = AsyncMock()
 
+    mock_notify = AsyncMock()
     with (
         patch("agents.valentina.get_memory", new=AsyncMock(return_value=mock_memory)),
         patch("agents.valentina.get_router", return_value=mock_router),
-        patch.object(valentina, "_notify_leader_human_request", new=AsyncMock()),
+        patch.object(valentina, "_notify_leader_human_request", new=mock_notify),
     ):
         result = await valentina.process_message(
             phone="584122560721",
@@ -140,7 +141,7 @@ async def test_process_message_human_escalation(valentina):
     # NO debe llamar a Qwen
     mock_router.execute.assert_not_called()
     # Sí debe notificar al Líder
-    valentina._notify_leader_human_request.assert_called_once()
+    mock_notify.assert_called_once()
 
 
 @pytest.mark.asyncio
