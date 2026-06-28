@@ -114,7 +114,7 @@ class ValentinaAgent:
         result = await router.execute(
             trigger="whatsapp_message",
             messages=messages,
-            temperature=0.4,  # Ligeramente creativa pero coherente
+            temperature=0.1,  # Ligeramente creativa pero coherente
         )
 
         response_text = result.get("response", "Disculpa, no pude procesar tu mensaje.")

@@ -64,7 +64,8 @@ async def metrics() -> PlainTextResponse:
 async def webhook_whatsapp(request: Request) -> JSONResponse:
     """Recibir webhook de WAHA con mensaje de WhatsApp.
 
-    Verifica HMAC, extrae mensaje, llama a Valentina, envía respuesta.
+    Retorna 200 inmediatamente y procesa en background para evitar
+    que WAHA reenvíe el webhook por timeout.
     """
     global _kill_switch_active
 
@@ -82,7 +83,7 @@ async def webhook_whatsapp(request: Request) -> JSONResponse:
             detail="HMAC inválido",
         )
 
-    # 2. Parsear payload de WAHA
+    # 2. Parsear payload
     try:
         data = await request.json()
     except Exception as e:
@@ -92,16 +93,29 @@ async def webhook_whatsapp(request: Request) -> JSONResponse:
             detail="JSON inválido",
         ) from e
 
-    # 3. Extraer teléfono y mensaje
-    phone = data.get("from", "").replace("@s.whatsapp.net", "").replace("@c.us", "")
-    message = data.get("body", "")
-    contact_name = data.get("contact", {}).get("name")
+    # 3. Extraer datos del payload de WAHA
+    payload = data.get("payload", data)
+
+    if payload.get("fromMe", False):
+        return JSONResponse({"status": "ignored", "reason": "own_message"})
+
+    phone = payload.get("from", "")
+    if "@lid" not in phone:
+        phone = phone.replace("@s.whatsapp.net", "").replace("@c.us", "")
+
+    # Ignorar estados de WhatsApp y grupos
+    if "status@broadcast" in phone or "@g.us" in phone:
+        logger.info("webhook_ignored_status_or_group", phone=phone)
+        return JSONResponse({"status": "ignored", "reason": "status_or_group"})
+
+    message = payload.get("body", "")
+    contact_name = payload.get("contact", {}).get("name")
 
     if not phone or not message:
         logger.warning("webhook_missing_fields", phone=phone, has_message=bool(message))
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Faltan campos 'from' o 'body'",
+            detail="Faltan campos from o body",
         )
 
     logger.info("webhook_received", phone=phone, message_preview=message[:50])
@@ -114,8 +128,60 @@ async def webhook_whatsapp(request: Request) -> JSONResponse:
             status_code=200,
         )
 
-    # 5. Procesar con Valentina
+    # 5. Retornar 200 OK INMEDIATAMENTE a WAHA
+    # Esto evita que WAHA reenvíe el webhook por timeout
+    # El procesamiento se hace en background
+
+    import asyncio
+
+    asyncio.create_task(_process_message_background(phone, message, contact_name, payload))
+
+    return JSONResponse({"status": "received", "processing": "async"})
+
+
+async def _process_message_background(
+    phone: str,
+    message: str,
+    contact_name: str | None,
+    payload: dict,
+) -> None:
+    """Procesar mensaje en background y enviar respuesta vía WAHA."""
+    # Deduplicación: extraer ID del mensaje
+    msg_id_data = payload.get("id", {})
+    if isinstance(msg_id_data, str):
+        msg_id = msg_id_data
+    elif isinstance(msg_id_data, dict):
+        msg_id = msg_id_data.get("_serialized") or msg_id_data.get("id") or ""
+    else:
+        msg_id = ""
+
+    # Usar atributos de la función para persistir el cache entre llamadas
+    if not hasattr(_process_message_background, "_cache"):
+        _process_message_background._cache = {}
+
+    cache = _process_message_background._cache
+    now = time.time()
+
+    # Limpiar cache viejo (>5 minutos)
+    expired = [k for k, v in cache.items() if now - v > 300]
+    for k in expired:
+        cache.pop(k, None)
+
+    # Generar clave de deduplicación: phone + mensaje (ignora mayúsculas/minúsculas)
+    dedup_key = f"{phone}:{message.lower().strip()}"
+
+    # Si ya procesamos este mensaje (por ID o por contenido), ignorar
+    if (msg_id and msg_id in cache) or (dedup_key in cache):
+        logger.info("webhook_duplicate_ignored", phone=phone, msg_id=msg_id)
+        return
+
+    # Guardar ambos: ID y contenido
+    if msg_id:
+        cache[msg_id] = now
+    cache[dedup_key] = now
+
     start_time = time.monotonic()
+
     try:
         valentina = get_valentina()
         result = await valentina.process_message(
@@ -123,6 +189,9 @@ async def webhook_whatsapp(request: Request) -> JSONResponse:
             message=message,
             client_name=contact_name,
         )
+        # Truncar respuesta si es muy larga (WhatsApp la partiría en múltiples burbujas)
+        if len(result["response"]) > 300:
+            result["response"] = result["response"][:300] + "..."
 
         elapsed = time.monotonic() - start_time
         MESSAGE_PROCESSING_TIME.observe(elapsed)
@@ -131,8 +200,15 @@ async def webhook_whatsapp(request: Request) -> JSONResponse:
         if result["needs_human_escalation"]:
             HUMAN_ESCALATIONS.inc()
 
-        # 6. Enviar respuesta vía WAHA
-        await _send_waha_message(phone, result["response"])
+        # Enviar respuesta vía WAHA
+        msg_id_data = payload.get("id", {})
+        reply_to_id: str | None = None
+        if isinstance(msg_id_data, str):
+            reply_to_id = msg_id_data
+        elif isinstance(msg_id_data, dict):
+            reply_to_id = msg_id_data.get("_serialized") or msg_id_data.get("id")
+
+        await _send_waha_message(phone, result["response"], reply_to_id)
 
         logger.info(
             "webhook_processed",
@@ -141,21 +217,8 @@ async def webhook_whatsapp(request: Request) -> JSONResponse:
             needs_human=result["needs_human_escalation"],
         )
 
-        return JSONResponse(
-            {
-                "status": "ok",
-                "response_sent": True,
-                "needs_human_escalation": result["needs_human_escalation"],
-                "memory_used": result["memory_used"],
-            }
-        )
-
     except Exception as e:
         logger.error("webhook_processing_error", phone=phone, error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Error procesando mensaje",
-        ) from e
 
 
 @app.post("/webhook/telegram")  # type: ignore[misc]
@@ -263,30 +326,40 @@ def _verify_hmac(body: bytes, signature: str, secret: str) -> bool:
     return hmac.compare_digest(expected, signature)
 
 
-async def _send_waha_message(phone: str, message: str) -> None:
-    """Enviar mensaje a cliente vía WAHA API."""
+async def _send_waha_message(phone: str, message: str, reply_to: str | None = None) -> None:
+    """Enviar mensaje a cliente vía WAHA API.
+
+    Usa /api/sendText con el chatId tal como lo recibimos (@lid o @c.us).
+    """
     import httpx
 
     settings = get_settings()
-    url = f"{settings.waha_base_url}/api/sendText"
     headers = {"X-Api-Key": settings.waha_api_key}
+    session = settings.waha_session_id
+
+    # Usar el phone tal cual como chatId (WAHA acepta @lid y @c.us)
+    chat_id = phone if "@" in phone else f"{phone}@c.us"
+
+    url = f"{settings.waha_base_url}/api/sendText"
     payload = {
-        "chatId": f"{phone}@s.whatsapp.net",
+        "chatId": chat_id,
         "text": message,
-        "session": settings.waha_session_id,
+        "session": session,
     }
 
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.post(url, json=payload, headers=headers)
-            if resp.status_code != 200:
+            if resp.status_code in (200, 201, 202):
+                logger.info("waha_message_sent", phone=phone, chat_id=chat_id)
+            else:
                 logger.error(
                     "waha_send_error",
                     phone=phone,
+                    chat_id=chat_id,
                     status=resp.status_code,
+                    response=resp.text[:300],
                 )
-            else:
-                logger.info("waha_message_sent", phone=phone)
     except Exception as e:
         logger.error("waha_send_exception", phone=phone, error=str(e))
 
