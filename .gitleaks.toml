@@ -21,6 +21,12 @@ description = "GitHub PAT Fine-grained"
 regex = '''github_pat_[a-zA-Z0-9_]{82}'''
 tags = ["key", "github"]
 
+[[rules]]
+id = "meta-access-token"
+description = "Meta Access Token"
+regex = '''EAAC[A-Za-z0-9]{30,}'''
+tags = ["key", "meta"]
+
 [allowlist]
 description = "Allowed paths"
 paths = [

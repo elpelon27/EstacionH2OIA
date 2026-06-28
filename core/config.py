@@ -52,11 +52,13 @@ class Settings(BaseSettings):
     telegram_bot_token_hermes: str = ""
     telegram_chat_id_lider: int = 0
 
-    # === WAHA ===
-    waha_base_url: str = "http://localhost:3000"
-    waha_api_key: str = "PENDIENTE"
-    waha_webhook_secret: str = "PENDIENTE"
-    waha_session_id: str = "estacionh2o_main"
+    # === Meta WhatsApp Cloud API (Oficial) ===
+    meta_access_token: str = ""
+    meta_phone_number_id: str = ""
+    meta_business_account_id: str = ""
+    meta_app_secret: str = ""
+    meta_verify_token: str = ""
+    meta_api_version: str = "v25.0"
     whatsapp_phone: str = "584122560721"
 
     # === Qdrant ===
