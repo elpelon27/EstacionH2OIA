@@ -78,7 +78,7 @@ async def verify_webhook(
 
     if hub_mode == "subscribe" and hub_verify_token == settings.meta_verify_token:
         logger.info("webhook_verified_by_meta")
-        return hub_challenge
+        return PlainTextResponse(hub_challenge)
     else:
         logger.warning("webhook_verification_failed", token=hub_verify_token)
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Verification failed")
