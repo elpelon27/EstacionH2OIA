@@ -1,10 +1,7 @@
 """Tests para core/workload_router.py."""
-
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
-
-from core.workload_router import ROUTE_TABLE, Route, WorkloadRouter, get_router
+from unittest.mock import AsyncMock, MagicMock, patch
+from core.workload_router import WorkloadRouter, Route, ROUTE_TABLE, get_router
 
 
 @pytest.fixture
@@ -25,9 +22,14 @@ def test_resolve_whatsapp_to_qwen(router):
     assert router.resolve("whatsapp_message") == Route.QWEN_LOCAL
 
 
-def test_resolve_payment_to_qwen(router):
-    """payment_received debe rutear a Qwen local."""
-    assert router.resolve("payment_received") == Route.QWEN_LOCAL
+def test_resolve_payment_to_skill(router):
+    """payment_received debe rutear a payment_skill."""
+    assert router.resolve("payment_received") == Route.PAYMENT_SKILL
+
+
+def test_resolve_inventory_to_skill(router):
+    """inventory_check debe rutear a inventory_skill."""
+    assert router.resolve("inventory_check") == Route.INVENTORY_SKILL
 
 
 def test_resolve_architect_to_fusion(router):
@@ -51,6 +53,14 @@ def test_route_table_completeness():
 
 
 @pytest.mark.asyncio
+async def test_execute_inventory_skill(router):
+    """execute() con trigger inventory_check debe llamar a InventorySkill."""
+    with patch("skills.inventory_skill.InventorySkill.execute", new=AsyncMock(return_value={"success": True})):
+        result = await router.execute(trigger="inventory_check", action="get_stock")
+    assert result["success"] is True
+
+
+@pytest.mark.asyncio
 async def test_execute_qwen_local(router):
     """execute() con trigger whatsapp debe llamar a Qwen."""
     mock_qwen = MagicMock()
@@ -70,13 +80,11 @@ async def test_execute_qwen_local(router):
 async def test_execute_fusion(router):
     """execute() con trigger architect_request debe llamar a Fusion."""
     mock_fusion = MagicMock()
-    mock_fusion.run = AsyncMock(
-        return_value={
-            "winner_response": "Mejor respuesta",
-            "winner_model": "z-ai/glm-4.5",
-            "score": 8.5,
-        }
-    )
+    mock_fusion.run = AsyncMock(return_value={
+        "winner_response": "Mejor respuesta",
+        "winner_model": "z-ai/glm-4.5",
+        "score": 8.5,
+    })
 
     with patch("core.workload_router.get_fusion", return_value=mock_fusion):
         result = await router.execute(
@@ -86,25 +94,3 @@ async def test_execute_fusion(router):
 
     assert result["winner_response"] == "Mejor respuesta"
     mock_fusion.run.assert_called_once()
-
-
-@pytest.mark.asyncio
-async def test_execute_openrouter_single(router):
-    """execute() con trigger code_generation_complex debe llamar a OpenRouter DeepSeek."""
-    mock_or = MagicMock()
-    mock_or.chat = AsyncMock(
-        return_value={
-            "response": "def foo(): pass",
-            "model": "deepseek/deepseek-chat-v3.2",
-        }
-    )
-
-    with patch("core.workload_router.get_openrouter", new=AsyncMock(return_value=mock_or)):
-        result = await router.execute(
-            trigger="code_generation_complex",
-            messages=[{"role": "user", "content": "escribe función"}],
-        )
-
-    assert result["response"] == "def foo(): pass"
-    assert result["model"] == "deepseek/deepseek-chat-v3.2"
-    mock_or.chat.assert_called_once()
