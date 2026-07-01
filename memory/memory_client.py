@@ -1,16 +1,10 @@
 """Cliente de memoria semántica con mem0 + Qdrant + embeddings locales.
 
 Usa nomic-embed-text (vía Ollama) para embeddings 100% locales.
+Usa Qwen 2.5 7B (vía Ollama) para extracción de memoria (LLM de mem0).
 No envía datos de clientes a la nube.
-
-Features:
-- add_memory: guarda hecho/preferencia del cliente
-- search_memory: busca recuerdos relevantes por consulta
-- get_client_memories: todo el historial de un cliente
 """
-
 from typing import Any
-
 from core.config import get_settings
 from core.logger import get_logger
 
@@ -42,6 +36,13 @@ class MemoryClient:
                     "ollama_base_url": settings.ollama_host,
                 },
             },
+            "llm": {
+                "provider": "ollama",
+                "config": {
+                    "model": "qwen2.5:7b",
+                    "ollama_base_url": settings.ollama_host,
+                },
+            },
         }
         self.client = Memory.from_config(config)
         logger.info("memory_client_initialized", collection=settings.qdrant_collection)
@@ -59,23 +60,13 @@ class MemoryClient:
         user_id: str,
         metadata: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        """Guardar un recuerdo del cliente.
-
-        Args:
-            content: el hecho a recordar (ej: "Cliente prefiere 3 recargas los viernes")
-            user_id: identificador del cliente (ej: phone number)
-            metadata: info adicional (ej: {"category": "preference"})
-
-        Returns:
-            dict con: id, event_type (ADD/UPDATE/DELETE)
-        """
+        """Guardar un recuerdo del cliente."""
         try:
             result = self.client.add(
                 messages=content,
                 user_id=user_id,
                 metadata=metadata or {},
             )
-            # Renombrar 'event' a 'event_type' para evitar conflicto con structlog
             result_dict: dict[str, Any] = {
                 "id": result.get("id", ""),
                 "event_type": result.get("event", "ADD"),
@@ -97,16 +88,7 @@ class MemoryClient:
         user_id: str,
         limit: int = 5,
     ) -> list[dict[str, Any]]:
-        """Buscar recuerdos relevantes del cliente.
-
-        Args:
-            query: consulta (ej: "¿qué prefiere este cliente?")
-            user_id: identificador del cliente
-            limit: máximo de recuerdos a retornar
-
-        Returns:
-            lista de recuerdos [{memory, score, ...}, ...]
-        """
+        """Buscar recuerdos relevantes del cliente."""
         try:
             results = self.client.search(
                 query=query,
@@ -125,14 +107,7 @@ class MemoryClient:
             return []
 
     async def get_client_memories(self, user_id: str) -> list[dict[str, Any]]:
-        """Obtener todos los recuerdos de un cliente.
-
-        Args:
-            user_id: identificador del cliente
-
-        Returns:
-            lista de todos los recuerdos del cliente
-        """
+        """Obtener todos los recuerdos de un cliente."""
         try:
             results = self.client.get_all(user_id=user_id)
             logger.info(
@@ -146,14 +121,7 @@ class MemoryClient:
             return []
 
     async def delete_memory(self, memory_id: str) -> bool:
-        """Eliminar un recuerdo específico.
-
-        Args:
-            memory_id: ID del recuerdo a eliminar
-
-        Returns:
-            True si se eliminó correctamente
-        """
+        """Eliminar un recuerdo específico."""
         try:
             self.client.delete(memory_id=memory_id)
             logger.info("memory_deleted", memory_id=memory_id)

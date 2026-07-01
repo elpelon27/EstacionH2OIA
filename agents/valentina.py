@@ -1,25 +1,13 @@
 """Agente Valentina — Recepcionista WhatsApp de Estación H2O.
 
 Combina:
-- docs/SOUL.md (personalidad)
-- docs/USER.md (perfil del Líder)
-- docs/prompts/valentina.v1.md (system prompt base)
-- mem0 (memoria del cliente: preferencias, historial)
-- Qwen local (vía WorkloadRouter) para generar respuesta
-
-Flujo:
-1. Mensaje entra → buscar cliente en mem0
-2. Construir contexto: system prompt + personalidad + memoria del cliente
-3. Llamar Qwen local para generar respuesta
-4. Guardar interacción en mem0 (para futuras conversaciones)
-5. Si cliente pide humano → escalar al Líder vía Telegram
+- System prompt optimizado (hardcoded para velocidad)
+- mem0 (memoria largo plazo del cliente)
+- Memoria de sesión (últimos 4 mensajes para no repetir menú)
+- Qwen local (vía WorkloadRouter)
 """
-
-from pathlib import Path
 from typing import Any
-
 import httpx
-
 from core.config import get_settings
 from core.logger import get_logger
 from core.workload_router import get_router
@@ -27,8 +15,25 @@ from memory.memory_client import get_memory
 
 logger = get_logger("valentina")
 
-# Paths a documentos Markdown (fuente de verdad)
-DOCS_PATH = Path(__file__).parent.parent / "docs"
+# System prompt optimizado (corto para latencia < 5s en GTX 1070)
+SYSTEM_PROMPT = """Eres Valentina, asistente de Estación H2O (agua/hielo a domicilio en Maracaibo).
+NO eres proactiva. Respuestas cortas (máx 2 líneas).
+
+WORKFLOW:
+1. Si es primer mensaje: "¡Hola! 💧 ¿Qué deseas? 1️⃣ Agua 2️⃣ Hielo 3️⃣ Combinada 4️⃣ Asesor"
+2. Si elige 1: Preguntar cantidad. Precio: 1.00€ c/u. Preguntar dirección.
+3. Si elige 2: Preguntar cantidad (bolsas 7kg). Precio: 1.20€ c/u. Preguntar dirección.
+4. Si elige 3: Preguntar cantidades de ambos. Preguntar dirección.
+5. Si elige 4 o pide humano: "Conectándote con un asesor..." (avisar al Líder).
+6. Si confirma pedido: "¡Genial! Total: {total}€. Paga al 0412-2560721 y envía captura."
+
+PRECIOS (NO cambiar): Agua 20L = 1.00€ | Hielo 7kg = 1.20€
+Fuera de horario (7:40am-6:00pm): Programar para mañana.
+NO inventes precios. NO sugieras productos extra.
+"""
+
+# Memoria de sesión (corto plazo: últimos 4 mensajes por teléfono)
+_sessions: dict[str, list[dict[str, str]]] = {}
 
 
 class ValentinaAgent:
@@ -36,27 +41,6 @@ class ValentinaAgent:
 
     def __init__(self) -> None:
         self.settings = get_settings()
-        self.soul = self._load_doc("SOUL.md")
-        self.user_profile = self._load_doc("USER.md")
-        self.system_prompt = self._load_doc("prompts/valentina.v1.md")
-
-    def _load_doc(self, filename: str) -> str:
-        """Cargar documento Markdown desde docs/.
-
-        Args:
-            filename: nombre del archivo (ej: "SOUL.md")
-
-        Returns:
-            Contenido del archivo o string vacío si no existe
-        """
-        filepath = DOCS_PATH / filename
-        try:
-            content = filepath.read_text(encoding="utf-8")
-            logger.info("doc_loaded", filename=filename, chars=len(content))
-            return content
-        except FileNotFoundError:
-            logger.warning("doc_not_found", filename=filename)
-            return ""
 
     async def process_message(
         self,
@@ -64,16 +48,7 @@ class ValentinaAgent:
         message: str,
         client_name: str | None = None,
     ) -> dict[str, Any]:
-        """Procesar mensaje entrante de WhatsApp y generar respuesta.
-
-        Args:
-            phone: número de teléfono del cliente (ej: "584122560721")
-            message: texto del mensaje
-            client_name: nombre del cliente si se conoce (opcional)
-
-        Returns:
-            dict con: response, needs_human_escalation, memory_used
-        """
+        """Procesar mensaje entrante de WhatsApp y generar respuesta."""
         logger.info(
             "message_received",
             phone=phone,
@@ -81,47 +56,43 @@ class ValentinaAgent:
             client_name=client_name,
         )
 
-        # 1. Buscar memoria del cliente en mem0
+        # 1. Buscar memoria largo plazo en mem0
         memory_client = await get_memory()
         client_memories = await memory_client.search_memory(
             query=message,
             user_id=phone,
-            limit=5,
+            limit=3,
         )
 
-        # 2. Verificar si cliente pide hablar con humano
+        # 2. Escalación a humano
         if self._needs_human_escalation(message):
             logger.info("human_escalation_requested", phone=phone)
             await self._notify_leader_human_request(phone, message, client_name)
             return {
-                "response": (
-                    "Por supuesto, te conecto con nuestro equipo. " "Un momento por favor. 👨‍💼"
-                ),
+                "response": "Conectándote con un asesor, un momento por favor. 👨‍💼",
                 "needs_human_escalation": True,
                 "memory_used": len(client_memories),
             }
 
-        # 3. Construir contexto para Qwen
-        messages = self._build_context(
-            phone=phone,
-            message=message,
-            client_name=client_name,
-            memories=client_memories,
-        )
+        # 3. Construir contexto con memoria de sesión (corto plazo)
+        messages = self._build_context(phone, message, client_memories)
 
-        # 4. Llamar Qwen local vía WorkloadRouter
+        # 4. Llamar Qwen local
         router = get_router()
         result = await router.execute(
             trigger="whatsapp_message",
             messages=messages,
-            temperature=0.1,  # Ligeramente creativa pero coherente
+            temperature=0.1,
         )
 
         response_text = result.get("response", "Disculpa, no pude procesar tu mensaje.")
 
-        # 5. Guardar interacción en mem0 (para futuras conversaciones)
+        # 5. Actualizar memoria de sesión (corto plazo)
+        self._update_session(phone, message, response_text)
+
+        # 6. Guardar en mem0 (largo plazo)
         await memory_client.add_memory(
-            content=f"Cliente ({phone}) dijo: {message}. Valentina respondió: {response_text}",
+            content=f"Cliente dijo: {message}. Valentina respondió: {response_text}",
             user_id=phone,
             metadata={"type": "conversation", "client_name": client_name or "unknown"},
         )
@@ -140,63 +111,47 @@ class ValentinaAgent:
         }
 
     def _needs_human_escalation(self, message: str) -> bool:
-        """Detectar si el cliente pide hablar con humano.
-
-        Args:
-            message: mensaje del cliente
-
-        Returns:
-            True si detecta intención de hablar con humano
-        """
-        triggers = [
-            "hablar con alguien",
-            "hablar con humano",
-            "operador",
-            "persona real",
-            "tu jefe",
-            "el dueño",
-            "gerente",
-            "supervisor",
-            "alguien",
-        ]
-        message_lower = message.lower()
-        return any(trigger in message_lower for trigger in triggers)
+        triggers = ["hablar con alguien", "humano", "operador", "asesor", "persona real", "tu jefe", "dueño", "gerente", "supervisor", "4"]
+        msg_lower = message.lower().strip()
+        return any(t in msg_lower for t in triggers)
 
     def _build_context(
         self,
         phone: str,
         message: str,
-        client_name: str | None,
         memories: list[dict[str, Any]],
     ) -> list[dict[str, str]]:
-        """Construir lista de mensajes para el LLM.
+        """Construir contexto para el LLM: system + memoria largo plazo + sesión."""
+        system_content = SYSTEM_PROMPT
 
-        Combina: system prompt + personalidad + memoria + mensaje actual
-        """
-        # System prompt base (de valentina.v1.md)
-        system_content = self.system_prompt
-
-        # Agregar personalidad (de SOUL.md)
-        if self.soul:
-            system_content += f"\n\n--- PERSONALIDAD ---\n{self.soul}"
-
-        # Agregar perfil del Líder (de USER.md)
-        if self.user_profile:
-            system_content += f"\n\n--- PERFIL DEL LÍDER ---\n{self.user_profile}"
-
-        # Agregar memoria del cliente (de mem0)
+        # Agregar memoria largo plazo (mem0)
         if memories:
             memory_text = "\n".join(f"- {m.get('memory', '')}" for m in memories if m.get("memory"))
-            system_content += f"\n\n--- MEMORIA DEL CLIENTE ({phone}) ---\n{memory_text}"
+            system_content += f"\n\nMEMORIA DEL CLIENTE:\n{memory_text}"
 
-        # Nombre del cliente si se conoce
-        if client_name:
-            system_content += f"\n\nEl cliente se llama {client_name}. Salúdalo por su nombre."
+        messages = [{"role": "system", "content": system_content}]
 
-        return [
-            {"role": "system", "content": system_content},
-            {"role": "user", "content": message},
-        ]
+        # Agregar historial de sesión (últimos 4 mensajes)
+        session = _sessions.get(phone, [])
+        messages.extend(session)
+
+        # Agregar mensaje actual
+        messages.append({"role": "user", "content": message})
+
+        return messages
+
+    def _update_session(self, phone: str, user_msg: str, assistant_msg: str) -> None:
+        """Actualizar memoria de sesión (mantener solo últimos 4 mensajes)."""
+        if phone not in _sessions:
+            _sessions[phone] = []
+
+        _sessions[phone].append({"role": "user", "content": user_msg})
+        _sessions[phone].append({"role": "assistant", "content": assistant_msg})
+
+        # Mantener solo últimos 4 mensajes (2 turnos) para no inflar el prompt
+        if len(_sessions[phone]) > 4:
+            _sessions[phone] = _sessions[phone][-4:]
+
 
     async def _notify_leader_human_request(
         self,
@@ -204,13 +159,7 @@ class ValentinaAgent:
         message: str,
         client_name: str | None,
     ) -> None:
-        """Notificar al Líder vía Telegram que un cliente pide hablar con humano.
-
-        Args:
-            phone: teléfono del cliente
-            message: mensaje original del cliente
-            client_name: nombre del cliente si se conoce
-        """
+        """Notificar al Líder vía Telegram."""
         token = self.settings.telegram_bot_token_h2o
         chat_id = self.settings.telegram_chat_id_lider
 
@@ -235,10 +184,7 @@ class ValentinaAgent:
                 if resp.status_code == 200:
                     logger.info("leader_notified_escalation", phone=phone)
                 else:
-                    logger.error(
-                        "telegram_escalation_error",
-                        status=resp.status_code,
-                    )
+                    logger.error("telegram_escalation_error", status=resp.status_code)
         except Exception as e:
             logger.error("telegram_escalation_exception", error=str(e))
 
