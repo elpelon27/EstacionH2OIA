@@ -1,0 +1,78 @@
+# ============================================================================
+# systemd unit — Valentina Bridge
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+# Instalar:
+#   sudo cp systemd/valentina-bridge.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable valentina-bridge
+#   sudo systemctl start valentina-bridge
+# ============================================================================
+
+[Unit]
+Description=Valentina Bridge — FastAPI Meta Cloud API ↔ Dify (Estación H2O)
+Documentation=https://github.com/elpelon27/EstacionH2OIA
+After=network-online.target docker.service ollama.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=skynet
+Group=skynet
+
+# Working directory
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/api
+
+# Cargar variables de entorno desde .env
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+
+# Comando de arranque
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/uvicorn \
+    bridge:app \
+    --host 0.0.0.0 \
+    --port 8000 \
+    --workers 1 \
+    --log-level info \
+    --access-log false
+
+# Verificación temprana de dependencias (falla rápido si falta algo)
+ExecStartPre=/usr/bin/python3 -c "import fastapi, uvicorn, httpx, slowapi; print('deps OK')"
+
+# Reinicio automático
+Restart=always
+RestartSec=5
+
+# Anti crash-loop infinito
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+# Hardening de seguridad
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/ssd_trabajo/hermes-agent/data /mnt/ssd_trabajo/hermes-agent/logs
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Límites de recursos
+MemoryMax=1G
+CPUQuota=150%
+LimitNOFILE=4096
+
+# Logging
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=valentina-bridge
+
+[Install]
+WantedBy=multi-user.target
