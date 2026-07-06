@@ -1,37 +1,69 @@
+# 💓 HEARTBEAT — Estado del Sistema en Vivo
+
+**Última actualización**: 2026-07-05 22:30 -04
+**Próxima actualización automática**: cada hora (pendiente cron)
+
 ---
-doc: HEARTBEAT
-version: 0.1.0
-last_updated: 2026-06-25T08:00:00-04:00
-updated_by: hermes-agent
+
+## 🟢 Estado general: OPERATIONAL
+
+| Componente | Estado | Detalle |
+|-----------|--------|---------|
+| valentina-bridge.service | 🟢 active (running) | uptime ~30 min |
+| cloudflared-tunnel.service | 🟢 active (running) | URL strip-occupations-purple-scholars |
+| ollama.service | 🟢 active (running) | qwen2.5:7b cargado |
+| Dify (12 contenedores) | 🟢 all running | http://localhost |
+| Qdrant | 🟢 up | puerto 6333 |
+| Redis | 🟢 up | puerto 6379 |
+| Prometheus | 🟢 up | puerto 9090 |
+| Grafana | 🟢 up | puerto 3001 |
+| Webhook Meta | 🟢 verificado | suscrito a messages |
+| Telegram bot | 🔴 pendiente | TELEGRAM_BOT_TOKEN vacío |
+| Google Sheets | 🟡 al 90% | falta google_credentials.json |
+
 ---
 
-# HEARTBEAT — Log de salud del sistema
+## 📊 Métricas de hoy (Día 13)
 
-> 🔄 Hermes Agent actualiza cada 1 minuto. Rotación automática cada 7 días.
+- **Mensajes procesados**: 6 (1 conversación)
+- **Pedidos confirmados**: 1 (primer cliente real)
+- **Tasa de éxito**: 100% (6/6)
+- **Latencia promedio**: 3-5s
+- **Errores**: 0
+- **Deduplicados**: 0
+- **Escalamientos humano**: 0
 
-## Última verificación
-- Timestamp: 2026-06-25T08:00:00-04:00
-- Estado general: ✅ HEALTHY
-- Uptime: 99.9% (últimas 24h)
+---
 
-## Métricas instantáneas
-| Métrica | Valor |
-|---------|-------|
-| CPU usage | 8% |
-| RAM usage | 4.2 GB / 24 GB (17%) |
-| VRAM usage | 4.9 GB / 8 GB (60%) |
-| Disco raíz | 25 GB / 108 GB (23%) |
-| M2 | 44 GB / 916 GB (5%) |
-| Docker containers | 5/5 healthy |
-| Ollama modelos | 6 disponibles |
-| Latencia P95 Qwen | 5.78s |
-| OpenRouter gasto hoy | $0.00 |
+## 🎯 Próximas verificaciones automáticas (pendiente cron)
 
-## Log últimas 24 horas
-- 2026-06-24 18:00 — Sistema post-format verificado OK
-- 2026-06-24 19:30 — Docker Compose base levantado
-- 2026-06-24 19:40 — BLOQUE 10.7 completado
-- 2026-06-25 08:00 — Reanudación trabajo tras pausa nocturna
+```bash
+# Agregar a crontab -e:
+* * * * * curl -sf http://localhost:8000/health > /dev/null || echo "Valentina DOWN" >> /var/log/valentina-alerts.log
+0 * * * * /mnt/ssd_trabajo/hermes-agent/venv/bin/python /mnt/ssd_trabajo/hermes-agent/skills/self_improve_skill.py
+0 3 * * * cp /mnt/ssd_trabajo/hermes-agent/data/conversations.db /mnt/ssd_trabajo/backups/conversations-$(date +\%Y\%m\%d).db
+```
 
-## Alertas activas
-Ninguna ✅
+---
+
+## 🔔 Alertas activas
+
+| Severidad | Alerta | Trigger | Estado |
+|-----------|--------|---------|--------|
+| 🔴 crítica | Bridge down | /health != 200 por 1 min | 🟢 no activa |
+| 🔴 crítica | Dify caído | dify_error rate > 50% en 5 min | 🟢 no activa |
+| 🟡 alta | Meta 401 | token expirado | 🟢 no activa |
+| 🟢 info | Pedido confirmado | cada pedido | 🟢 1 hoy |
+| 🟢 info | Rate limit hit | cliente > 30 msg/min | 🟢 no activa |
+
+---
+
+## 📈 Tendencia (cuando tengamos más datos)
+
+| Día | Mensajes | Pedidos | Tasa éxito | Latencia |
+|-----|----------|---------|------------|----------|
+| 13 | 6 | 1 | 100% | 3-5s |
+
+---
+
+**Este archivo se actualiza automáticamente cuando el cron job esté activo.**
