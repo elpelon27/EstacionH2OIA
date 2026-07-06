@@ -78,3 +78,7 @@ docs/.obsidian/workspace.json
 docs/.obsidian/workspace-mobile.json
 docs/.obsidian/cache
 docs/.obsidian/plugins/*/data.json
+google_credentials.json
+*.zip
+cierre-dia-14/
+valentina-kit/
