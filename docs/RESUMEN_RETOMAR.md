@@ -1,10 +1,27 @@
 # 🔑 RESUMEN PARA RETOMAR — Estación H2O / Prometeo
 ## Si se pierde la conversación, entrega este archivo a Prometeo
 
-**Última actualización**: 2026-07-06 (Día 14, ~02:00 AM -04)
-**Versión**: 1.3.0
+**Última actualización**: 2026-07-07 (Día 15, cierre 20:30 -04)
+**Versión**: 1.4.0
 **Arquitecto IA**: Prometeo
 **Líder**: Luis Martinez (@elpelon27)
+
+---
+
+## 🚨 PRÓXIMO PASO URGENTE (Día 16)
+
+**Arreglar 4 bugs documentados en `/home/z/my-project/upload/DEUDA_TECNICA_DIA_15.md`**:
+
+1. **Bug 1 CRÍTICA**: Cálculos incorrectos (3 recargas cobra €6 en vez de €3)
+   - Fix: Calcular total en bridge (no en LLM)
+2. **Bug 2 ALTA**: Mínimo 3 no se cumple (cliente pide 2, Valentina acepta)
+   - Fix: Aplicar guard de mínimos en bridge línea 1120
+3. **Bug 3 MEDIA**: Botones pago no aparecen (cliente debe tipiar 1/2)
+   - Fix: Ajustar regex _detect_message_type
+4. **Bug 4 MEDIA**: Mensaje compuesto mal interpretado ("buenas me envían 3 recargas")
+   - Fix: Refinar prompt CASO B + detección regex en bridge
+
+**Tiempo estimado**: 80 min total
 
 ---
 

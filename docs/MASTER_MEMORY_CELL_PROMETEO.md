@@ -5,8 +5,8 @@
 |-------|-------|
 | **Documento** | Celda de memoria maestra (loop de conversación) |
 | **Fecha creación** | 2026-06-22 |
-| **Última actualización** | 2026-07-06 (Día 14) |
-| **Estado** | 🔄 Fase 1 ✅ 100%, Google Sheets funcional, esperando 5 clientes VIP |
+| **Última actualización** | 2026-07-07 (Día 15) |
+| **Estado** | 🔄 Botones interactivos implementados, 4 bugs pendientes (deuda técnica) |
 | **Sesiones previas** | SESSION_RECAP_2026-06-22, 23, 24, 26, 26-CORE |
 | **Repo GitHub** | https://github.com/elpelon27/EstacionH2OIA |
 | **Servidor** | skynet-System-product-name (Maracaibo, VE) |
@@ -73,6 +73,13 @@ Estado: [describir dónde quedamos]
 - [ ] `dispatcher.py` (logística Telegram para chofer)
 - [ ] mem0 + Qdrant (memoria de cliente, usar 25 ejemplos de Aprendizaje)
 - [ ] Telegram bot kill switch activo (TELEGRAM_BOT_TOKEN pendiente)
+
+### Deuda Técnica Día 15 (4 bugs — fix Día 16)
+- [ ] **Bug 1 CRÍTICA**: Cálculos incorrectos (3 recargas cobra €6 en vez de €3) → calcular total en bridge
+- [ ] **Bug 2 ALTA**: Mínimo 3 no se cumple → aplicar guard en bridge línea 1120
+- [ ] **Bug 3 MEDIA**: Botones pago no aparecen → ajustar regex _detect_message_type
+- [ ] **Bug 4 MEDIA**: Mensaje compuesto mal interpretado → refinar prompt CASO B
+- Ver: `/home/z/my-project/upload/DEUDA_TECNICA_DIA_15.md`
 
 #### Fase 3 — Estabilización ⏸️ (Semanas 5-6)
 - [ ] Métrica: >70% conversaciones sin humano
