@@ -25,31 +25,33 @@ Seguridad:
     - Conversation persistence: SQLite (phone → dify_conversation_id)
 
 Autor: Prometeo (arquitecto IA Estación H2O)
- """
+"""
 
-import os
-import sqlite3
 import hashlib
 import hmac
 import json
-import time
 import logging
-import asyncio
-import signal
+import os
+import sqlite3
+import time
 from contextlib import asynccontextmanager
-from typing import Optional
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta, timezone
+import sys
+sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
+
 
 import httpx
-from fastapi import FastAPI, Request, Response, HTTPException, Depends
-from fastapi.responses import PlainTextResponse, JSONResponse, Response as RawResponse
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import Response as RawResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
 
 # Métricas Prometheus
 try:
-    from prometheus_client import Counter, Histogram, Gauge, generate_latest, CONTENT_TYPE_LATEST
+    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
     PROMETHEUS_AVAILABLE = True
 except ImportError:
     PROMETHEUS_AVAILABLE = False
@@ -57,6 +59,7 @@ except ImportError:
 # Telegram alerts (opcional, no bloquea si no está configurado)
 try:
     import telegram
+
     TELEGRAM_AVAILABLE = True
 except ImportError:
     TELEGRAM_AVAILABLE = False
@@ -71,9 +74,7 @@ META_APP_SECRET = os.getenv("META_APP_SECRET", "")
 META_VERIFY_TOKEN = os.getenv("META_VERIFY_TOKEN", "")
 META_API_VERSION = os.getenv("META_API_VERSION", "v25.0")
 
-DIFY_API_URL = os.getenv(
-    "DIFY_API_URL", "http://localhost/v1/chat-messages"
-)
+DIFY_API_URL = os.getenv("DIFY_API_URL", "http://localhost/v1/chat-messages")
 DIFY_API_KEY = os.getenv("DIFY_API_KEY", "")
 
 BRIDGE_HOST = os.getenv("BRIDGE_HOST", "0.0.0.0")
@@ -83,9 +84,7 @@ LOG_LEVEL = os.getenv("BRIDGE_LOG_LEVEL", "INFO").upper()
 RATE_PER_PHONE = int(os.getenv("RATE_LIMIT_PER_PHONE", "30"))
 RATE_PER_IP = int(os.getenv("RATE_LIMIT_PER_IP", "100"))
 
-SQLITE_PATH = os.getenv(
-    "SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db"
-)
+SQLITE_PATH = os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
 
 LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")
 
@@ -98,7 +97,7 @@ TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN) and TELEGRAM_AVAILABLE
 KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/tmp/valentina.kill")
 
 # Cliente HTTP reutilizable (connection pooling)
-_http_client: Optional[httpx.AsyncClient] = None
+_http_client: httpx.AsyncClient | None = None
 _telegram_bot = None
 
 # Cache de deduplicación (message_id → timestamp). En memoria, 5 min TTL.
@@ -113,17 +112,39 @@ START_TIME = time.time()
 # Publicado al cliente: "Lunes a Sábado, 8:00 AM - 6:00 PM"
 # El .env interno decía 07:40 pero el prompt oficial publica 8:00 AM.
 # Usamos el horario publicado al cliente.
-BUSINESS_HOURS_START = int(os.getenv("BUSINESS_HOURS_START", "8"))   # 8 AM
-BUSINESS_HOURS_END = int(os.getenv("BUSINESS_HOURS_END", "18"))      # 6 PM
-BUSINESS_HOURS_DAYS = os.getenv("BUSINESS_HOURS_DAYS", "1,2,3,4,5,6")  # Lun-Sáb (1=Lun, 6=Sáb, 0=Dom)
+BUSINESS_HOURS_START = int(os.getenv("BUSINESS_HOURS_START", "8"))  # 8 AM
+BUSINESS_HOURS_END = int(os.getenv("BUSINESS_HOURS_END", "18"))  # 6 PM
+BUSINESS_HOURS_DAYS = os.getenv(
+    "BUSINESS_HOURS_DAYS", "1,2,3,4,5,6"
+)  # Lun-Sáb (1=Lun, 6=Sáb, 0=Dom)
 CARACAS_TZ = timezone(timedelta(hours=-4))  # America/Caracas UTC-4
 
 # Mensaje fuera de horario (verbatim del System Prompt v4)
-OUT_OF_HOURS_MESSAGE = (
-    "¡Hola! 👋 En este momento estamos fuera de horario (Lun-Sáb, 8am-6pm).\n"
-    "He registrado tu mensaje y lo programaremos para la primera hora de mañana.\n"
-    "Un asesor te contactará para confirmar. ¡Gracias! 💧"
-)
+def _get_out_of_hours_message():
+    """Mensaje dinámico según qué tan cerca está de la apertura."""
+    now = datetime.now(CARACAS_TZ)
+    day = now.weekday() + 1
+    if day == 7:
+        day = 0
+    open_days = [int(d) for d in BUSINESS_HOURS_DAYS.split(",")]
+    
+    # Si es día de apertura y falta menos de 30 min
+    if day in open_days:
+        minutes_to_open = (BUSINESS_HOURS_START * 60) - (now.hour * 60 + now.minute)
+        if 0 < minutes_to_open <= 30:
+            return (f"¡Hola! 👋 Abrimos en {minutes_to_open} minutos. "
+                    f"Por favor escríbame a las {BUSINESS_HOURS_START}:00am. ¡Gracias! 💧")
+    
+    # Si es día de apertura pero falta más de 30 min
+    if day in open_days and now.hour < BUSINESS_HOURS_START:
+        return (f"¡Hola! 👋 En este momento estamos fuera de horario. "
+                f"Abrimos a las {BUSINESS_HOURS_START}:00am. "
+                f"He registrado tu mensaje y te responderemos al abrir. ¡Gracias! 💧")
+    
+    # Si es después del cierre o día no laboral
+    return ("¡Hola! 👋 En este momento estamos fuera de horario (Lun-Sáb, 8am-6pm).\n"
+            "He registrado tu mensaje y lo programaremos para la primera hora de mañana. "
+            "Un asesor te contactará para confirmar. ¡Gracias! 💧")
 
 
 def _is_within_business_hours() -> bool:
@@ -186,10 +207,18 @@ if PROMETHEUS_AVAILABLE:
 else:
     # Stubs si prometheus_client no está instalado
     class _Stub:
-        def labels(self, *a, **kw): return self
-        def inc(self, *a, **kw): pass
-        def observe(self, *a, **kw): pass
-        def set(self, *a, **kw): pass
+        def labels(self, *a, **kw):
+            return self
+
+        def inc(self, *a, **kw):
+            pass
+
+        def observe(self, *a, **kw):
+            pass
+
+        def set(self, *a, **kw):
+            pass
+
     MESSAGES_TOTAL = RESPONSE_TIME = DIFY_CALLS = META_SEND = _Stub()
     ORDERS_TOTAL = ESCALATIONS_TOTAL = DEDUP_HITS = _Stub()
     ACTIVE_CONVERSATIONS = _Stub()
@@ -199,6 +228,7 @@ else:
 # Logging con sanitización de PII
 # ============================================================================
 
+
 class SanitizingFormatter(logging.Formatter):
     """Reemplaza números de teléfono por hash SHA256+salt en los logs."""
 
@@ -206,12 +236,11 @@ class SanitizingFormatter(logging.Formatter):
 
     def format(self, record: logging.LogRecord) -> str:
         msg = super().format(record)
+
         # Hashear cualquier cosa que parezca un teléfono venezolano
         def _hash_phone(match):
             phone = match.group(0)
-            h = hashlib.sha256(
-                f"{LOG_SALT}:{phone}".encode()
-            ).hexdigest()[:12]
+            h = hashlib.sha256(f"{LOG_SALT}:{phone}".encode()).hexdigest()[:12]
             return f"phone:{h}"
 
         return self.PHONE_REGEX.sub(_hash_phone, msg)
@@ -232,6 +261,7 @@ logger.addHandler(_handler)
 # ============================================================================
 # SQLite — persistencia de conversation_id por teléfono
 # ============================================================================
+
 
 def _init_db() -> None:
     os.makedirs(os.path.dirname(SQLITE_PATH), exist_ok=True)
@@ -269,7 +299,7 @@ def _phone_hash(phone: str) -> str:
     return hashlib.sha256(f"{LOG_SALT}:{phone}".encode()).hexdigest()[:32]
 
 
-def _get_conversation_id(phone: str) -> Optional[str]:
+def _get_conversation_id(phone: str) -> str | None:
     conn = sqlite3.connect(SQLITE_PATH)
     row = conn.execute(
         "SELECT dify_conversation_id FROM conversations WHERE phone_hash = ?",
@@ -308,6 +338,7 @@ limiter = Limiter(key_func=get_remote_address, default_limits=[])
 # Meta Cloud API helpers
 # ============================================================================
 
+
 def _verify_meta_signature(raw_body: bytes, signature_header: str) -> bool:
     """Verifica HMAC-SHA256 del body con APP_SECRET de Meta."""
     if not META_APP_SECRET:
@@ -315,9 +346,7 @@ def _verify_meta_signature(raw_body: bytes, signature_header: str) -> bool:
         return False
     if not signature_header:
         return False
-    expected = "sha256=" + hmac.new(
-        META_APP_SECRET.encode(), raw_body, hashlib.sha256
-    ).hexdigest()
+    expected = "sha256=" + hmac.new(META_APP_SECRET.encode(), raw_body, hashlib.sha256).hexdigest()
     return hmac.compare_digest(expected, signature_header)
 
 
@@ -326,10 +355,7 @@ async def _send_whatsapp_message(phone: str, text: str) -> bool:
     if not META_ACCESS_TOKEN or not META_PHONE_NUMBER_ID:
         logger.error("META_ACCESS_TOKEN o META_PHONE_NUMBER_ID no configurados")
         return False
-    url = (
-        f"https://graph.facebook.com/{META_API_VERSION}"
-        f"/{META_PHONE_NUMBER_ID}/messages"
-    )
+    url = f"https://graph.facebook.com/{META_API_VERSION}" f"/{META_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {META_ACCESS_TOKEN}",
         "Content-Type": "application/json",
@@ -346,16 +372,219 @@ async def _send_whatsapp_message(phone: str, text: str) -> bool:
         if resp.status_code == 200:
             logger.info("Mensaje enviado a phone:%s (len=%d)", _phone_hash(phone)[:8], len(text))
             return True
-        logger.error(
-            "Meta send API error %d: %s", resp.status_code, resp.text[:200]
-        )
+        logger.error("Meta send API error %d: %s", resp.status_code, resp.text[:200])
         return False
     except httpx.HTTPError as e:
         logger.error("Error enviando a Meta: %s", e)
         return False
 
 
-async def _call_dify(query: str, phone: str, conv_id: Optional[str]) -> Optional[dict]:
+# ============================================================================
+# Mensajes interactivos (List Messages + Quick Reply Buttons) — Meta Cloud API
+# ============================================================================
+
+async def _send_whatsapp_interactive(
+    phone: str,
+    body_text: str,
+    interactive_type: str,
+    buttons: list = None,
+    list_sections: list = None,
+    button_text: str = "Ver opciones",
+    header_text: str = None,
+    footer_text: str = None,
+) -> bool:
+    """
+    Envía un mensaje interactivo (list o button) via Meta Graph API.
+
+    Args:
+        phone: teléfono del cliente
+        body_text: texto principal del mensaje
+        interactive_type: "list" o "button"
+        buttons: para "button" — lista de dicts {"id": str, "title": str} (máx 3)
+        list_sections: para "list" — lista de secciones con rows
+        button_text: para "list" — texto del botón "Ver opciones"
+        header_text: título opcional (máx 60 chars)
+        footer_text: pie opcional (máx 60 chars)
+    """
+    if not META_ACCESS_TOKEN or not META_PHONE_NUMBER_ID:
+        logger.error("META_ACCESS_TOKEN o META_PHONE_NUMBER_ID no configurados")
+        return False
+
+    url = (
+        f"https://graph.facebook.com/{META_API_VERSION}"
+        f"/{META_PHONE_NUMBER_ID}/messages"
+    )
+    headers = {
+        "Authorization": f"Bearer {META_ACCESS_TOKEN}",
+        "Content-Type": "application/json",
+    }
+
+    interactive = {"type": interactive_type, "body": {"text": body_text}}
+
+    if header_text:
+        interactive["header"] = {"type": "text", "text": header_text[:60]}
+    if footer_text:
+        interactive["footer"] = {"text": footer_text[:60]}
+
+    if interactive_type == "button":
+        # Quick Reply: máximo 3 botones
+        interactive["action"] = {
+            "buttons": [
+                {
+                    "type": "reply",
+                    "reply": {"id": b["id"], "title": b["title"][:20]},
+                }
+                for b in (buttons or [])[:3]
+            ]
+        }
+    elif interactive_type == "list":
+        interactive["action"] = {
+            "button": button_text[:20],
+            "sections": list_sections or [],
+        }
+    else:
+        logger.error("Tipo interactivo no soportado: %s", interactive_type)
+        return False
+
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": phone,
+        "type": "interactive",
+        "interactive": interactive,
+    }
+
+    try:
+        resp = await _http_client.post(url, headers=headers, json=payload, timeout=10)
+        if resp.status_code == 200:
+            logger.info(
+                "Mensaje interactivo (%s) enviado a phone:%s",
+                interactive_type,
+                _phone_hash(phone)[:8],
+            )
+            return True
+        logger.error(
+            "Meta send interactive error %d: %s",
+            resp.status_code,
+            resp.text[:200],
+        )
+        return False
+    except httpx.HTTPError as e:
+        logger.error("Error enviando interactivo a Meta: %s", e)
+        return False
+
+
+def _detect_message_type(answer: str) -> dict:
+    """
+    Analiza la respuesta de Valentina (Dify) y decide qué tipo de
+    mensaje interactivo enviar (si aplica).
+
+    Returns:
+        dict con claves:
+            - type: "text" | "list" | "button"
+            - body: texto a mostrar al cliente (puede ser recortado)
+            - buttons: para "button" — lista de botones
+            - list_sections: para "list" — secciones con rows
+            - button_text: para "list" — texto del botón principal
+    """
+    if not answer:
+        return {"type": "text"}
+
+    ans_lower = answer.lower()
+
+    # --- MENÚ PRINCIPAL (5 opciones) → List Message ---
+    # Detecta: "1️⃣ Recarga de botellones" + "2️⃣" + "5️⃣"
+    if "1️⃣" in answer and "5️⃣" in answer and ("opción" in ans_lower or "servirle" in ans_lower):
+        # Body limpio sin la lista de números (la lista va en las rows)
+        body = "¡Buen día! 👋 Soy Valentina de Estación H2O.\n¿En qué puedo servirle hoy?"
+        return {
+            "type": "list",
+            "body": body,
+            "button_text": "📋 Ver opciones",
+            "list_sections": [
+                {
+                    "title": "Menú principal",
+                    "rows": [
+                        {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                        {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
+                        {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                        {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                        {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                    ],
+                }
+            ],
+        }
+
+    # --- ¿Cuántos botellones? → Quick Reply con cantidades (mínimo 3) ---
+    if "cuántos botellones" in ans_lower and "cuántas bolsas" not in ans_lower:
+        return {
+            "type": "button",
+            "body": answer.split(".")[0] + ".",
+            "buttons": [
+                {"id": "3", "title": "3️⃣ 3 botellones"},
+                {"id": "4", "title": "4️⃣ 4 botellones"},
+                {"id": "custom_qty", "title": "✍️ Otra cantidad"},
+            ],
+        }
+
+    # --- ¿Cuántas bolsas de hielo? → Quick Reply con cantidades (mínimo 3) ---
+    if "cuántas bolsas" in ans_lower and "cuántos botellones" not in ans_lower:
+        return {
+            "type": "button",
+            "body": answer.split(".")[0] + ".",
+            "buttons": [
+                {"id": "3", "title": "3️⃣ 3 bolsas"},
+                {"id": "4", "title": "4️⃣ 4 bolsas"},
+                {"id": "custom_qty", "title": "✍️ Otra cantidad"},
+            ],
+        }
+
+    # --- ¿Cuántos botellones Y cuántas bolsas? (combinado) → combos frecuentes ---
+    if "cuántos botellones" in ans_lower and "cuántas bolsas" in ans_lower:
+        return {
+            "type": "button",
+            "body": answer.split(".")[0] + ".",
+            "buttons": [
+                {"id": "3 botellones y 2 bolsas", "title": "3️⃣ agua + 2️⃣ hielo"},
+                {"id": "4 botellones y 3 bolsas", "title": "4️⃣ agua + 3️⃣ hielo"},
+                {"id": "custom_combo", "title": "✍️ Otra combinación"},
+            ],
+        }
+
+    # --- ¿Cómo desea pagar? → Quick Reply Pago Móvil / Efectivo ---
+    if ("cómo desea pagar" in ans_lower or "como desea pagar" in ans_lower) and (
+        "pago móvil" in ans_lower or "efectivo" in ans_lower
+    ):
+        return {
+            "type": "button",
+            "body": answer.split("¿Cómo")[0].strip()
+            + "\n\n¿Cómo desea pagar?",
+            "buttons": [
+                {"id": "1", "title": "💳 Pago Móvil"},
+                {"id": "2", "title": "💵 Efectivo"},
+            ],
+        }
+
+    # --- Después de dar datos de cuenta → Quick Reply "Ya pagué" ---
+    if "envíe el comprobante" in ans_lower or "envie el comprobante" in ans_lower:
+        return {
+            "type": "button",
+            "body": answer,
+            "buttons": [
+                {"id": "ya_pague", "title": "✅ Ya pagué"},
+            ],
+        }
+
+    # --- "custom_qty" respondido por Dify (pidiendo número) ---
+    # Si Dify dice "escriba la cantidad" o similar, sin botones
+    if "escriba la cantidad" in ans_lower or "escribe la cantidad" in ans_lower:
+        return {"type": "text"}  # cliente debe escribir número
+
+    # --- Default: texto plano ---
+    return {"type": "text"}
+
+
+async def _call_dify(query: str, phone: str, conv_id: str | None) -> dict | None:
     """Llama al Chatflow de Dify y devuelve {answer, conversation_id}."""
     if not DIFY_API_KEY:
         logger.error("DIFY_API_KEY no configurada")
@@ -373,9 +602,7 @@ async def _call_dify(query: str, phone: str, conv_id: Optional[str]) -> Optional
     if conv_id:
         payload["conversation_id"] = conv_id
     try:
-        resp = await _http_client.post(
-            DIFY_API_URL, headers=headers, json=payload, timeout=30
-        )
+        resp = await _http_client.post(DIFY_API_URL, headers=headers, json=payload, timeout=30)
         if resp.status_code == 200:
             data = resp.json()
             return {
@@ -393,6 +620,7 @@ async def _call_dify(query: str, phone: str, conv_id: Optional[str]) -> Optional
 # Deduplicación
 # ============================================================================
 
+
 def _is_duplicate(message_id: str) -> bool:
     """True si el message_id ya fue procesado en los últimos 5 min."""
     now = time.time()
@@ -409,6 +637,7 @@ def _is_duplicate(message_id: str) -> bool:
 # ============================================================================
 # Telegram — alertas y kill switch
 # ============================================================================
+
 
 async def _send_telegram(message: str, parse_mode: str = "HTML") -> None:
     """Envía un mensaje de alerta al chat_id del Líder. No bloquea si falla."""
@@ -430,7 +659,7 @@ async def _alert_critical(title: str, detail: str) -> None:
     """Alerta crítica → Telegram + log error."""
     logger.error("🚨 CRÍTICA: %s — %s", title, detail)
     await _send_telegram(
-        f"🚨 <b>{title}</b>\n\n<code>{detail[:500]}</code>\n\n⏰ {datetime.now(timezone.utc).isoformat()}"
+        f"🚨 <b>{title}</b>\n\n<code>{detail[:500]}</code>\n\n⏰ {datetime.now(UTC).isoformat()}"
     )
 
 
@@ -442,6 +671,7 @@ def _is_kill_switch_active() -> bool:
 # ============================================================================
 # Parser de respuestas de Valentina → estructura de pedido para Google Sheets
 # ============================================================================
+
 
 def _build_order_payload(
     from_phone: str,
@@ -519,7 +749,7 @@ def _build_order_payload(
         payload["address"] = addr_match.group(1).strip()
         # Si la dirección contiene coordenadas, extraerlas
         coord_match = re.search(
-            r"coordenadas:\s*(-?\d+[.,]\d+)\s*,\s*(-?\d+[.,]\d+)",
+            r"(?:coordenadas:|GPS:)\s*(-?\d+[.,]?\d*)\s*,\s*(-?\d+[.,]?\d*)",
             payload["address"],
             re.IGNORECASE,
         )
@@ -546,6 +776,7 @@ def _build_order_payload(
 # FastAPI app
 # ============================================================================
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global _http_client, _telegram_bot
@@ -556,7 +787,9 @@ async def lifespan(app: FastAPI):
     if TELEGRAM_ENABLED:
         try:
             _telegram_bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
-            await _send_telegram("✅ <b>Valentina Bridge iniciado</b>\n\n💧 Estación H2O lista para atender.")
+            await _send_telegram(
+                "✅ <b>Valentina Bridge iniciado</b>\n\n💧 Estación H2O lista para atender."
+            )
             logger.info("Telegram alerts activadas (chat_id=%s)", TELEGRAM_CHAT_ID)
         except Exception as e:
             logger.warning("Telegram no disponible: %s", e)
@@ -575,7 +808,9 @@ async def lifespan(app: FastAPI):
     # Graceful shutdown
     logger.info("Cerrando conexiones...")
     if _telegram_bot:
-        await _send_telegram("⚠️ <b>Valentina Bridge detenido</b>\n\nLos mensajes no se responden temporalmente.")
+        await _send_telegram(
+            "⚠️ <b>Valentina Bridge detenido</b>\n\nLos mensajes no se responden temporalmente."
+        )
     await _http_client.aclose()
     logger.info("Valentina Bridge detenido")
 
@@ -753,6 +988,76 @@ async def meta_webhook(request: Request):
         DEDUP_HITS.inc()
         return JSONResponse({"status": "ignored", "reason": "duplicate"})
 
+    # Procesamos mensajes interactivos (button_reply, list_reply) como texto
+    if msg_type == "interactive":
+        interactive = msg.get("interactive", {})
+        int_type = interactive.get("type", "")
+        if int_type == "button_reply":
+            # Cliente tocó un botón Quick Reply
+            button_id = interactive.get("button_reply", {}).get("id", "")
+            button_title = interactive.get("button_reply", {}).get("title", "")
+            logger.info("🔘 Button reply: id=%s title=%s", button_id, button_title)
+
+            # Mapear IDs especiales a texto que Dify entiende
+            if button_id == "custom_qty":
+                # Bridge maneja localmente: NO llamar a Dify
+                from_phone_interactive = value.get("contacts", [{}])[0].get("wa_id", "")
+                if from_phone_interactive:
+                    await _send_whatsapp_message(
+                        from_phone_interactive,
+                        "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3).",
+                    )
+                MESSAGES_TOTAL.labels(status="ok").inc()
+                logger.info("✍️ custom_qty → pedido cantidad manual")
+                return JSONResponse({"status": "ok", "message_id": msg_id, "handled": "custom_qty"})
+
+            elif button_id == "custom_combo":
+                from_phone_interactive = value.get("contacts", [{}])[0].get("wa_id", "")
+                if from_phone_interactive:
+                    await _send_whatsapp_message(
+                        from_phone_interactive,
+                        "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas).",
+                    )
+                MESSAGES_TOTAL.labels(status="ok").inc()
+                logger.info("✍️ custom_combo → pedido cantidades manuales")
+                return JSONResponse({"status": "ok", "message_id": msg_id, "handled": "custom_combo"})
+
+            elif button_id == "ya_pague":
+                text_body = "ya pagué"
+            elif button_id in ("1", "2", "3", "4"):
+                # Cantidad o método de pago
+                text_body = button_id
+            else:
+                # Combinado: "3 botellones y 2 bolsas" etc
+                text_body = button_id
+
+            # Reescribir msg como texto para que el flujo continúa
+            msg["text"] = {"body": text_body}
+            msg_type = "text"
+            logger.info("📥 interactive button → text: %s", text_body[:30])
+
+        elif int_type == "list_reply":
+            # Cliente tocó una opción del List Message (menú principal)
+            list_id = interactive.get("list_reply", {}).get("id", "")
+            list_title = interactive.get("list_reply", {}).get("title", "")
+            logger.info("📋 List reply: id=%s title=%s", list_id, list_title)
+
+            # El ID de la lista es el número de opción (1-5)
+            text_body = list_id or list_title
+            msg["text"] = {"body": text_body}
+            msg_type = "text"
+            logger.info("📥 list reply → text: %s", text_body[:30])
+        else:
+            # Tipo interactivo desconocido, responder como texto
+            from_phone = value.get("contacts", [{}])[0].get("wa_id", "")
+            if from_phone:
+                await _send_whatsapp_message(
+                    from_phone,
+                    "Disculpe, no entendí. Por favor, envíe el número de la opción que desea (1-5).",
+                )
+            MESSAGES_TOTAL.labels(status="ignored").inc()
+            return JSONResponse({"status": "ignored", "reason": "interactive_unknown"})
+
     # Procesamos texto Y ubicaciones GPS (location). Otros tipos (image, audio)
     # se responden con un mensaje amable pidiendo texto.
     if msg_type == "location":
@@ -783,12 +1088,9 @@ async def meta_webhook(request: Request):
 
         # Convertir a texto que Dify procesará como si fuera la dirección
         text_body = "Mi ubicación: " + ", ".join(location_parts)
-        logger.info(
-            "📍 Ubicación GPS recibida de phone:%s lat=%s lng=%s",
+        logger.info("📍 GPS recibido - phone:%s lat=%f lng=%f",
             _phone_hash(value.get("contacts", [{}])[0].get("wa_id", ""))[:8],
-            latitude,
-            longitude,
-        )
+            latitude, longitude)
         # Marcar como texto para que el flujo continúe normal
         msg_type = "text"
         # Reescribir el mensaje para que el flujo de texto lo procese
@@ -815,7 +1117,9 @@ async def meta_webhook(request: Request):
         return JSONResponse({"status": "ignored", "reason": "missing_fields"})
 
     ph_short = _phone_hash(from_phone)[:8]
-    logger.info("📥 msg_from=phone:%s len=%d text_preview=%s", ph_short, len(text_body), text_body[:30])
+    logger.info(
+        "📥 msg_from=phone:%s len=%d text_preview=%s", ph_short, len(text_body), text_body[:30]
+    )
 
     # 4.5. GUARD DE HORARIO (determinístico, no depende del LLM)
     # Si está fuera de horario laboral (Lun-Sáb 8am-6pm America/Caracas),
@@ -834,7 +1138,12 @@ async def meta_webhook(request: Request):
             conn = sqlite3.connect(SQLITE_PATH)
             conn.execute(
                 "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",
-                (_phone_hash(from_phone), f"[FUERA HORARIO] {text_body[:200]}", "scheduled", time.time()),
+                (
+                    _phone_hash(from_phone),
+                    f"[FUERA HORARIO] {text_body[:200]}",
+                    "scheduled",
+                    time.time(),
+                ),
             )
             conn.commit()
             conn.close()
@@ -842,7 +1151,7 @@ async def meta_webhook(request: Request):
             logger.error("Error guardando mensaje fuera de horario: %s", e)
 
         # Enviar mensaje fuera de horario al cliente (sin consultar Dify)
-        sent = await _send_whatsapp_message(from_phone, OUT_OF_HOURS_MESSAGE)
+        sent = await _send_whatsapp_message(from_phone, _get_out_of_hours_message())
         if sent:
             MESSAGES_TOTAL.labels(status="ok").inc()
             META_SEND.labels(status="ok").inc()
@@ -853,11 +1162,13 @@ async def meta_webhook(request: Request):
             logger.error("No se pudo enviar mensaje fuera de horario a phone:%s", ph_short)
 
         RESPONSE_TIME.observe(time.time() - request_start)
-        return JSONResponse({
-            "status": "out_of_hours",
-            "message_id": msg_id,
-            "scheduled_for_tomorrow": True,
-        })
+        return JSONResponse(
+            {
+                "status": "out_of_hours",
+                "message_id": msg_id,
+                "scheduled_for_tomorrow": True,
+            }
+        )
 
     # 5. Llamar a Dify (solo si está dentro de horario)
     existing_conv = _get_conversation_id(from_phone)
@@ -889,7 +1200,26 @@ async def meta_webhook(request: Request):
         _save_conversation_id(from_phone, new_conv)
 
     # 7. Enviar respuesta al cliente via Meta
-    sent = await _send_whatsapp_message(from_phone, answer)
+    # Detectar si la respuesta de Valentina debe ir como botones interactivos
+    msg_type_info = _detect_message_type(answer)
+
+    if msg_type_info["type"] == "list":
+        sent = await _send_whatsapp_interactive(
+            from_phone,
+            msg_type_info["body"],
+            "list",
+            list_sections=msg_type_info.get("list_sections", []),
+            button_text=msg_type_info.get("button_text", "Ver opciones"),
+        )
+    elif msg_type_info["type"] == "button":
+        sent = await _send_whatsapp_interactive(
+            from_phone,
+            msg_type_info["body"],
+            "button",
+            buttons=msg_type_info.get("buttons", []),
+        )
+    else:
+        sent = await _send_whatsapp_message(from_phone, answer)
     if not sent:
         logger.error("No se pudo enviar respuesta a phone:%s", ph_short)
         META_SEND.labels(status="error").inc()
@@ -918,9 +1248,7 @@ async def meta_webhook(request: Request):
             ORDERS_TOTAL.inc()
             logger.info("Orden guardada en SQLite para phone:%s", ph_short)
             # Notificar al Líder del nuevo pedido
-            await _send_telegram(
-                f"💧 <b>Nuevo pedido</b>\n\n<code>{answer[:300]}</code>"
-            )
+            await _send_telegram(f"💧 <b>Nuevo pedido</b>\n\n<code>{answer[:300]}</code>")
 
             # --- Enviar a Google Sheets (no bloquea el webhook) ---
             order_payload = _build_order_payload(
@@ -931,6 +1259,7 @@ async def meta_webhook(request: Request):
             )
             try:
                 from skills.google_sheets import save_order_async
+
                 save_order_async(order_payload)
                 logger.info("Pedido enviado a Google Sheets para phone:%s", ph_short)
             except ImportError:
@@ -956,6 +1285,7 @@ async def meta_webhook(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(
         "bridge:app",
         host=BRIDGE_HOST,

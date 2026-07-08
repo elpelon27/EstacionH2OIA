@@ -1378,3 +1378,72 @@ Stage Summary:
 - 2 ADRs nuevos (PII_SAFE, Validacion_Pagos API bancaria)
 - Próximo paso: Lunes 8am guard se desactiva, primer pedido real en Google Sheet
 - Prometeo queda en standby. Cierre nocturno completado.
+
+---
+Task ID: 4-H (Cierre sesión Día 15 — Botones interactivos + 4 bugs detectados)
+Agent: Prometeo (Senior Full-Stack Engineer)
+Task: Cierre de jornada Día 15. Implementación botones interactivos WhatsApp (List + Quick Reply), fixes de cantidades mínimas, GPS, Google Sheets. 4 bugs detectados en pruebas reales. Cierre nocturno con deuda técnica documentada.
+
+Work Log:
+- Investigación "Valentina no respondió ayer" (Lunes):
+  * Causa raíz: URL Cloudflare cambió por reinicio servidor (corte eléctrico)
+  * URL vieja: strip-occupations-purple-scholars
+  * URL nueva: activists-platform-exclusively-breaks
+  * Meta seguía enviando webhooks a URL vieja → 0 POSTs recibidos
+- Actualización manual Meta Dashboard con URL nueva
+- Prueba de fuego exitosa con URL nueva (6 msgs end-to-end, venta cerrada)
+- 3 URLs diferentes en el día por cortes eléctricos (electronices-revolutionary, solution-debut, musician-readers)
+- Construcción cloudflare_url_watchdog.py:
+  * Detecta cambios de URL cada 5 min via systemd timer
+  * Registra cambios en /mnt/ssd_trabajo/hermes-agent/logs/url_changes.log
+  * (Futuro) Avisará por Telegram cuando TELEGRAM_BOT_TOKEN esté configurado
+  * Limitación: Meta NO permite actualizar webhook via API, solo manual
+- 4 fixes aplicados al bridge:
+  * Fix 1: sys.path para skills.google_sheets (import funciona)
+  * Fix 2: GPS log simplificado (no se corrompe)
+  * Fix 3: Parser coordenadas con fallback GPS:
+  * Fix 4: Guard de horario con mensaje dinámico (_get_out_of_hours_message)
+- Implementación botones interactivos WhatsApp (apply_interactive_patch.py):
+  * Función _send_whatsapp_interactive() — envía List Messages y Quick Reply
+  * Función _detect_message_type() — analiza respuesta Dify, decide tipo de mensaje
+  * Procesamiento interactive replies (button_reply, list_reply) en webhook POST
+  * Mapeo IDs: "1"-"5" (menú), "1"-"4" (cantidades), "custom_qty", "custom_combo", "ya_pague"
+- Botones ajustados a mínimos de negocio:
+  * Agua: [3️⃣ 3 botellones] [4️⃣ 4 botellones] [✍️ Otra cantidad]
+  * Hielo: [3️⃣ 3 bolsas] [4️⃣ 4 bolsas] [✍️ Otra cantidad]
+  * Combinado: [3️⃣ agua + 2️⃣ hielo] [4️⃣ agua + 3️⃣ hielo] [✍️ Otra combinación]
+  * Pago: [💳 Pago Móvil] [💵 Efectivo]
+  * Post-pago: [✅ Ya pagué]
+- Fix custom_qty y custom_combo manejados localmente por bridge (sin llamar a Dify)
+- Prompt Dify actualizado con:
+  * CASO B: mensajes compuestos (saludo + pedido en un mensaje)
+  * MÍNIMOS DE PEDIDO (3 botellones, 3 bolsas, combinado 3+2)
+  * MENSAJES INTERACTIVOS (manejo de custom_qty, custom_combo, ya_pague)
+  * EMPATÍA CON CLIENTE MAYOR (no palabras técnicas, respuestas cortas, tacto)
+- Google Sheets verificado funcionando:
+  * 5 filas con datos reales (pruebas)
+  * Coordenadas GPS visibles (10.682006, 10.682007)
+  * 17 columnas completas
+  * PII_SAFE=false (teléfonos reales)
+- 4 BUGS DETECTADOS en pruebas reales (deuda técnica Día 16):
+  * Bug 1 CRÍTICA: Cálculos incorrectos (3 recargas cobra €6 en vez de €3)
+  * Bug 2 ALTA: Mínimo 3 no se cumple (cliente pide 2, Valentina acepta)
+  * Bug 3 MEDIA: Botones pago no aparecen (cliente debe tipiar 1/2)
+  * Bug 4 MEDIA: Mensaje compuesto mal interpretado
+- Guard de horario restaurado (8am-6pm Lun-Sáb) tras pruebas
+- Horario de trabajo Líder registrado: Dom-Jue hasta 21:00, Vie-Sáb sin horario
+- Documento deuda técnica creado: /home/z/my-project/upload/DEUDA_TECNICA_DIA_15.md
+
+Stage Summary:
+- Botones interactivos IMPLEMENTADOS y funcionando en producción:
+  * Menú principal: List Message con 5 opciones ✅
+  * Cantidades: Quick Reply 3, 4, ✍️ ✅
+  * Combinado: Quick Reply 3+2, 4+3, ✍️ ✅
+  * Pago: Quick Reply Pago Móvil, Efectivo (parcial — Bug 3)
+  * Post-pago: ✅ Ya pagué ✅
+- Google Sheets FUNCIONANDO con GPS (5 filas, coordenadas correctas)
+- Watchdog URL Cloudflare activo (timer cada 5 min)
+- 4 bugs documentados como deuda técnica para Día 16 (80 min estimado)
+- Guard de horario restaurado a normalidad (8am-6pm Lun-Sáb)
+- Próxima sesión: arreglar 4 bugs + continuar plan trabajo
+- Prometeo queda en standby. Líder a descansar.

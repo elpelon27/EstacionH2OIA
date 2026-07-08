@@ -32,13 +32,13 @@ Columnas de la hoja "Pedidos" (mapeo decidido con el Líder, l.36597-36651):
   Q: Conversation ID→ Dify conversation_id (trazabilidad)
 
 Dependencias: gspread, google-auth (ver requirements.txt)
- """
+"""
 
-import os
 import logging
+import os
 import threading
-from typing import Optional, Dict, Any
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 logger = logging.getLogger("valentina_bridge.sheets")
 
@@ -88,9 +88,7 @@ def _get_client():
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
-        creds = Credentials.from_service_account_file(
-            GOOGLE_CREDENTIALS_PATH, scopes=scopes
-        )
+        creds = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_PATH, scopes=scopes)
         _sheets_client = gspread.authorize(creds)
         _spreadsheet = _sheets_client.open_by_key(GOOGLE_SPREADSHEET_ID)
         logger.info(
@@ -113,16 +111,30 @@ def _get_client():
 def _ensure_header(worksheet) -> None:
     """Asegura que la fila 1 tenga los headers correctos. Idempotente."""
     expected_headers = [
-        "Fecha", "Hora", "Cliente", "Telefono", "Producto",
-        "Cant Botellones", "Cant Hielo", "Direccion", "GPS",
-        "Monto EUR", "Metodo Pago", "Pagado", "Frecuencia",
-        "Credito", "Estado", "Phone Hash", "Conversation ID",
+        "Fecha",
+        "Hora",
+        "Cliente",
+        "Telefono",
+        "Producto",
+        "Cant Botellones",
+        "Cant Hielo",
+        "Direccion",
+        "GPS",
+        "Monto EUR",
+        "Metodo Pago",
+        "Pagado",
+        "Frecuencia",
+        "Credito",
+        "Estado",
+        "Phone Hash",
+        "Conversation ID",
     ]
     try:
         current = worksheet.row_values(1)
         if current != expected_headers:
             # Actualizar solo si difiere
             from gspread.utils import rowcol_to_a1
+
             range_str = f"A1:{rowcol_to_a1(1, len(expected_headers))}"
             worksheet.update(range_str, [expected_headers])
             logger.info("Headers de Google Sheets actualizados")
@@ -136,15 +148,13 @@ def _get_or_create_worksheet(spreadsheet):
         return spreadsheet.worksheet(GOOGLE_SHEET_NAME)
     except Exception:
         # La hoja no existe, crearla
-        worksheet = spreadsheet.add_worksheet(
-            title=GOOGLE_SHEET_NAME, rows=1000, cols=20
-        )
+        worksheet = spreadsheet.add_worksheet(title=GOOGLE_SHEET_NAME, rows=1000, cols=20)
         _ensure_header(worksheet)
         logger.info("Hoja '%s' creada en Google Sheets", GOOGLE_SHEET_NAME)
         return worksheet
 
 
-def save_order_to_sheets(order_data: Dict[str, Any]) -> bool:
+def save_order_to_sheets(order_data: dict[str, Any]) -> bool:
     """
     Guarda un pedido en Google Sheets. No bloquea el webhook (best-effort).
 
@@ -201,23 +211,23 @@ def save_order_to_sheets(order_data: Dict[str, Any]) -> bool:
     telefono_display = order_data.get("phone_hash", "") if pii_safe else order_data.get("phone", "")
 
     row = [
-        fecha,                                          # A: Fecha
-        hora,                                           # B: Hora
-        order_data.get("contact_name", ""),             # C: Cliente
-        telefono_display,                               # D: Telefono
-        order_data.get("product_type", ""),             # E: Producto
-        order_data.get("qty_botellones", 0),            # F: Cant Botellones
-        order_data.get("qty_hielo", 0),                 # G: Cant Hielo
-        address,                                        # H: Direccion
-        gps_url,                                        # I: GPS
-        order_data.get("total_eur", 0.0),               # J: Monto EUR
-        order_data.get("payment_method", ""),           # K: Metodo Pago
-        "PENDIENTE",                                    # L: Pagado (lo cierra financial)
-        "",                                             # M: Frecuencia (agente fidelización)
-        "",                                             # N: Credito (financial si no paga)
-        "registrado",                                   # O: Estado
-        order_data.get("phone_hash", ""),               # P: Phone Hash
-        order_data.get("conversation_id", ""),          # Q: Conversation ID
+        fecha,  # A: Fecha
+        hora,  # B: Hora
+        order_data.get("contact_name", ""),  # C: Cliente
+        telefono_display,  # D: Telefono
+        order_data.get("product_type", ""),  # E: Producto
+        order_data.get("qty_botellones", 0),  # F: Cant Botellones
+        order_data.get("qty_hielo", 0),  # G: Cant Hielo
+        address,  # H: Direccion
+        gps_url,  # I: GPS
+        order_data.get("total_eur", 0.0),  # J: Monto EUR
+        order_data.get("payment_method", ""),  # K: Metodo Pago
+        "PENDIENTE",  # L: Pagado (lo cierra financial)
+        "",  # M: Frecuencia (agente fidelización)
+        "",  # N: Credito (financial si no paga)
+        "registrado",  # O: Estado
+        order_data.get("phone_hash", ""),  # P: Phone Hash
+        order_data.get("conversation_id", ""),  # Q: Conversation ID
     ]
 
     try:
@@ -234,7 +244,7 @@ def save_order_to_sheets(order_data: Dict[str, Any]) -> bool:
         return False
 
 
-def save_order_async(order_data: Dict[str, Any]) -> None:
+def save_order_async(order_data: dict[str, Any]) -> None:
     """
     Wrapper no bloqueante: lanza save_order_to_sheets en un thread daemon.
     El webhook POST responde 200 inmediatamente sin esperar a Google Sheets.
