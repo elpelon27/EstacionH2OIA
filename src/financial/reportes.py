@@ -75,9 +75,9 @@ async def generar_reporte_diario() -> ReporteDiario:
     cobranzas = get_resumen_cobranzas()
 
     # Construir reporte
-    ventas_eur = ventas["total_eur"] or 0 if ventas else 0
-    cobros_eur = cobros["total_cobros_eur"] or 0 if cobros else 0
-    por_cobrar_eur = por_cobrar["total"] or 0 if por_cobrar else 0
+    ventas_eur = (ventas["total_eur"] or 0) if ventas else 0
+    cobros_eur = (cobros["total_cobros_eur"] or 0) if cobros else 0
+    por_cobrar_eur = (por_cobrar["total"] or 0) if por_cobrar else 0
 
     ventas_ves = convert_eur_to_ves(ventas_eur, tasa) if tasa else 0
     cobros_ves = convert_eur_to_ves(cobros_eur, tasa) if tasa else 0
