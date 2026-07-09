@@ -682,6 +682,504 @@ def _is_kill_switch_active() -> bool:
 # ============================================================================
 
 
+# ============================================================================
+# BRIDGE DETERMINÍSTICO — Máquina de estados sin Dify (latencia <1s)
+# ============================================================================
+
+# State tracking por teléfono: phone_hash -> estado de conversación
+_conversation_state: dict = {}
+
+# Precios oficiales
+PRECIO_BOTELLON = 1.00
+PRECIO_HIELO = 1.20
+
+# Datos bancarios
+BANK_DATA = (
+    "Perfecto. Datos para su pago:\n\n"
+    "🏦 Banco: R4, Banco Microfinanciero 0169\n"
+    "💳 Cuenta: 0169 0010 9710 0159 1583\n"
+    "🆔 RIF: J-506356899\n"
+    "📱 Pago Móvil: +58 412-2560721\n"
+    "💰 Total: €{total:.2f} (Bs. al cambio BCV del día)\n\n"
+    "Envíe el comprobante de pago por aquí. ¡Gracias! 💧"
+)
+
+OUT_OF_HOURS_MSG = "¡Hola! 👋 En este momento estamos fuera de horario (Lun-Sáb, 8am-6pm)."
+
+
+def _get_state(ph_hash: str) -> dict:
+    """Obtiene el estado conversacional del teléfono."""
+    return _conversation_state.get(ph_hash, {"state": None})
+
+
+def _set_state(ph_hash: str, state: dict) -> None:
+    """Guarda el estado conversacional."""
+    _conversation_state[ph_hash] = state
+
+
+def _clear_state(ph_hash: str) -> None:
+    """Limpia el estado (pedido completado o reinicio)."""
+    _conversation_state.pop(ph_hash, None)
+
+
+def _calc_total(qty_bot: int, qty_hielo: int) -> float:
+    """Calcula total determinístico."""
+    return round((qty_bot * PRECIO_BOTELLON) + (qty_hielo * PRECIO_HIELO), 2)
+
+
+def _format_product_desc(qty_bot: int, qty_hielo: int) -> str:
+    """Formatea descripción del producto para confirmación."""
+    parts = []
+    if qty_bot > 0:
+        parts.append(f"{qty_bot} botellones de agua")
+    if qty_hielo > 0:
+        parts.append(f"{qty_hielo} bolsas de hielo")
+    return " y ".join(parts) if parts else "productos"
+
+
+def _handle_deterministic(
+    ph_hash: str,
+    text_body: str,
+    from_phone: str,
+    contact_name: str,
+    msg: dict,
+    value: dict,
+) -> dict | None:
+    """
+    Maneja la conversación determinísticamente (sin Dify).
+    Returns: dict con 'answer' (str) y opcional 'interactive' (dict), o None si debe delegar a Dify.
+    """
+    state = _get_state(ph_hash)
+    current_state = state.get("state")
+    text_lower = text_body.lower().strip()
+
+    # Detectar si viene de botón interactivo
+    is_interactive = msg.get("type") == "interactive" or msg.get("_was_interactive", False)
+
+    # ====================================================================
+    # ESTADO: None (nueva conversación) o completed
+    # ====================================================================
+    if current_state is None or current_state == "completed":
+        # Detectar saludo
+        greetings = ["hola", "buenas", "buenos dias", "buen dia", "buenas tardes",
+                      "buenas noches", "saludos", "hey", "que mas", "q mas"]
+        if any(text_lower.startswith(g) for g in greetings) or text_lower in greetings:
+            _clear_state(ph_hash)
+            _set_state(ph_hash, {"state": "menu_sent"})
+            return {
+                "answer": "¡Buen día! 👋 Soy Valentina de Estación H2O. ¿En qué puedo servirle hoy?",
+                "interactive": {
+                    "type": "list",
+                    "body": "¡Buen día! 👋 Soy Valentina de Estación H2O.\n¿En qué puedo servirle hoy?",
+                    "button_text": "📋 Ver opciones",
+                    "list_sections": [{
+                        "title": "Menú principal",
+                        "rows": [
+                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
+                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                        ],
+                    }],
+                }
+            }
+        # Si no es saludo y no hay estado, delegar a Dify
+        return None
+
+    # ====================================================================
+    # ESTADO: menu_sent (cliente debe seleccionar opción 1-5)
+    # ====================================================================
+    if current_state == "menu_sent":
+        # Opción 1: Recarga de botellones
+        if text_body.strip() == "1":
+            _set_state(ph_hash, {"state": "awaiting_qty_agua"})
+            return {
+                "answer": "¿Cuántos botellones de agua desea recargar?",
+                "interactive": {
+                    "type": "button",
+                    "body": "¿Cuántos botellones de agua desea recargar?",
+                    "buttons": [
+                        {"id": "3", "title": "3️⃣ 3 botellones"},
+                        {"id": "4", "title": "4️⃣ 4 botellones"},
+                        {"id": "custom_qty", "title": "✍️ Otra cantidad"},
+                    ],
+                }
+            }
+
+        # Opción 2: Pedido de hielo
+        if text_body.strip() == "2":
+            _set_state(ph_hash, {"state": "awaiting_qty_hielo"})
+            return {
+                "answer": "¿Cuántas bolsas de hielo necesita?",
+                "interactive": {
+                    "type": "button",
+                    "body": "¿Cuántas bolsas de hielo necesita?",
+                    "buttons": [
+                        {"id": "3", "title": "3️⃣ 3 bolsas"},
+                        {"id": "4", "title": "4️⃣ 4 bolsas"},
+                        {"id": "custom_qty", "title": "✍️ Otra cantidad"},
+                    ],
+                }
+            }
+
+        # Opción 3: Pedido combinado
+        if text_body.strip() == "3":
+            _set_state(ph_hash, {"state": "awaiting_qty_combo"})
+            return {
+                "answer": "¿Cuántos botellones de agua y cuántas bolsas de hielo necesita?",
+                "interactive": {
+                    "type": "button",
+                    "body": "¿Cuántos botellones de agua y cuántas bolsas de hielo necesita?",
+                    "buttons": [
+                        {"id": "3 botellones y 2 bolsas", "title": "3️⃣ agua + 2️⃣ hielo"},
+                        {"id": "4 botellones y 3 bolsas", "title": "4️⃣ agua + 3️⃣ hielo"},
+                        {"id": "custom_combo", "title": "✍️ Otra combinación"},
+                    ],
+                }
+            }
+
+        # Opción 4: Consultar estado → delegar a Dify
+        if text_body.strip() == "4":
+            return None  # Dify maneja
+
+        # Opción 5: Otra consulta → delegar a Dify
+        if text_body.strip() == "5":
+            return None  # Dify maneja
+
+        # Si no es 1-5, delegar a Dify (puede ser mensaje compuesto)
+        return None
+
+    # ====================================================================
+    # ESTADO: awaiting_qty_agua (cliente debe enviar cantidad de botellones)
+    # ====================================================================
+    if current_state == "awaiting_qty_agua":
+        if text_body.strip() == "custom_qty":
+            _set_state(ph_hash, {"state": "awaiting_custom_qty_agua"})
+            return {"answer": "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3)."}
+
+        qty_match = re.match(r"^(\d+)$", text_body.strip())
+        if qty_match:
+            qty = int(qty_match.group(1))
+            if qty < 3:
+                return {
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                    "interactive": {
+                        "type": "button",
+                        "body": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                        "buttons": [
+                            {"id": "3", "title": "3️⃣ 3 botellones"},
+                            {"id": "4", "title": "4️⃣ 4 botellones"},
+                            {"id": "custom_qty", "title": "✍️ Otra cantidad"},
+                        ],
+                    }
+                }
+            # Cantidad válida → pedir dirección
+            new_state = state.copy()
+            new_state["state"] = "awaiting_address"
+            new_state["qty_botellones"] = qty
+            new_state["qty_hielo"] = 0
+            _set_state(ph_hash, new_state)
+            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+
+        return None  # Delegar a Dify
+
+    # ====================================================================
+    # ESTADO: awaiting_custom_qty_agua (cliente debe escribir número)
+    # ====================================================================
+    if current_state == "awaiting_custom_qty_agua":
+        qty_match = re.match(r"^(\d+)$", text_body.strip())
+        if qty_match:
+            qty = int(qty_match.group(1))
+            if qty < 3:
+                return {"answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"}
+            new_state = state.copy()
+            new_state["state"] = "awaiting_address"
+            new_state["qty_botellones"] = qty
+            new_state["qty_hielo"] = 0
+            _set_state(ph_hash, new_state)
+            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+        return None
+
+    # ====================================================================
+    # ESTADO: awaiting_qty_hielo (cliente debe enviar cantidad de hielo)
+    # ====================================================================
+    if current_state == "awaiting_qty_hielo":
+        if text_body.strip() == "custom_qty":
+            _set_state(ph_hash, {"state": "awaiting_custom_qty_hielo"})
+            return {"answer": "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3)."}
+
+        qty_match = re.match(r"^(\d+)$", text_body.strip())
+        if qty_match:
+            qty = int(qty_match.group(1))
+            if qty < 3:
+                return {
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                    "interactive": {
+                        "type": "button",
+                        "body": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                        "buttons": [
+                            {"id": "3", "title": "3️⃣ 3 bolsas"},
+                            {"id": "4", "title": "4️⃣ 4 bolsas"},
+                            {"id": "custom_qty", "title": "✍️ Otra cantidad"},
+                        ],
+                    }
+                }
+            new_state = state.copy()
+            new_state["state"] = "awaiting_address"
+            new_state["qty_hielo"] = qty
+            new_state["qty_botellones"] = 0
+            _set_state(ph_hash, new_state)
+            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+
+        return None
+
+    # ====================================================================
+    # ESTADO: awaiting_custom_qty_hielo
+    # ====================================================================
+    if current_state == "awaiting_custom_qty_hielo":
+        qty_match = re.match(r"^(\d+)$", text_body.strip())
+        if qty_match:
+            qty = int(qty_match.group(1))
+            if qty < 3:
+                return {"answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"}
+            new_state = state.copy()
+            new_state["state"] = "awaiting_address"
+            new_state["qty_hielo"] = qty
+            new_state["qty_botellones"] = 0
+            _set_state(ph_hash, new_state)
+            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+        return None
+
+    # ====================================================================
+    # ESTADO: awaiting_qty_combo (cliente debe enviar cantidades combinadas)
+    # ====================================================================
+    if current_state == "awaiting_qty_combo":
+        if text_body.strip() == "custom_combo":
+            _set_state(ph_hash, {"state": "awaiting_custom_combo"})
+            return {"answer": "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas)."}
+
+        # Intentar parsear "3 botellones y 2 bolsas"
+        bot_match = re.search(r"(\d+)\s*botellones?", text_lower)
+        hielo_match = re.search(r"(\d+)\s*bolsas?", text_lower)
+        if bot_match and hielo_match:
+            qty_bot = int(bot_match.group(1))
+            qty_hielo = int(hielo_match.group(1))
+            if qty_bot < 3 or qty_hielo < 2:
+                return {"answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."}
+            new_state = state.copy()
+            new_state["state"] = "awaiting_address"
+            new_state["qty_botellones"] = qty_bot
+            new_state["qty_hielo"] = qty_hielo
+            _set_state(ph_hash, new_state)
+            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+
+        return None
+
+    # ====================================================================
+    # ESTADO: awaiting_custom_combo
+    # ====================================================================
+    if current_state == "awaiting_custom_combo":
+        bot_match = re.search(r"(\d+)\s*botellones?", text_lower)
+        hielo_match = re.search(r"(\d+)\s*bolsas?", text_lower)
+        if bot_match and hielo_match:
+            qty_bot = int(bot_match.group(1))
+            qty_hielo = int(hielo_match.group(1))
+            if qty_bot < 3 or qty_hielo < 2:
+                return {"answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."}
+            new_state = state.copy()
+            new_state["state"] = "awaiting_address"
+            new_state["qty_botellones"] = qty_bot
+            new_state["qty_hielo"] = qty_hielo
+            _set_state(ph_hash, new_state)
+            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+        return None
+
+    # ====================================================================
+    # ESTADO: awaiting_address (cliente debe enviar dirección o GPS)
+    # ====================================================================
+    if current_state == "awaiting_address":
+        # Si viene GPS (location), extraer coordenadas
+        latitude = None
+        longitude = None
+        if msg.get("type") == "location":
+            loc = msg.get("location", {})
+            latitude = loc.get("latitude")
+            longitude = loc.get("longitude")
+            loc_name = loc.get("name", "")
+            loc_addr = loc.get("address", "")
+            addr_parts = []
+            if loc_addr:
+                addr_parts.append(loc_addr)
+            if loc_name:
+                addr_parts.append(loc_name)
+            if not addr_parts:
+                addr_parts.append(f"GPS: {latitude}, {longitude}")
+            addr_parts.append(f"(coordenadas: {latitude}, {longitude})")
+            address = "Mi ubicación: " + ", ".join(addr_parts)
+        else:
+            # Texto libre
+            address = text_body.strip()
+            # Verificar si contiene coordenadas
+            coord_match = re.search(r"(?:coordenadas:|GPS:)\s*(-?\d+[.,]?\d*)\s*,\s*(-?\d+[.,]?\d*)", address, re.IGNORECASE)
+            if coord_match:
+                try:
+                    latitude = float(coord_match.group(1).replace(",", "."))
+                    longitude = float(coord_match.group(2).replace(",", "."))
+                except ValueError:
+                    pass
+
+        if len(address) < 5:
+            return {"answer": "Disculpe, necesito su ubicación. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+
+        # Guardar dirección + calcular total + confirmar pedido
+        qty_bot = state.get("qty_botellones", 0)
+        qty_hielo = state.get("qty_hielo", 0)
+        total = _calc_total(qty_bot, qty_hielo)
+        product_desc = _format_product_desc(qty_bot, qty_hielo)
+
+        new_state = state.copy()
+        new_state["state"] = "awaiting_payment"
+        new_state["address"] = address
+        new_state["latitude"] = latitude
+        new_state["longitude"] = longitude
+        new_state["total_eur"] = total
+        new_state["contact_name"] = contact_name
+        _set_state(ph_hash, new_state)
+
+        # Guardar en SQLite + Google Sheets
+        _save_order_to_db_and_sheets(from_phone, ph_hash, contact_name, qty_bot, qty_hielo, address, latitude, longitude, total, new_state.get("conversation_id", ""))
+
+        confirm_msg = (
+            f"✅ Pedido confirmado: {product_desc}. Dirección: {address}.\n\n"
+            f"💰 Total: €{total:.2f} (págalo en bolívares al cambio BCV del día).\n\n"
+            f"¿Cómo desea pagar?"
+        )
+        return {
+            "answer": confirm_msg,
+            "interactive": {
+                "type": "button",
+                "body": confirm_msg,
+                "buttons": [
+                    {"id": "1", "title": "💳 Pago Móvil"},
+                    {"id": "2", "title": "💵 Efectivo"},
+                ],
+            }
+        }
+
+    # ====================================================================
+    # ESTADO: awaiting_payment (cliente debe elegir 1 o 2)
+    # ====================================================================
+    if current_state == "awaiting_payment":
+        total = state.get("total_eur", 0.0)
+
+        if text_body.strip() == "1":
+            # Pago Móvil
+            new_state = state.copy()
+            new_state["state"] = "awaiting_confirmation"
+            new_state["payment_method"] = "Pago Móvil"
+            _set_state(ph_hash, new_state)
+            return {
+                "answer": BANK_DATA.format(total=total),
+                "interactive": {
+                    "type": "button",
+                    "body": BANK_DATA.format(total=total),
+                    "buttons": [
+                        {"id": "ya_pague", "title": "✅ Ya pagué"},
+                    ],
+                }
+            }
+
+        if text_body.strip() == "2":
+            # Efectivo
+            new_state = state.copy()
+            new_state["state"] = "completed"
+            new_state["payment_method"] = "Efectivo"
+            _set_state(ph_hash, new_state)
+            _clear_state(ph_hash)
+            return {"answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. al cambio BCV del día)\n\nEl chofer va en camino. ¡Gracias! 💧"}
+
+        return {"answer": "Por favor, seleccione una opción de pago: 1️⃣ Pago Móvil o 2️⃣ Efectivo."}
+
+    # ====================================================================
+    # ESTADO: awaiting_confirmation (cliente debe enviar "ya pagué")
+    # ====================================================================
+    if current_state == "awaiting_confirmation":
+        if text_lower in ["ya pagué", "ya pague", "ya pagué.", "ya pague.", "pagué", "pague", "listo", "ya"]:
+            _clear_state(ph_hash)
+            return {"answer": "¡Gracias por su compra! 🎉 Su pedido está confirmado y en camino. El chofer le contactará pronto. 💧"}
+
+        # Si envía otra cosa, reenviar botón
+        total = state.get("total_eur", 0.0)
+        return {
+            "answer": BANK_DATA.format(total=total),
+            "interactive": {
+                "type": "button",
+                "body": BANK_DATA.format(total=total),
+                "buttons": [
+                    {"id": "ya_pague", "title": "✅ Ya pagué"},
+                ],
+            }
+        }
+
+    # Si no matchea ningún estado, delegar a Dify
+    return None
+
+
+def _save_order_to_db_and_sheets(
+    from_phone: str, ph_hash: str, contact_name: str,
+    qty_bot: int, qty_hielo: int, address: str,
+    latitude, longitude, total: float, conversation_id: str
+):
+    """Guarda el pedido en SQLite + Google Sheets (no bloqueante)."""
+    import sqlite3
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        product_desc = _format_product_desc(qty_bot, qty_hielo)
+        conn.execute(
+            "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",
+            (ph_hash, f"✅ Pedido confirmado: {product_desc}. Total: €{total:.2f}", "pending", time.time()),
+        )
+        conn.commit()
+        conn.close()
+        ORDERS_TOTAL.inc()
+        logger.info("Orden guardada en SQLite para phone:%s total=€%.2f", ph_hash[:8], total)
+    except sqlite3.Error as e:
+        logger.error("Error guardando orden SQLite: %s", e)
+
+    # Guardar en _last_order_totals para compatibilidad
+    _last_order_totals[ph_hash] = {
+        "total": total,
+        "qty_bot": qty_bot,
+        "qty_hielo": qty_hielo,
+    }
+
+    # Google Sheets async
+    order_payload = {
+        "phone": from_phone,
+        "phone_hash": ph_hash,
+        "contact_name": contact_name,
+        "product_type": "Combinado" if qty_bot > 0 and qty_hielo > 0 else ("Botellones" if qty_bot > 0 else "Hielo"),
+        "qty_botellones": qty_bot,
+        "qty_hielo": qty_hielo,
+        "address": address,
+        "latitude": latitude,
+        "longitude": longitude,
+        "total_eur": total,
+        "payment_method": "",
+        "conversation_id": conversation_id,
+        "raw_answer": f"✅ Pedido confirmado: {_format_product_desc(qty_bot, qty_hielo)}. Total: €{total:.2f}",
+    }
+    try:
+        from skills.google_sheets import save_order_async
+        save_order_async(order_payload)
+        logger.info("Pedido enviado a Google Sheets para phone:%s", ph_hash[:8])
+    except Exception as gs_err:
+        logger.error("Error enviando a Google Sheets: %s", gs_err)
+
+
+
+
 def _fix_total_in_response(answer: str, payload: dict) -> str:
     """
     Reemplaza el total en la respuesta de Valentina por el cálculo
@@ -1169,6 +1667,7 @@ async def meta_webhook(request: Request):
         return JSONResponse({"status": "ignored", "reason": "missing_fields"})
 
     ph_short = _phone_hash(from_phone)[:8]
+    ph_short_full = _phone_hash(from_phone)
     logger.info(
         "📥 msg_from=phone:%s len=%d text_preview=%s", ph_short, len(text_body), text_body[:30]
     )
@@ -1240,7 +1739,49 @@ async def meta_webhook(request: Request):
             }
         )
 
-    # 5. Llamar a Dify (solo si está dentro de horario)
+    # 5. INTENTAR FLUJO DETERMINÍSTICO PRIMERO (latencia <1s)
+    # Si el bridge puede manejar el mensaje sin Dify, lo hace
+    contact_name = value.get("contacts", [{}])[0].get("profile", {}).get("name", "")
+    det_result = _handle_deterministic(ph_short_full, text_body, from_phone, contact_name, msg, value)
+
+    if det_result is not None:
+        # El bridge manejó el mensaje determinísticamente
+        answer = det_result["answer"]
+        interactive = det_result.get("interactive")
+
+        logger.info("⚡ Respuesta determinística para phone:%s (state=%s)", ph_short, _get_state(ph_short_full).get("state"))
+
+        # Enviar respuesta (interactiva o texto)
+        if interactive:
+            if interactive["type"] == "list":
+                sent = await _send_whatsapp_interactive(
+                    from_phone, interactive["body"], "list",
+                    list_sections=interactive.get("list_sections", []),
+                    button_text=interactive.get("button_text", "Ver opciones"),
+                )
+            elif interactive["type"] == "button":
+                sent = await _send_whatsapp_interactive(
+                    from_phone, interactive["body"], "button",
+                    buttons=interactive.get("buttons", []),
+                )
+            else:
+                sent = await _send_whatsapp_message(from_phone, answer)
+        else:
+            sent = await _send_whatsapp_message(from_phone, answer)
+
+        if sent:
+            MESSAGES_TOTAL.labels(status="ok").inc()
+            META_SEND.labels(status="ok").inc()
+            RESPONSE_TIME.observe(time.time() - request_start)
+            logger.info("⚡ Mensaje determinístico enviado a phone:%s (len=%d)", ph_short, len(answer))
+        else:
+            MESSAGES_TOTAL.labels(status="error").inc()
+            META_SEND.labels(status="error").inc()
+
+        return JSONResponse({"status": "ok", "message_id": msg_id, "mode": "deterministic"})
+
+    # 6. Si el bridge NO pudo manejarlo, llamar a Dify (para opción 4, 5, o mensajes inesperados)
+    logger.info("🤖 Delegando a Dify para phone:%s (no determinístico)", ph_short)
     existing_conv = _get_conversation_id(from_phone)
     dify_result = await _call_dify(text_body, from_phone, existing_conv)
 
