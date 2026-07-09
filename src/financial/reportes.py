@@ -36,6 +36,9 @@ async def generar_reporte_diario() -> ReporteDiario:
 
     # Obtener tasa
     tasa = await get_eur_ves_rate()
+    if tasa is None:
+        tasa = 0.0
+        logger.warning("Tasa EUR/VES no disponible, usando 0")
 
     # Consultar pedidos del día
     with db.get_db() as conn:
