@@ -67,7 +67,7 @@ async def get_eur_ves_rate() -> Optional[float]:
 async def _try_frankfurter() -> Optional[float]:
     """Intenta obtener EUR/VES directo de frankfurter.app."""
     try:
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             # frankfurter puede no soportar VES directo, intentar
             resp = await client.get(
                 f"{FRANKFURTER_URL}/latest",
@@ -105,7 +105,7 @@ async def _try_bcv_calculation() -> Optional[float]:
         if not eur_usd_tasa:
             # Intentar frankfurter de nuevo
             try:
-                async with httpx.AsyncClient() as client:
+                async with httpx.AsyncClient(follow_redirects=True) as client:
                     resp = await client.get(
                         f"{FRANKFURTER_URL}/latest",
                         params={"from": "EUR", "to": "USD"},
@@ -142,7 +142,7 @@ async def _get_bcv_usd_ves() -> Optional[float]:
     """Obtiene USD/VES del BCV."""
     try:
         # Intentar API pública BCV
-        async with httpx.AsyncClient() as client:
+        async with httpx.AsyncClient(follow_redirects=True) as client:
             resp = await client.get(
                 "https://bcv-exchange-rates.vercel.app/api/rates",
                 timeout=10,
