@@ -127,7 +127,7 @@ def formatear_reporte_telegram(reporte: ReporteDiario, tasa_str: str) -> str:
     ]
 
     # Agregar morosos si hay
-    if reporte.num_morosos > 0:
+    if (reporte.num_morosos or 0) > 0:
         lineas.append(f"\n🚨 <b>Clientes morosos: {reporte.num_morosos}</b>")
 
     lineas.append(f"\n━━━━━━━━━━━━━━━━━━")
