@@ -40,6 +40,21 @@ from datetime import UTC, datetime, timedelta, timezone
 import sys
 sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
 
+# Financial Shield integration
+try:
+    from src.agents.financial_agent import get_agent as get_fs_agent
+    _fs_agent = None  # Lazy init
+    def _get_fs():
+        global _fs_agent
+        if _fs_agent is None:
+            _fs_agent = get_fs_agent()
+            _fs_agent.init()
+        return _fs_agent
+except Exception as e:
+    _fs_agent = None
+    def _get_fs():
+        return None
+
 
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -763,7 +778,48 @@ def _handle_deterministic(
         # Detectar saludo
         greetings = ["hola", "buenas", "buenos dias", "buen dia", "buenas tardes",
                       "buenas noches", "saludos", "hey", "que mas", "q mas"]
-        if any(text_lower.startswith(g) for g in greetings) or text_lower in greetings:
+        has_greeting = any(text_lower.startswith(g) for g in greetings) or text_lower in greetings
+
+        # Bug 4 fix: Detectar mensaje compuesto (saludo + pedido)
+        # Ej: "buenas me envían 3 recargas" → agua + cantidad 3
+        # Ej: "hola, 2 bolsas de hielo" → hielo + cantidad 2
+        # Ej: "buenas, 3 botellones y 2 hielo" → combinado
+        botellones_match = re.search(r"(\d+)\s*(botellones?|recargas?|agua)", text_lower)
+        hielo_match = re.search(r"(\d+)\s*(bolsas?|hielo)", text_lower)
+
+        # Pedido combinado detectado
+        if botellones_match and hielo_match:
+            qty_bot = int(botellones_match.group(1))
+            qty_hielo = int(hielo_match.group(1))
+            if qty_bot < 3 or qty_hielo < 2:
+                greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
+                return {"answer": f"{greeting_prefix}Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."}
+            _set_state(ph_hash, {"state": "awaiting_address", "qty_botellones": qty_bot, "qty_hielo": qty_hielo})
+            greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
+            return {"answer": f"{greeting_prefix}Perfecto, {qty_bot} botellones de agua y {qty_hielo} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+
+        # Pedido de agua detectado
+        elif botellones_match:
+            qty = int(botellones_match.group(1))
+            if qty < 3:
+                greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
+                return {"answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 botellones. ¿Desea pedir 3 o más?"}
+            _set_state(ph_hash, {"state": "awaiting_address", "qty_botellones": qty, "qty_hielo": 0})
+            greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
+            return {"answer": f"{greeting_prefix}Perfecto, {qty} botellones de agua. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+
+        # Pedido de hielo detectado
+        elif hielo_match:
+            qty = int(hielo_match.group(1))
+            if qty < 3:
+                greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
+                return {"answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 bolsas de hielo. ¿Desea pedir 3 o más?"}
+            _set_state(ph_hash, {"state": "awaiting_address", "qty_hielo": qty, "qty_botellones": 0})
+            greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
+            return {"answer": f"{greeting_prefix}Perfecto, {qty} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+
+        # Si hay saludo pero no hay pedido, mostrar menú
+        if has_greeting:
             _clear_state(ph_hash)
             _set_state(ph_hash, {"state": "menu_sent"})
             return {
@@ -1144,6 +1200,37 @@ def _save_order_to_db_and_sheets(
         conn.close()
         ORDERS_TOTAL.inc()
         logger.info("Orden guardada en SQLite para phone:%s total=€%.2f", ph_hash[:8], total)
+
+        # Notificar a Financial Shield para registro financiero
+        try:
+            fs = _get_fs()
+            if fs:
+                import asyncio
+                # Obtener el ID del pedido recién creado
+                cursor = conn.execute("SELECT last_insert_rowid()")
+                pedido_id = cursor.fetchone()[0]
+                conn.close()
+
+                # Llamar a FS de forma asíncrona (no bloquear webhook)
+                metodo_pago_str = "pagomovil"  # Default, se actualiza después
+                asyncio.ensure_future(fs.on_nuevo_pedido(
+                    pedido_id=pedido_id,
+                    cliente_telefono=from_phone,
+                    cliente_nombre=contact_name,
+                    qty_botellones=qty_bot,
+                    qty_hielo=qty_hielo,
+                    metodo_pago=metodo_pago_str,
+                    total_eur=total,
+                ))
+                logger.info("🛡️ FS notificado: pedido=%d total=€%.2f", pedido_id, total)
+            else:
+                conn.close()
+        except Exception as fs_err:
+            logger.error("Error notificando a FS: %s", fs_err)
+            try:
+                conn.close()
+            except:
+                pass
     except sqlite3.Error as e:
         logger.error("Error guardando orden SQLite: %s", e)
 
