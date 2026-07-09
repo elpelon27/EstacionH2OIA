@@ -32,6 +32,7 @@ import hmac
 import json
 import logging
 import os
+import re
 import sqlite3
 import time
 from contextlib import asynccontextmanager
@@ -107,6 +108,9 @@ DEDUP_TTL_SECONDS = 300  # 5 minutos
 
 # Hora de arranque para uptime
 START_TIME = time.time()
+
+# State tracking: último total correcto por teléfono (para corregir en mensajes posteriores)
+_last_order_totals: dict = {}  # phone_hash -> {"total": float, "qty_bot": int, "qty_hielo": int}
 
 # --- Horario laboral (America/Caracas UTC-4) ---
 # Publicado al cliente: "Lunes a Sábado, 8:00 AM - 6:00 PM"
@@ -552,9 +556,14 @@ def _detect_message_type(answer: str) -> dict:
         }
 
     # --- ¿Cómo desea pagar? → Quick Reply Pago Móvil / Efectivo ---
-    if ("cómo desea pagar" in ans_lower or "como desea pagar" in ans_lower) and (
-        "pago móvil" in ans_lower or "efectivo" in ans_lower
-    ):
+    # Detectar múltiples variantes del mensaje de pago
+    pago_keywords = ["cómo desea pagar", "como desea pagar", "desea pagar",
+                     "método de pago", "metodo de pago", "forma de pago",
+                     "1️⃣ pago móvil", "1️⃣ pago movil", "2️⃣ efectivo"]
+    has_pago_question = any(kw in ans_lower for kw in pago_keywords)
+    has_pago_options = ("pago móvil" in ans_lower or "pago movil" in ans_lower or
+                        "efectivo" in ans_lower)
+    if has_pago_question and has_pago_options:
         return {
             "type": "button",
             "body": answer.split("¿Cómo")[0].strip()
@@ -673,6 +682,47 @@ def _is_kill_switch_active() -> bool:
 # ============================================================================
 
 
+def _fix_total_in_response(answer: str, payload: dict) -> str:
+    """
+    Reemplaza el total en la respuesta de Valentina por el cálculo
+    determinístico del bridge. Si Dify calculó mal, el bridge lo corrige.
+
+    Busca patrones como:
+    - "Total: €6.00" → "Total: €3.00"
+    - "Total: €6,00" → "Total: €3.00"
+    - "total: 6 euros" → "Total: €3.00"
+    """
+    if payload["total_eur"] <= 0:
+        return answer  # No hay nada que corregir
+
+    correct_total = f"€{payload['total_eur']:.2f}"
+
+    # Patrones de total en la respuesta del LLM
+    patterns = [
+        # "Total: €6.00" o "Total: €6,00"
+        r"(Total:\s*)[€eE][Uu]?[Rr]?[Oo]?[Ss]?\s*:?\s*(\d+[.,]\d{2})",
+        # "Total: 6 euros" o "total: 6.00"
+        r"(Total:\s*)(\d+[.,]?\d*)\s*(euros?|€)?",
+    ]
+
+    fixed = answer
+    for pattern in patterns:
+        fixed = re.sub(
+            pattern,
+            lambda m: f"{m.group(1)}{correct_total}",
+            fixed,
+            flags=re.IGNORECASE,
+        )
+
+    if fixed != answer:
+        logger.info(
+            "🔧 Total corregido en respuesta: LLM=€%.2f → bridge=€%.2f",
+            payload.get("_llm_total", 0),
+            payload["total_eur"],
+        )
+    return fixed
+
+
 def _build_order_payload(
     from_phone: str,
     answer: str,
@@ -727,13 +777,15 @@ def _build_order_payload(
         payload["product_type"] = "Hielo"
         payload["qty_hielo"] = int(hielo_match.group(1))
 
-    # Total en euros
-    total_match = re.search(r"[€eE][Uu]?[Rr]?[Oo]?[Ss]?\s*:?\s*(\d+[.,]?\d*)", answer)
-    if total_match:
-        try:
-            payload["total_eur"] = float(total_match.group(1).replace(",", "."))
-        except ValueError:
-            pass
+    # Total en euros — CÁLCULO DETERMINÍSTICO (no extraer del LLM)
+    # El LLM puede equivocarse en cálculos. El bridge calcula con precios oficiales.
+    PRECIO_BOTELLON = 1.00  # €
+    PRECIO_HIELO = 1.20     # €
+    payload["total_eur"] = round(
+        (payload["qty_botellones"] * PRECIO_BOTELLON) +
+        (payload["qty_hielo"] * PRECIO_HIELO),
+        2
+    )
 
     # Método de pago (si aparece en la respuesta de confirmación de pago)
     answer_lower = answer.lower()
@@ -1121,6 +1173,24 @@ async def meta_webhook(request: Request):
         "📥 msg_from=phone:%s len=%d text_preview=%s", ph_short, len(text_body), text_body[:30]
     )
 
+    # Bug 2 fix: GUARD DE MÍNIMOS — si cliente ESCRIBE número < 3 como cantidad
+    # NO aplicar si viene de botón interactivo (list_reply o button_reply)
+    # porque "1" puede ser selección del menú, no cantidad
+    is_from_interactive = msg.get("type") == "interactive" or msg.get("_was_interactive", False)
+    if not is_from_interactive:
+        qty_match = re.match(r"^(\d+)$", text_body.strip())
+        if qty_match:
+            qty_num = int(qty_match.group(1))
+            if qty_num < 3:
+                await _send_whatsapp_message(
+                    from_phone,
+                    "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de "
+                    "3 unidades. ¿Desea pedir 3 o más?",
+                )
+                MESSAGES_TOTAL.labels(status="ok").inc()
+                logger.info("🚫 Cantidad %d rechazada (mínimo 3) para phone:%s", qty_num, ph_short)
+                return JSONResponse({"status": "ok", "message_id": msg_id, "handled": "minimum_rejected"})
+
     # 4.5. GUARD DE HORARIO (determinístico, no depende del LLM)
     # Si está fuera de horario laboral (Lun-Sáb 8am-6pm America/Caracas),
     # responder directamente con mensaje fuera de horario SIN llamar a Dify.
@@ -1201,6 +1271,40 @@ async def meta_webhook(request: Request):
 
     # 7. Enviar respuesta al cliente via Meta
     # Detectar si la respuesta de Valentina debe ir como botones interactivos
+    # Bug 1 fix: corregir total en respuesta antes de enviar (determinístico)
+    # SIEMPRE corregir el total si hay un pedido conocido para este teléfono
+    ph_hash = _phone_hash(from_phone)
+    
+    # Si es confirmación de pedido, calcular y guardar el total
+    if "✅ Pedido confirmado" in answer or "✅ Pedido registrado" in answer:
+        order_payload_fix = _build_order_payload(
+            from_phone=from_phone,
+            answer=answer,
+            contact_name=value.get("contacts", [{}])[0].get("profile", {}).get("name", ""),
+            conversation_id=new_conv,
+        )
+        # Guardar total para correcciones futuras
+        _last_order_totals[ph_hash] = {
+            "total": order_payload_fix["total_eur"],
+            "qty_bot": order_payload_fix["qty_botellones"],
+            "qty_hielo": order_payload_fix["qty_hielo"],
+        }
+        answer = _fix_total_in_response(answer, order_payload_fix)
+        logger.info("🔧 Total corregido en confirmación para phone:%s total=€%.2f", ph_short, order_payload_fix["total_eur"])
+    
+    # Para TODAS las respuestas que contengan "€", corregir el total si tenemos uno guardado
+    elif "€" in answer and ph_hash in _last_order_totals:
+        saved = _last_order_totals[ph_hash]
+        # Crear payload temporal con el total guardado
+        temp_payload = {"total_eur": saved["total"], "_llm_total": 0}
+        answer = _fix_total_in_response(answer, temp_payload)
+        logger.info("🔧 Total corregido en respuesta posterior para phone:%s total=€%.2f", ph_short, saved["total"])
+    
+    # Limpiar state si el pedido se completa ("Gracias por su compra")
+    if "Gracias por su compra" in answer or "pedido está confirmado y en camino" in answer:
+        _last_order_totals.pop(ph_hash, None)
+        logger.info("🧹 State limpiado para phone:%s (pedido completado)", ph_short)
+
     msg_type_info = _detect_message_type(answer)
 
     if msg_type_info["type"] == "list":
