@@ -40,6 +40,21 @@ from datetime import UTC, datetime, timedelta, timezone
 import sys
 sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
 
+# Helper: convertir EUR a Bs. usando última tasa guardada en fs_tasas_cambio
+def _convert_eur_to_bs(eur):
+    try:
+        import sqlite3
+        conn = sqlite3.connect(SQLITE_PATH)
+        row = conn.execute(
+            "SELECT tasa FROM fs_tasas_cambio WHERE par='EUR/VES' ORDER BY registrado_at DESC LIMIT 1"
+        ).fetchone()
+        conn.close()
+        if row and row[0] > 0:
+            return round(eur * row[0], 2)
+    except:
+        pass
+    return None
+
 # Financial Shield integration
 try:
     from src.agents.financial_agent import get_agent as get_fs_agent
@@ -715,7 +730,7 @@ BANK_DATA = (
     "💳 Cuenta: 0169 0010 9710 0159 1583\n"
     "🆔 RIF: J-506356899\n"
     "📱 Pago Móvil: +58 412-2560721\n"
-    "💰 Total: €{total:.2f} (Bs. al cambio BCV del día)\n\n"
+    "💰 Total: €{total:.2f} (Bs. {total_bs:.2f})\n\n"
     "Envíe el comprobante de pago por aquí. ¡Gracias! 💧"
 )
 
@@ -1108,7 +1123,7 @@ def _handle_deterministic(
 
         confirm_msg = (
             f"✅ Pedido confirmado: {product_desc}. Dirección: {address}.\n\n"
-            f"💰 Total: €{total:.2f} (págalo en bolívares al cambio BCV del día).\n\n"
+            f"💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f}).\n\n"
             f"¿Cómo desea pagar?"
         )
         return {
@@ -1136,10 +1151,10 @@ def _handle_deterministic(
             new_state["payment_method"] = "Pago Móvil"
             _set_state(ph_hash, new_state)
             return {
-                "answer": BANK_DATA.format(total=total),
+                "answer": BANK_DATA.format(total=total, total_bs=_convert_eur_to_bs(total) or 0),
                 "interactive": {
                     "type": "button",
-                    "body": BANK_DATA.format(total=total),
+                    "body": BANK_DATA.format(total=total, total_bs=_convert_eur_to_bs(total) or 0),
                     "buttons": [
                         {"id": "ya_pague", "title": "✅ Ya pagué"},
                     ],
@@ -1153,7 +1168,7 @@ def _handle_deterministic(
             new_state["payment_method"] = "Efectivo"
             _set_state(ph_hash, new_state)
             _clear_state(ph_hash)
-            return {"answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. al cambio BCV del día)\n\nEl chofer va en camino. ¡Gracias! 💧"}
+            return {"answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"}
 
         return {"answer": "Por favor, seleccione una opción de pago: 1️⃣ Pago Móvil o 2️⃣ Efectivo."}
 
@@ -1168,10 +1183,10 @@ def _handle_deterministic(
         # Si envía otra cosa, reenviar botón
         total = state.get("total_eur", 0.0)
         return {
-            "answer": BANK_DATA.format(total=total),
+            "answer": BANK_DATA.format(total=total, total_bs=_convert_eur_to_bs(total) or 0),
             "interactive": {
                 "type": "button",
-                "body": BANK_DATA.format(total=total),
+                "body": BANK_DATA.format(total=total, total_bs=_convert_eur_to_bs(total) or 0),
                 "buttons": [
                     {"id": "ya_pague", "title": "✅ Ya pagué"},
                 ],
