@@ -250,33 +250,25 @@ async def cmd_metrics(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_tasa(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Establecer tasa EUR/VES manualmente. Uso: /tasa 825.50"""
+    """Ver o cambiar tasa EUR/VES."""
     if not _is_authorized(update):
         return await _unauthorized(update)
-
     args = ctx.args
     if not args:
-        # Si no hay argumentos, mostrar tasa actual
-        import sys
-        sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
+        import sys as _s
+        _s.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
         from src.financial.currency import get_tasa_display
-        await update.message.reply_text(f"💱 Tasa actual: {get_tasa_display()}
-
-Para cambiar: /tasa 825.50")
+        await update.message.reply_text("Tasa actual: " + get_tasa_display())
         return
-
     try:
         tasa = float(args[0].replace(",", "."))
-        import sys
-        sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
+        import sys as _s2
+        _s2.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
         from src.financial.currency import set_manual_rate
         set_manual_rate(tasa)
-        await update.message.reply_text(
-            f"✅ Tasa EUR/VES actualizada manualmente: €1 = Bs. {tasa:.2f}"
-        )
-        logger.info("Tasa manual actualizada por Líder: %.2f", tasa)
+        await update.message.reply_text("Tasa actualizada: 1 = Bs. " + str(tasa))
     except ValueError:
-        await update.message.reply_text("❌ Formato inválido. Usa: /tasa 825.50")
+        await update.message.reply_text("Formato invalido. Usa: /tasa 825.50")
 
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -292,7 +284,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "<b>/orders</b> — 📋 Pedidos de hoy\n"
         "<b>/logs</b> — 📋 Últimos 20 logs\n"
         "<b>/metrics</b> — 📊 Métricas del día\n"
-        "<b>/tasa</b> — Ver/cambiar tasa EUR/VES (ej: /tasa 825.50)\n" <b>/help</b> — Esta ayuda\n\n"
+        "<b>/help</b> — Esta ayuda\n\n"
         f"<i>Chat ID autorizado: {TELEGRAM_CHAT_ID}</i>"
     )
     await update.message.reply_text(help_text, parse_mode="HTML")
