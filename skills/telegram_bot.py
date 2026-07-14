@@ -271,6 +271,25 @@ async def cmd_tasa(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("Formato invalido. Usa: /tasa 825.50")
 
 
+async def cmd_tasa(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Ver o cambiar tasa EUR/VES."""
+    if not _is_authorized(update):
+        return await _unauthorized(update)
+    args = ctx.args
+    if not args:
+        import sys as _s; _s.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+        from src.financial.currency import get_tasa_display
+        await update.message.reply_text("Tasa: " + get_tasa_display())
+        return
+    try:
+        tasa = float(args[0].replace(",", "."))
+        import sys as _s2; _s2.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+        from src.financial.currency import set_manual_rate
+        set_manual_rate(tasa)
+        await update.message.reply_text("Actualizada: 1 = Bs. " + str(tasa))
+    except ValueError:
+        await update.message.reply_text("Usa: /tasa 825.50")
+
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Mostrar ayuda."""
     if not _is_authorized(update):
@@ -308,6 +327,7 @@ def main():
     app.add_handler(CommandHandler("logs", cmd_logs))
     app.add_handler(CommandHandler("metrics", cmd_metrics))
     app.add_handler(CommandHandler("tasa", cmd_tasa))
+app.add_handler(CommandHandler("tasa", cmd_tasa))
 app.add_handler(CommandHandler("help", cmd_help))
 
     logger.info("Telegram bot iniciado. Esperando comandos del Líder (chat_id=%s)", TELEGRAM_CHAT_ID)
