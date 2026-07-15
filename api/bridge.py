@@ -767,6 +767,51 @@ def _format_product_desc(qty_bot: int, qty_hielo: int) -> str:
     return " y ".join(parts) if parts else "productos"
 
 
+def _send_to_dispatch_queue(ph_hash: str, state: dict, from_phone: str):
+    """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
+    TRIGGER: cuando cliente envía dirección (NO 'ya pagué')."""
+    import sqlite3 as _sq3
+    try:
+        qty_bot = state.get("qty_botellones", 0)
+        qty_hielo = state.get("qty_hielo", 0)
+        total = state.get("total_eur", 0.0)
+        metodo = state.get("payment_method", "")
+        address = state.get("address", "")
+        lat = state.get("latitude")
+        lng = state.get("longitude")
+        contact_name = state.get("contact_name", "")
+
+        gps_url = f"https://maps.google.com/?q={lat},{lng}" if lat and lng else ""
+        total_bs = _convert_eur_to_bs(total) or 0
+
+        parts = []
+        if qty_bot > 0:
+            parts.append(f"{qty_bot} botellones de agua")
+        if qty_hielo > 0:
+            parts.append(f"{qty_hielo} bolsas de hielo")
+        producto_desc = " + ".join(parts) if parts else "productos"
+
+        conn = _sq3.connect(SQLITE_PATH)
+        conn.execute("""
+            INSERT INTO dispatch_queue (
+                cliente_nombre, cliente_telefono, producto_desc,
+                total_eur, total_bs, metodo_pago,
+                gps_lat, gps_lng, gps_url, direccion,
+                estado, creado_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+        """, (
+            contact_name, from_phone, producto_desc,
+            total, total_bs, metodo,
+            lat, lng, gps_url, address,
+            datetime.now(CARACAS_TZ).isoformat()
+        ))
+        conn.commit()
+        conn.close()
+        logger.info("📦 Pedido enviado a dispatch_queue para phone:%s", ph_hash[:8])
+    except Exception as e:
+        logger.error("Error enviando a dispatch_queue: %s", e)
+
+
 def _handle_deterministic(
     ph_hash: str,
     text_body: str,
