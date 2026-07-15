@@ -900,6 +900,28 @@ def _handle_deterministic(
                     }],
                 }
             }
+        # NEXO P0: Botones fantasma — si escribe "gracias" tras pedido completado
+        _thanks_words = ["gracias", "muchas gracias", "mil gracias", "ok gracias",
+                         "gracias valentina", "perfecto", "excelente", "genial"]
+        if text_lower in _thanks_words:
+            return {
+                "answer": "¡Con gusto! 💧 ¿En qué más le puedo ayudar?",
+                "interactive": {
+                    "type": "list",
+                    "body": "¡Con gusto! 💧\n¿En qué más le puedo ayudar?",
+                    "button_text": "📋 Ver opciones",
+                    "list_sections": [{
+                        "title": "Menú principal",
+                        "rows": [
+                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
+                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                        ],
+                    }],
+                }
+            }
         # Si no es saludo y no hay estado, delegar a Dify
         return None
 
@@ -963,7 +985,31 @@ def _handle_deterministic(
         if text_body.strip() == "5":
             return None  # Dify maneja
 
-        # Si no es 1-5, delegar a Dify (puede ser mensaje compuesto)
+        # NEXO P0: Botones fantasma — si escribe texto libre en menu_sent,
+        # reenviar menú (no delegar a Dify)
+        # Palabras comunes que no son pedidos: gracias, ok, si, no, bueno
+        _common_words = ["gracias", "ok", "si", "sí", "no", "bueno", "perfecto",
+                         "excelente", "genial", "bye", "chao", "adios", "hasta luego"]
+        if text_lower in _common_words or len(text_body) < 3:
+            return {
+                "answer": "¿En qué más le puedo ayudar?",
+                "interactive": {
+                    "type": "list",
+                    "body": "¿En qué más le puedo ayudar?",
+                    "button_text": "📋 Ver opciones",
+                    "list_sections": [{
+                        "title": "Menú principal",
+                        "rows": [
+                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
+                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                        ],
+                    }],
+                }
+            }
+        # Si no es palabra común, delegar a Dify (puede ser mensaje compuesto)
         return None
 
     # ====================================================================
@@ -1235,6 +1281,30 @@ def _handle_deterministic(
                 "buttons": [
                     {"id": "ya_pague", "title": "✅ Ya pagué"},
                 ],
+            }
+        }
+
+    # NEXO P0: Botones fantasma — en cualquier estado, si cliente escribe
+    # "gracias", "ok", "si" o similar, reenviar botones del estado actual
+    _ack_words = ["gracias", "ok", "si", "sí", "perfecto", "bueno", "excelente", "genial", "listo"]
+    if text_lower in _ack_words:
+        # Reenviar menú principal como fallback seguro
+        return {
+            "answer": "¿En qué más le puedo ayudar?",
+            "interactive": {
+                "type": "list",
+                "body": "¿En qué más le puedo ayudar?",
+                "button_text": "📋 Ver opciones",
+                "list_sections": [{
+                    "title": "Menú principal",
+                    "rows": [
+                        {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                        {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
+                        {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                        {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                        {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                    ],
+                }],
             }
         }
 
@@ -1793,13 +1863,25 @@ async def meta_webhook(request: Request):
         # Reescribir el mensaje para que el flujo de texto lo procese
         msg["text"] = {"body": text_body}
 
+    # NEXO P0: Manejo de notas de voz (usuarios 40+ las envían frecuentemente)
+    if msg_type == "audio":
+        from_phone = value.get("contacts", [{}])[0].get("wa_id", "")
+        if from_phone:
+            await _send_whatsapp_message(
+                from_phone,
+                "Prefiero leer su mensaje escrito. Puede escribirme lo que necesita aquí mismo. 💧",
+            )
+        MESSAGES_TOTAL.labels(status="ignored").inc()
+        logger.info("🎤 Nota de voz recibida — redirigiendo a texto")
+        return JSONResponse({"status": "ignored", "reason": "audio_redirected"})
+
+    # Otros tipos no soportados (image, video, document, sticker)
     if msg_type != "text":
         from_phone = value.get("contacts", [{}])[0].get("wa_id", "")
         if from_phone:
             await _send_whatsapp_message(
                 from_phone,
-                "Disculpe, por ahora solo puedo recibir mensajes de texto o ubicación GPS. "
-                "Por favor, envíe el número de la opción que desea (1-5).",
+                "Por favor, escríbame lo que necesita. Le respondo enseguida. 💧",
             )
         MESSAGES_TOTAL.labels(status="ignored").inc()
         return JSONResponse({"status": "ignored", "reason": f"type_{msg_type}"})
