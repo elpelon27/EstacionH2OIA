@@ -1192,7 +1192,8 @@ def _handle_deterministic(
                     pass
 
         if len(address) < 5:
-            return {"answer": "Disculpe, necesito su ubicación. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            # NEXO P1: Error recovery — lenguaje más cálido
+            return {"answer": "¿Dónde le llevamos su pedido? Envíe su ubicación GPS o escriba su dirección."}
 
         # Guardar dirección + calcular total + confirmar pedido
         qty_bot = state.get("qty_botellones", 0)
@@ -1261,7 +1262,31 @@ def _handle_deterministic(
             _clear_state(ph_hash)
             return {"answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"}
 
-        return {"answer": "Por favor, seleccione una opción de pago: 1️⃣ Pago Móvil o 2️⃣ Efectivo."}
+        # NEXO P1: Si escribe "volver" o "menu", reiniciar al menú
+        if text_lower in ["volver", "menú", "menu", "atrás", "atras", "inicio"]:
+            _clear_state(ph_hash)
+            _set_state(ph_hash, {"state": "menu_sent"})
+            return {
+                "answer": "Claro, volvemos al inicio.",
+                "interactive": {
+                    "type": "list",
+                    "body": "Claro, volvemos al inicio.\n¿En qué puedo servirle?",
+                    "button_text": "📋 Ver opciones",
+                    "list_sections": [{
+                        "title": "Menú principal",
+                        "rows": [
+                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
+                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                        ],
+                    }],
+                }
+            }
+
+        # NEXO P1: Error recovery — no repetir mismo mensaje
+        return {"answer": "¿Pago Móvil o Efectivo? Puede escribir 1 o 2."}
 
     # ====================================================================
     # ESTADO: awaiting_confirmation (cliente debe enviar "ya pagué")
@@ -1269,7 +1294,18 @@ def _handle_deterministic(
     if current_state == "awaiting_confirmation":
         if text_lower in ["ya pagué", "ya pague", "ya pagué.", "ya pague.", "pagué", "pague", "listo", "ya"]:
             _clear_state(ph_hash)
-            return {"answer": "¡Gracias por su compra! 🎉 Su pedido está confirmado y en camino. El chofer le contactará pronto. 💧"}
+            # NEXO P1: Finalización completa — qué se hizo + qué sigue + cómo volver
+            qty_bot = state.get("qty_botellones", 0)
+            qty_hielo = state.get("qty_hielo", 0)
+            address = state.get("address", "")
+            parts = []
+            if qty_bot > 0:
+                parts.append(f"{qty_bot} botellones de agua")
+            if qty_hielo > 0:
+                parts.append(f"{qty_hielo} bolsas de hielo")
+            producto_str = " y ".join(parts) if parts else "su pedido"
+            addr_short = address[:60] + "..." if len(address) > 60 else address
+            return {"answer": f"✅ ¡Pedido completado!\n\nLe llevamos {producto_str} a {addr_short}.\nEl chofer le contactará pronto.\n\nSi necesita algo más, escríbame aquí. 💧"}
 
         # Si envía otra cosa, reenviar botón
         total = state.get("total_eur", 0.0)
