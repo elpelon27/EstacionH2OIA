@@ -1,0 +1,14 @@
+tunnel: 5d8bb3a4-9d43-4c31-ae3c-c25ed3e47507
+credentials-file: /home/skynet/.cloudflared/5d8bb3a4-9d43-4c31-ae3c-c25ed3e47507.json
+
+ingress:
+  # Webhook de Valentina (Meta Cloud API)
+  - hostname: valentina.estacionh2o.com
+    service: http://localhost:8000
+  
+  # Dashboard de monitoreo (futuro)
+  - hostname: admin.estacionh2o.com
+    service: http://localhost:3000
+  
+  # Catch-all: rechazar todo lo demás
+  - service: http_status:404
