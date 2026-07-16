@@ -34,16 +34,19 @@ import logging
 import os
 import re
 import sqlite3
+import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta, timezone
-import sys
-sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
+
+sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+
 
 # Helper: convertir EUR a Bs. usando última tasa guardada en fs_tasas_cambio
 def _convert_eur_to_bs(eur):
     try:
         import sqlite3
+
         conn = sqlite3.connect(SQLITE_PATH)
         row = conn.execute(
             "SELECT tasa FROM fs_tasas_cambio WHERE par='EUR/VES' ORDER BY registrado_at DESC LIMIT 1"
@@ -55,18 +58,22 @@ def _convert_eur_to_bs(eur):
         pass
     return None
 
+
 # Financial Shield integration
 try:
     from src.agents.financial_agent import get_agent as get_fs_agent
+
     _fs_agent = None  # Lazy init
+
     def _get_fs():
         global _fs_agent
         if _fs_agent is None:
             _fs_agent = get_fs_agent()
             _fs_agent.init()
         return _fs_agent
-except Exception as e:
+except Exception:
     _fs_agent = None
+
     def _get_fs():
         return None
 
@@ -153,6 +160,7 @@ BUSINESS_HOURS_DAYS = os.getenv(
 )  # Lun-Sáb (1=Lun, 6=Sáb, 0=Dom)
 CARACAS_TZ = timezone(timedelta(hours=-4))  # America/Caracas UTC-4
 
+
 # Mensaje fuera de horario (verbatim del System Prompt v4)
 def _get_out_of_hours_message():
     """Mensaje dinámico según qué tan cerca está de la apertura."""
@@ -161,24 +169,30 @@ def _get_out_of_hours_message():
     if day == 7:
         day = 0
     open_days = [int(d) for d in BUSINESS_HOURS_DAYS.split(",")]
-    
+
     # Si es día de apertura y falta menos de 30 min
     if day in open_days:
         minutes_to_open = (BUSINESS_HOURS_START * 60) - (now.hour * 60 + now.minute)
         if 0 < minutes_to_open <= 30:
-            return (f"¡Hola! 👋 Abrimos en {minutes_to_open} minutos. "
-                    f"Por favor escríbame a las {BUSINESS_HOURS_START}:00am. ¡Gracias! 💧")
-    
+            return (
+                f"¡Hola! 👋 Abrimos en {minutes_to_open} minutos. "
+                f"Por favor escríbame a las {BUSINESS_HOURS_START}:00am. ¡Gracias! 💧"
+            )
+
     # Si es día de apertura pero falta más de 30 min
     if day in open_days and now.hour < BUSINESS_HOURS_START:
-        return (f"¡Hola! 👋 En este momento estamos fuera de horario. "
-                f"Abrimos a las {BUSINESS_HOURS_START}:00am. "
-                f"He registrado tu mensaje y te responderemos al abrir. ¡Gracias! 💧")
-    
+        return (
+            f"¡Hola! 👋 Ahora mismo estamos cerrados 🌙 "
+            f"Abrimos a las {BUSINESS_HOURS_START}:00am. "
+            f"He registrado tu mensaje y te responderemos al abrir. ¡Gracias! 💧"
+        )
+
     # Si es después del cierre o día no laboral
-    return ("¡Hola! 👋 En este momento estamos fuera de horario (Lun-Sáb, 8am-6pm).\n"
-            "He registrado tu mensaje y lo programaremos para la primera hora de mañana. "
-            "Un asesor te contactará para confirmar. ¡Gracias! 💧")
+    return (
+        "¡Hola! 👋 Ahora mismo estamos cerrados 🌙 Volvemos a las 8:00 AM (Lun-Sáb, 8am-6pm).\n"
+        "He registrado tu mensaje y lo programaremos para la primera hora de mañana. "
+        "Un asesor te contactará para confirmar. ¡Gracias! 💧"
+    )
 
 
 def _is_within_business_hours() -> bool:
@@ -417,6 +431,7 @@ async def _send_whatsapp_message(phone: str, text: str) -> bool:
 # Mensajes interactivos (List Messages + Quick Reply Buttons) — Meta Cloud API
 # ============================================================================
 
+
 async def _send_whatsapp_interactive(
     phone: str,
     body_text: str,
@@ -444,10 +459,7 @@ async def _send_whatsapp_interactive(
         logger.error("META_ACCESS_TOKEN o META_PHONE_NUMBER_ID no configurados")
         return False
 
-    url = (
-        f"https://graph.facebook.com/{META_API_VERSION}"
-        f"/{META_PHONE_NUMBER_ID}/messages"
-    )
+    url = f"https://graph.facebook.com/{META_API_VERSION}" f"/{META_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {META_ACCESS_TOKEN}",
         "Content-Type": "application/json",
@@ -539,7 +551,11 @@ def _detect_message_type(answer: str) -> dict:
                 {
                     "title": "Menú principal",
                     "rows": [
-                        {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                        {
+                            "id": "1",
+                            "title": "Recarga de botellones",
+                            "description": "Agua €1.00 c/u",
+                        },
                         {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
                         {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
                         {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
@@ -587,17 +603,25 @@ def _detect_message_type(answer: str) -> dict:
 
     # --- ¿Cómo desea pagar? → Quick Reply Pago Móvil / Efectivo ---
     # Detectar múltiples variantes del mensaje de pago
-    pago_keywords = ["cómo desea pagar", "como desea pagar", "desea pagar",
-                     "método de pago", "metodo de pago", "forma de pago",
-                     "1️⃣ pago móvil", "1️⃣ pago movil", "2️⃣ efectivo"]
+    pago_keywords = [
+        "cómo desea pagar",
+        "como desea pagar",
+        "desea pagar",
+        "método de pago",
+        "metodo de pago",
+        "forma de pago",
+        "1️⃣ pago móvil",
+        "1️⃣ pago movil",
+        "2️⃣ efectivo",
+    ]
     has_pago_question = any(kw in ans_lower for kw in pago_keywords)
-    has_pago_options = ("pago móvil" in ans_lower or "pago movil" in ans_lower or
-                        "efectivo" in ans_lower)
+    has_pago_options = (
+        "pago móvil" in ans_lower or "pago movil" in ans_lower or "efectivo" in ans_lower
+    )
     if has_pago_question and has_pago_options:
         return {
             "type": "button",
-            "body": answer.split("¿Cómo")[0].strip()
-            + "\n\n¿Cómo desea pagar?",
+            "body": answer.split("¿Cómo")[0].strip() + "\n\n¿Cómo desea pagar?",
             "buttons": [
                 {"id": "1", "title": "💳 Pago Móvil"},
                 {"id": "2", "title": "💵 Efectivo"},
@@ -725,7 +749,7 @@ PRECIO_HIELO = 1.20
 
 # Datos bancarios
 BANK_DATA = (
-    "Perfecto. Datos para su pago:\n\n"
+    "Perfecto. Le comparto los datos para su pago:\n\n"
     "🏦 Banco: R4, Banco Microfinanciero 0169\n"
     "💳 Cuenta: 0169 0010 9710 0159 1583\n"
     "🆔 RIF: J-506356899\n"
@@ -734,7 +758,9 @@ BANK_DATA = (
     "Envíe el comprobante de pago por aquí. ¡Gracias! 💧"
 )
 
-OUT_OF_HOURS_MSG = "¡Hola! 👋 En este momento estamos fuera de horario (Lun-Sáb, 8am-6pm)."
+OUT_OF_HOURS_MSG = (
+    "¡Hola! 👋 Ahora mismo estamos cerrados 🌙 Volvemos a las 8:00 AM (Lun-Sáb, 8am-6pm)."
+)
 
 
 def _get_state(ph_hash: str) -> dict:
@@ -771,6 +797,7 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict, from_phone: str):
     """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
     TRIGGER: cuando cliente envía dirección (NO 'ya pagué')."""
     import sqlite3 as _sq3
+
     try:
         qty_bot = state.get("qty_botellones", 0)
         qty_hielo = state.get("qty_hielo", 0)
@@ -792,19 +819,29 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict, from_phone: str):
         producto_desc = " + ".join(parts) if parts else "productos"
 
         conn = _sq3.connect(SQLITE_PATH)
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO dispatch_queue (
                 cliente_nombre, cliente_telefono, producto_desc,
                 total_eur, total_bs, metodo_pago,
                 gps_lat, gps_lng, gps_url, direccion,
                 estado, creado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
-        """, (
-            contact_name, from_phone, producto_desc,
-            total, total_bs, metodo,
-            lat, lng, gps_url, address,
-            datetime.now(CARACAS_TZ).isoformat()
-        ))
+        """,
+            (
+                contact_name,
+                from_phone,
+                producto_desc,
+                total,
+                total_bs,
+                metodo,
+                lat,
+                lng,
+                gps_url,
+                address,
+                datetime.now(CARACAS_TZ).isoformat(),
+            ),
+        )
         conn.commit()
         conn.close()
         logger.info("📦 Pedido enviado a dispatch_queue para phone:%s", ph_hash[:8])
@@ -836,8 +873,18 @@ def _handle_deterministic(
     # ====================================================================
     if current_state is None or current_state == "completed":
         # Detectar saludo
-        greetings = ["hola", "buenas", "buenos dias", "buen dia", "buenas tardes",
-                      "buenas noches", "saludos", "hey", "que mas", "q mas"]
+        greetings = [
+            "hola",
+            "buenas",
+            "buenos dias",
+            "buen dia",
+            "buenas tardes",
+            "buenas noches",
+            "saludos",
+            "hey",
+            "que mas",
+            "q mas",
+        ]
         has_greeting = any(text_lower.startswith(g) for g in greetings) or text_lower in greetings
 
         # Bug 4 fix: Detectar mensaje compuesto (saludo + pedido)
@@ -853,30 +900,49 @@ def _handle_deterministic(
             qty_hielo = int(hielo_match.group(1))
             if qty_bot < 3 or qty_hielo < 2:
                 greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
-                return {"answer": f"{greeting_prefix}Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."}
-            _set_state(ph_hash, {"state": "awaiting_address", "qty_botellones": qty_bot, "qty_hielo": qty_hielo})
+                return {
+                    "answer": f"{greeting_prefix}Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."
+                }
+            _set_state(
+                ph_hash,
+                {"state": "awaiting_address", "qty_botellones": qty_bot, "qty_hielo": qty_hielo},
+            )
             greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
-            return {"answer": f"{greeting_prefix}Perfecto, {qty_bot} botellones de agua y {qty_hielo} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": f"{greeting_prefix}¡Anotado! 📝 {qty_bot} botellones de agua y {qty_hielo} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
 
         # Pedido de agua detectado
         elif botellones_match:
             qty = int(botellones_match.group(1))
             if qty < 3:
                 greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
-                return {"answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 botellones. ¿Desea pedir 3 o más?"}
-            _set_state(ph_hash, {"state": "awaiting_address", "qty_botellones": qty, "qty_hielo": 0})
+                return {
+                    "answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 botellones. ¿Desea pedir 3 o más?"
+                }
+            _set_state(
+                ph_hash, {"state": "awaiting_address", "qty_botellones": qty, "qty_hielo": 0}
+            )
             greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
-            return {"answer": f"{greeting_prefix}Perfecto, {qty} botellones de agua. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": f"{greeting_prefix}¡Anotado! 📝 {qty} botellones de agua. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
 
         # Pedido de hielo detectado
         elif hielo_match:
             qty = int(hielo_match.group(1))
             if qty < 3:
                 greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
-                return {"answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 bolsas de hielo. ¿Desea pedir 3 o más?"}
-            _set_state(ph_hash, {"state": "awaiting_address", "qty_hielo": qty, "qty_botellones": 0})
+                return {
+                    "answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 bolsas de hielo. ¿Desea pedir 3 o más?"
+                }
+            _set_state(
+                ph_hash, {"state": "awaiting_address", "qty_hielo": qty, "qty_botellones": 0}
+            )
             greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
-            return {"answer": f"{greeting_prefix}Perfecto, {qty} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": f"{greeting_prefix}¡Anotado! 📝 {qty} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
 
         # Si hay saludo pero no hay pedido, mostrar menú
         if has_greeting:
@@ -888,21 +954,47 @@ def _handle_deterministic(
                     "type": "list",
                     "body": "¡Buen día! 👋 Soy Valentina de Estación H2O.\n¿En qué puedo servirle hoy?",
                     "button_text": "📋 Ver opciones",
-                    "list_sections": [{
-                        "title": "Menú principal",
-                        "rows": [
-                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
-                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
-                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
-                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
-                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
-                        ],
-                    }],
-                }
+                    "list_sections": [
+                        {
+                            "title": "Menú principal",
+                            "rows": [
+                                {
+                                    "id": "1",
+                                    "title": "Recarga de botellones",
+                                    "description": "Agua €1.00 c/u",
+                                },
+                                {
+                                    "id": "2",
+                                    "title": "Pedido de hielo",
+                                    "description": "Bolsas €1.20 c/u",
+                                },
+                                {
+                                    "id": "3",
+                                    "title": "Pedido combinado",
+                                    "description": "Agua + hielo",
+                                },
+                                {
+                                    "id": "4",
+                                    "title": "Consultar estado",
+                                    "description": "Mi pedido",
+                                },
+                                {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                            ],
+                        }
+                    ],
+                },
             }
         # NEXO P0: Botones fantasma — si escribe "gracias" tras pedido completado
-        _thanks_words = ["gracias", "muchas gracias", "mil gracias", "ok gracias",
-                         "gracias valentina", "perfecto", "excelente", "genial"]
+        _thanks_words = [
+            "gracias",
+            "muchas gracias",
+            "mil gracias",
+            "ok gracias",
+            "gracias valentina",
+            "perfecto",
+            "excelente",
+            "genial",
+        ]
         if text_lower in _thanks_words:
             return {
                 "answer": "¡Con gusto! 💧 ¿En qué más le puedo ayudar?",
@@ -910,17 +1002,35 @@ def _handle_deterministic(
                     "type": "list",
                     "body": "¡Con gusto! 💧\n¿En qué más le puedo ayudar?",
                     "button_text": "📋 Ver opciones",
-                    "list_sections": [{
-                        "title": "Menú principal",
-                        "rows": [
-                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
-                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
-                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
-                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
-                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
-                        ],
-                    }],
-                }
+                    "list_sections": [
+                        {
+                            "title": "Menú principal",
+                            "rows": [
+                                {
+                                    "id": "1",
+                                    "title": "Recarga de botellones",
+                                    "description": "Agua €1.00 c/u",
+                                },
+                                {
+                                    "id": "2",
+                                    "title": "Pedido de hielo",
+                                    "description": "Bolsas €1.20 c/u",
+                                },
+                                {
+                                    "id": "3",
+                                    "title": "Pedido combinado",
+                                    "description": "Agua + hielo",
+                                },
+                                {
+                                    "id": "4",
+                                    "title": "Consultar estado",
+                                    "description": "Mi pedido",
+                                },
+                                {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                            ],
+                        }
+                    ],
+                },
             }
         # Si no es saludo y no hay estado, delegar a Dify
         return None
@@ -942,7 +1052,7 @@ def _handle_deterministic(
                         {"id": "4", "title": "4️⃣ 4 botellones"},
                         {"id": "custom_qty", "title": "✍️ Otra cantidad"},
                     ],
-                }
+                },
             }
 
         # Opción 2: Pedido de hielo
@@ -958,7 +1068,7 @@ def _handle_deterministic(
                         {"id": "4", "title": "4️⃣ 4 bolsas"},
                         {"id": "custom_qty", "title": "✍️ Otra cantidad"},
                     ],
-                }
+                },
             }
 
         # Opción 3: Pedido combinado
@@ -974,7 +1084,7 @@ def _handle_deterministic(
                         {"id": "4 botellones y 3 bolsas", "title": "4️⃣ agua + 3️⃣ hielo"},
                         {"id": "custom_combo", "title": "✍️ Otra combinación"},
                     ],
-                }
+                },
             }
 
         # Opción 4: Consultar estado → delegar a Dify
@@ -988,8 +1098,21 @@ def _handle_deterministic(
         # NEXO P0: Botones fantasma — si escribe texto libre en menu_sent,
         # reenviar menú (no delegar a Dify)
         # Palabras comunes que no son pedidos: gracias, ok, si, no, bueno
-        _common_words = ["gracias", "ok", "si", "sí", "no", "bueno", "perfecto",
-                         "excelente", "genial", "bye", "chao", "adios", "hasta luego"]
+        _common_words = [
+            "gracias",
+            "ok",
+            "si",
+            "sí",
+            "no",
+            "bueno",
+            "perfecto",
+            "excelente",
+            "genial",
+            "bye",
+            "chao",
+            "adios",
+            "hasta luego",
+        ]
         if text_lower in _common_words or len(text_body) < 3:
             return {
                 "answer": "¿En qué más le puedo ayudar?",
@@ -997,17 +1120,35 @@ def _handle_deterministic(
                     "type": "list",
                     "body": "¿En qué más le puedo ayudar?",
                     "button_text": "📋 Ver opciones",
-                    "list_sections": [{
-                        "title": "Menú principal",
-                        "rows": [
-                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
-                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
-                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
-                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
-                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
-                        ],
-                    }],
-                }
+                    "list_sections": [
+                        {
+                            "title": "Menú principal",
+                            "rows": [
+                                {
+                                    "id": "1",
+                                    "title": "Recarga de botellones",
+                                    "description": "Agua €1.00 c/u",
+                                },
+                                {
+                                    "id": "2",
+                                    "title": "Pedido de hielo",
+                                    "description": "Bolsas €1.20 c/u",
+                                },
+                                {
+                                    "id": "3",
+                                    "title": "Pedido combinado",
+                                    "description": "Agua + hielo",
+                                },
+                                {
+                                    "id": "4",
+                                    "title": "Consultar estado",
+                                    "description": "Mi pedido",
+                                },
+                                {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                            ],
+                        }
+                    ],
+                },
             }
         # Si no es palabra común, delegar a Dify (puede ser mensaje compuesto)
         return None
@@ -1018,7 +1159,9 @@ def _handle_deterministic(
     if current_state == "awaiting_qty_agua":
         if text_body.strip() == "custom_qty":
             _set_state(ph_hash, {"state": "awaiting_custom_qty_agua"})
-            return {"answer": "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3)."}
+            return {
+                "answer": "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3)."
+            }
 
         qty_match = re.match(r"^(\d+)$", text_body.strip())
         if qty_match:
@@ -1034,7 +1177,7 @@ def _handle_deterministic(
                             {"id": "4", "title": "4️⃣ 4 botellones"},
                             {"id": "custom_qty", "title": "✍️ Otra cantidad"},
                         ],
-                    }
+                    },
                 }
             # Cantidad válida → pedir dirección
             new_state = state.copy()
@@ -1042,7 +1185,9 @@ def _handle_deterministic(
             new_state["qty_botellones"] = qty
             new_state["qty_hielo"] = 0
             _set_state(ph_hash, new_state)
-            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
 
         return None  # Delegar a Dify
 
@@ -1054,13 +1199,17 @@ def _handle_deterministic(
         if qty_match:
             qty = int(qty_match.group(1))
             if qty < 3:
-                return {"answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"}
+                return {
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"
+                }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
             new_state["qty_botellones"] = qty
             new_state["qty_hielo"] = 0
             _set_state(ph_hash, new_state)
-            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
         return None
 
     # ====================================================================
@@ -1069,7 +1218,9 @@ def _handle_deterministic(
     if current_state == "awaiting_qty_hielo":
         if text_body.strip() == "custom_qty":
             _set_state(ph_hash, {"state": "awaiting_custom_qty_hielo"})
-            return {"answer": "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3)."}
+            return {
+                "answer": "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3)."
+            }
 
         qty_match = re.match(r"^(\d+)$", text_body.strip())
         if qty_match:
@@ -1085,14 +1236,16 @@ def _handle_deterministic(
                             {"id": "4", "title": "4️⃣ 4 bolsas"},
                             {"id": "custom_qty", "title": "✍️ Otra cantidad"},
                         ],
-                    }
+                    },
                 }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
             new_state["qty_hielo"] = qty
             new_state["qty_botellones"] = 0
             _set_state(ph_hash, new_state)
-            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
 
         return None
 
@@ -1104,13 +1257,17 @@ def _handle_deterministic(
         if qty_match:
             qty = int(qty_match.group(1))
             if qty < 3:
-                return {"answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"}
+                return {
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"
+                }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
             new_state["qty_hielo"] = qty
             new_state["qty_botellones"] = 0
             _set_state(ph_hash, new_state)
-            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
         return None
 
     # ====================================================================
@@ -1119,7 +1276,9 @@ def _handle_deterministic(
     if current_state == "awaiting_qty_combo":
         if text_body.strip() == "custom_combo":
             _set_state(ph_hash, {"state": "awaiting_custom_combo"})
-            return {"answer": "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas)."}
+            return {
+                "answer": "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas)."
+            }
 
         # Intentar parsear "3 botellones y 2 bolsas"
         bot_match = re.search(r"(\d+)\s*botellones?", text_lower)
@@ -1128,13 +1287,17 @@ def _handle_deterministic(
             qty_bot = int(bot_match.group(1))
             qty_hielo = int(hielo_match.group(1))
             if qty_bot < 3 or qty_hielo < 2:
-                return {"answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."}
+                return {
+                    "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."
+                }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
             new_state["qty_botellones"] = qty_bot
             new_state["qty_hielo"] = qty_hielo
             _set_state(ph_hash, new_state)
-            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
 
         return None
 
@@ -1148,13 +1311,17 @@ def _handle_deterministic(
             qty_bot = int(bot_match.group(1))
             qty_hielo = int(hielo_match.group(1))
             if qty_bot < 3 or qty_hielo < 2:
-                return {"answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."}
+                return {
+                    "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."
+                }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
             new_state["qty_botellones"] = qty_bot
             new_state["qty_hielo"] = qty_hielo
             _set_state(ph_hash, new_state)
-            return {"answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."}
+            return {
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+            }
         return None
 
     # ====================================================================
@@ -1183,7 +1350,11 @@ def _handle_deterministic(
             # Texto libre
             address = text_body.strip()
             # Verificar si contiene coordenadas
-            coord_match = re.search(r"(?:coordenadas:|GPS:)\s*(-?\d+[.,]?\d*)\s*,\s*(-?\d+[.,]?\d*)", address, re.IGNORECASE)
+            coord_match = re.search(
+                r"(?:coordenadas:|GPS:)\s*(-?\d+[.,]?\d*)\s*,\s*(-?\d+[.,]?\d*)",
+                address,
+                re.IGNORECASE,
+            )
             if coord_match:
                 try:
                     latitude = float(coord_match.group(1).replace(",", "."))
@@ -1193,7 +1364,9 @@ def _handle_deterministic(
 
         if len(address) < 5:
             # NEXO P1: Error recovery — lenguaje más cálido
-            return {"answer": "¿Dónde le llevamos su pedido? Envíe su ubicación GPS o escriba su dirección."}
+            return {
+                "answer": "¿A dónde le llevamos su pedido? 📍 Envíe su ubicación GPS o escriba su dirección completa."
+            }
 
         # Guardar dirección + calcular total + confirmar pedido
         qty_bot = state.get("qty_botellones", 0)
@@ -1211,7 +1384,18 @@ def _handle_deterministic(
         _set_state(ph_hash, new_state)
 
         # Guardar en SQLite + Google Sheets
-        _save_order_to_db_and_sheets(from_phone, ph_hash, contact_name, qty_bot, qty_hielo, address, latitude, longitude, total, new_state.get("conversation_id", ""))
+        _save_order_to_db_and_sheets(
+            from_phone,
+            ph_hash,
+            contact_name,
+            qty_bot,
+            qty_hielo,
+            address,
+            latitude,
+            longitude,
+            total,
+            new_state.get("conversation_id", ""),
+        )
 
         confirm_msg = (
             f"✅ Pedido confirmado: {product_desc}. Dirección: {address}.\n\n"
@@ -1227,7 +1411,7 @@ def _handle_deterministic(
                     {"id": "1", "title": "💳 Pago Móvil"},
                     {"id": "2", "title": "💵 Efectivo"},
                 ],
-            }
+            },
         }
 
     # ====================================================================
@@ -1250,7 +1434,7 @@ def _handle_deterministic(
                     "buttons": [
                         {"id": "ya_pague", "title": "✅ Ya pagué"},
                     ],
-                }
+                },
             }
 
         if text_body.strip() == "2":
@@ -1260,7 +1444,9 @@ def _handle_deterministic(
             new_state["payment_method"] = "Efectivo"
             _set_state(ph_hash, new_state)
             _clear_state(ph_hash)
-            return {"answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"}
+            return {
+                "answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"
+            }
 
         # NEXO P1: Si escribe "volver" o "menu", reiniciar al menú
         if text_lower in ["volver", "menú", "menu", "atrás", "atras", "inicio"]:
@@ -1270,29 +1456,58 @@ def _handle_deterministic(
                 "answer": "Claro, volvemos al inicio.",
                 "interactive": {
                     "type": "list",
-                    "body": "Claro, volvemos al inicio.\n¿En qué puedo servirle?",
+                    "body": "Claro, volvemos al inicio. 🔄\n¿En qué puedo servirle? 💧",
                     "button_text": "📋 Ver opciones",
-                    "list_sections": [{
-                        "title": "Menú principal",
-                        "rows": [
-                            {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
-                            {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
-                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
-                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
-                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
-                        ],
-                    }],
-                }
+                    "list_sections": [
+                        {
+                            "title": "Menú principal",
+                            "rows": [
+                                {
+                                    "id": "1",
+                                    "title": "Recarga de botellones",
+                                    "description": "Agua €1.00 c/u",
+                                },
+                                {
+                                    "id": "2",
+                                    "title": "Pedido de hielo",
+                                    "description": "Bolsas €1.20 c/u",
+                                },
+                                {
+                                    "id": "3",
+                                    "title": "Pedido combinado",
+                                    "description": "Agua + hielo",
+                                },
+                                {
+                                    "id": "4",
+                                    "title": "Consultar estado",
+                                    "description": "Mi pedido",
+                                },
+                                {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                            ],
+                        }
+                    ],
+                },
             }
 
         # NEXO P1: Error recovery — no repetir mismo mensaje
-        return {"answer": "¿Pago Móvil o Efectivo? Puede escribir 1 o 2."}
+        return {
+            "answer": "¿Cómo prefiere pagar? 💳 Pago Móvil o 💵 Efectivo. Puede escribir 1 o 2."
+        }
 
     # ====================================================================
     # ESTADO: awaiting_confirmation (cliente debe enviar "ya pagué")
     # ====================================================================
     if current_state == "awaiting_confirmation":
-        if text_lower in ["ya pagué", "ya pague", "ya pagué.", "ya pague.", "pagué", "pague", "listo", "ya"]:
+        if text_lower in [
+            "ya pagué",
+            "ya pague",
+            "ya pagué.",
+            "ya pague.",
+            "pagué",
+            "pague",
+            "listo",
+            "ya",
+        ]:
             _clear_state(ph_hash)
             # NEXO P1: Finalización completa — qué se hizo + qué sigue + cómo volver
             qty_bot = state.get("qty_botellones", 0)
@@ -1305,7 +1520,9 @@ def _handle_deterministic(
                 parts.append(f"{qty_hielo} bolsas de hielo")
             producto_str = " y ".join(parts) if parts else "su pedido"
             addr_short = address[:60] + "..." if len(address) > 60 else address
-            return {"answer": f"✅ ¡Pedido completado!\n\nLe llevamos {producto_str} a {addr_short}.\nEl chofer le contactará pronto.\n\nSi necesita algo más, escríbame aquí. 💧"}
+            return {
+                "answer": f"✅ ¡Pedido completado!\n\nLe llevamos {producto_str} a {addr_short}.\nEl chofer le contactará pronto.\n\nSi necesita algo más, escríbame aquí. 💧"
+            }
 
         # Si envía otra cosa, reenviar botón
         total = state.get("total_eur", 0.0)
@@ -1317,7 +1534,7 @@ def _handle_deterministic(
                 "buttons": [
                     {"id": "ya_pague", "title": "✅ Ya pagué"},
                 ],
-            }
+            },
         }
 
     # NEXO P0: Botones fantasma — en cualquier estado, si cliente escribe
@@ -1331,17 +1548,27 @@ def _handle_deterministic(
                 "type": "list",
                 "body": "¿En qué más le puedo ayudar?",
                 "button_text": "📋 Ver opciones",
-                "list_sections": [{
-                    "title": "Menú principal",
-                    "rows": [
-                        {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
-                        {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
-                        {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
-                        {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
-                        {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
-                    ],
-                }],
-            }
+                "list_sections": [
+                    {
+                        "title": "Menú principal",
+                        "rows": [
+                            {
+                                "id": "1",
+                                "title": "Recarga de botellones",
+                                "description": "Agua €1.00 c/u",
+                            },
+                            {
+                                "id": "2",
+                                "title": "Pedido de hielo",
+                                "description": "Bolsas €1.20 c/u",
+                            },
+                            {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                            {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                            {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+                        ],
+                    }
+                ],
+            },
         }
 
     # Si no matchea ningún estado, delegar a Dify
@@ -1349,18 +1576,31 @@ def _handle_deterministic(
 
 
 def _save_order_to_db_and_sheets(
-    from_phone: str, ph_hash: str, contact_name: str,
-    qty_bot: int, qty_hielo: int, address: str,
-    latitude, longitude, total: float, conversation_id: str
+    from_phone: str,
+    ph_hash: str,
+    contact_name: str,
+    qty_bot: int,
+    qty_hielo: int,
+    address: str,
+    latitude,
+    longitude,
+    total: float,
+    conversation_id: str,
 ):
     """Guarda el pedido en SQLite + Google Sheets (no bloqueante)."""
     import sqlite3
+
     try:
         conn = sqlite3.connect(SQLITE_PATH)
         product_desc = _format_product_desc(qty_bot, qty_hielo)
         conn.execute(
             "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",
-            (ph_hash, f"✅ Pedido confirmado: {product_desc}. Total: €{total:.2f}", "pending", time.time()),
+            (
+                ph_hash,
+                f"✅ Pedido confirmado: {product_desc}. Total: €{total:.2f}",
+                "pending",
+                time.time(),
+            ),
         )
         conn.commit()
         conn.close()
@@ -1372,6 +1612,7 @@ def _save_order_to_db_and_sheets(
             fs = _get_fs()
             if fs:
                 import asyncio
+
                 # Obtener el ID del pedido recién creado
                 cursor = conn.execute("SELECT last_insert_rowid()")
                 pedido_id = cursor.fetchone()[0]
@@ -1379,15 +1620,17 @@ def _save_order_to_db_and_sheets(
 
                 # Llamar a FS de forma asíncrona (no bloquear webhook)
                 metodo_pago_str = "pagomovil"  # Default, se actualiza después
-                asyncio.ensure_future(fs.on_nuevo_pedido(
-                    pedido_id=pedido_id,
-                    cliente_telefono=from_phone,
-                    cliente_nombre=contact_name,
-                    qty_botellones=qty_bot,
-                    qty_hielo=qty_hielo,
-                    metodo_pago=metodo_pago_str,
-                    total_eur=total,
-                ))
+                asyncio.ensure_future(
+                    fs.on_nuevo_pedido(
+                        pedido_id=pedido_id,
+                        cliente_telefono=from_phone,
+                        cliente_nombre=contact_name,
+                        qty_botellones=qty_bot,
+                        qty_hielo=qty_hielo,
+                        metodo_pago=metodo_pago_str,
+                        total_eur=total,
+                    )
+                )
                 logger.info("🛡️ FS notificado: pedido=%d total=€%.2f", pedido_id, total)
             else:
                 conn.close()
@@ -1412,7 +1655,9 @@ def _save_order_to_db_and_sheets(
         "phone": from_phone,
         "phone_hash": ph_hash,
         "contact_name": contact_name,
-        "product_type": "Combinado" if qty_bot > 0 and qty_hielo > 0 else ("Botellones" if qty_bot > 0 else "Hielo"),
+        "product_type": "Combinado"
+        if qty_bot > 0 and qty_hielo > 0
+        else ("Botellones" if qty_bot > 0 else "Hielo"),
         "qty_botellones": qty_bot,
         "qty_hielo": qty_hielo,
         "address": address,
@@ -1425,12 +1670,11 @@ def _save_order_to_db_and_sheets(
     }
     try:
         from skills.google_sheets import save_order_async
+
         save_order_async(order_payload)
         logger.info("Pedido enviado a Google Sheets para phone:%s", ph_hash[:8])
     except Exception as gs_err:
         logger.error("Error enviando a Google Sheets: %s", gs_err)
-
-
 
 
 def _fix_total_in_response(answer: str, payload: dict) -> str:
@@ -1531,11 +1775,9 @@ def _build_order_payload(
     # Total en euros — CÁLCULO DETERMINÍSTICO (no extraer del LLM)
     # El LLM puede equivocarse en cálculos. El bridge calcula con precios oficiales.
     PRECIO_BOTELLON = 1.00  # €
-    PRECIO_HIELO = 1.20     # €
+    PRECIO_HIELO = 1.20  # €
     payload["total_eur"] = round(
-        (payload["qty_botellones"] * PRECIO_BOTELLON) +
-        (payload["qty_hielo"] * PRECIO_HIELO),
-        2
+        (payload["qty_botellones"] * PRECIO_BOTELLON) + (payload["qty_hielo"] * PRECIO_HIELO), 2
     )
 
     # Método de pago (si aparece en la respuesta de confirmación de pago)
@@ -1823,7 +2065,9 @@ async def meta_webhook(request: Request):
                     )
                 MESSAGES_TOTAL.labels(status="ok").inc()
                 logger.info("✍️ custom_combo → pedido cantidades manuales")
-                return JSONResponse({"status": "ok", "message_id": msg_id, "handled": "custom_combo"})
+                return JSONResponse(
+                    {"status": "ok", "message_id": msg_id, "handled": "custom_combo"}
+                )
 
             elif button_id == "ya_pague":
                 text_body = "ya pagué"
@@ -1856,7 +2100,7 @@ async def meta_webhook(request: Request):
             if from_phone:
                 await _send_whatsapp_message(
                     from_phone,
-                    "Disculpe, no entendí. Por favor, envíe el número de la opción que desea (1-5).",
+                    "Disculpe, no logré entender 🤔 Por favor, envíe el número de la opción que desea (1️⃣ a 5️⃣).",
                 )
             MESSAGES_TOTAL.labels(status="ignored").inc()
             return JSONResponse({"status": "ignored", "reason": "interactive_unknown"})
@@ -1891,9 +2135,12 @@ async def meta_webhook(request: Request):
 
         # Convertir a texto que Dify procesará como si fuera la dirección
         text_body = "Mi ubicación: " + ", ".join(location_parts)
-        logger.info("📍 GPS recibido - phone:%s lat=%f lng=%f",
+        logger.info(
+            "📍 GPS recibido - phone:%s lat=%f lng=%f",
             _phone_hash(value.get("contacts", [{}])[0].get("wa_id", ""))[:8],
-            latitude, longitude)
+            latitude,
+            longitude,
+        )
         # Marcar como texto para que el flujo continúe normal
         msg_type = "text"
         # Reescribir el mensaje para que el flujo de texto lo procese
@@ -1953,7 +2200,9 @@ async def meta_webhook(request: Request):
                 )
                 MESSAGES_TOTAL.labels(status="ok").inc()
                 logger.info("🚫 Cantidad %d rechazada (mínimo 3) para phone:%s", qty_num, ph_short)
-                return JSONResponse({"status": "ok", "message_id": msg_id, "handled": "minimum_rejected"})
+                return JSONResponse(
+                    {"status": "ok", "message_id": msg_id, "handled": "minimum_rejected"}
+                )
 
     # 4.5. GUARD DE HORARIO (determinístico, no depende del LLM)
     # Si está fuera de horario laboral (Lun-Sáb 8am-6pm America/Caracas),
@@ -2007,26 +2256,36 @@ async def meta_webhook(request: Request):
     # 5. INTENTAR FLUJO DETERMINÍSTICO PRIMERO (latencia <1s)
     # Si el bridge puede manejar el mensaje sin Dify, lo hace
     contact_name = value.get("contacts", [{}])[0].get("profile", {}).get("name", "")
-    det_result = _handle_deterministic(ph_short_full, text_body, from_phone, contact_name, msg, value)
+    det_result = _handle_deterministic(
+        ph_short_full, text_body, from_phone, contact_name, msg, value
+    )
 
     if det_result is not None:
         # El bridge manejó el mensaje determinísticamente
         answer = det_result["answer"]
         interactive = det_result.get("interactive")
 
-        logger.info("⚡ Respuesta determinística para phone:%s (state=%s)", ph_short, _get_state(ph_short_full).get("state"))
+        logger.info(
+            "⚡ Respuesta determinística para phone:%s (state=%s)",
+            ph_short,
+            _get_state(ph_short_full).get("state"),
+        )
 
         # Enviar respuesta (interactiva o texto)
         if interactive:
             if interactive["type"] == "list":
                 sent = await _send_whatsapp_interactive(
-                    from_phone, interactive["body"], "list",
+                    from_phone,
+                    interactive["body"],
+                    "list",
                     list_sections=interactive.get("list_sections", []),
                     button_text=interactive.get("button_text", "Ver opciones"),
                 )
             elif interactive["type"] == "button":
                 sent = await _send_whatsapp_interactive(
-                    from_phone, interactive["body"], "button",
+                    from_phone,
+                    interactive["body"],
+                    "button",
                     buttons=interactive.get("buttons", []),
                 )
             else:
@@ -2038,7 +2297,9 @@ async def meta_webhook(request: Request):
             MESSAGES_TOTAL.labels(status="ok").inc()
             META_SEND.labels(status="ok").inc()
             RESPONSE_TIME.observe(time.time() - request_start)
-            logger.info("⚡ Mensaje determinístico enviado a phone:%s (len=%d)", ph_short, len(answer))
+            logger.info(
+                "⚡ Mensaje determinístico enviado a phone:%s (len=%d)", ph_short, len(answer)
+            )
         else:
             MESSAGES_TOTAL.labels(status="error").inc()
             META_SEND.labels(status="error").inc()
@@ -2080,7 +2341,7 @@ async def meta_webhook(request: Request):
     # Bug 1 fix: corregir total en respuesta antes de enviar (determinístico)
     # SIEMPRE corregir el total si hay un pedido conocido para este teléfono
     ph_hash = _phone_hash(from_phone)
-    
+
     # Si es confirmación de pedido, calcular y guardar el total
     if "✅ Pedido confirmado" in answer or "✅ Pedido registrado" in answer:
         order_payload_fix = _build_order_payload(
@@ -2096,16 +2357,24 @@ async def meta_webhook(request: Request):
             "qty_hielo": order_payload_fix["qty_hielo"],
         }
         answer = _fix_total_in_response(answer, order_payload_fix)
-        logger.info("🔧 Total corregido en confirmación para phone:%s total=€%.2f", ph_short, order_payload_fix["total_eur"])
-    
+        logger.info(
+            "🔧 Total corregido en confirmación para phone:%s total=€%.2f",
+            ph_short,
+            order_payload_fix["total_eur"],
+        )
+
     # Para TODAS las respuestas que contengan "€", corregir el total si tenemos uno guardado
     elif "€" in answer and ph_hash in _last_order_totals:
         saved = _last_order_totals[ph_hash]
         # Crear payload temporal con el total guardado
         temp_payload = {"total_eur": saved["total"], "_llm_total": 0}
         answer = _fix_total_in_response(answer, temp_payload)
-        logger.info("🔧 Total corregido en respuesta posterior para phone:%s total=€%.2f", ph_short, saved["total"])
-    
+        logger.info(
+            "🔧 Total corregido en respuesta posterior para phone:%s total=€%.2f",
+            ph_short,
+            saved["total"],
+        )
+
     # Limpiar state si el pedido se completa ("Gracias por su compra")
     if "Gracias por su compra" in answer or "pedido está confirmado y en camino" in answer:
         _last_order_totals.pop(ph_hash, None)
