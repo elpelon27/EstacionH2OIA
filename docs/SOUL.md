@@ -1,7 +1,7 @@
 # 💧 SOUL — Personalidad de Valentina
 
-**Última actualización**: 2026-07-05 (Día 13)
-**Versión**: System Prompt v4 (máquina de estados 8 estados)
+**Última actualización**: 2026-07-17 (Día 25)
+**Versión**: System Prompt v5 (NEXO UX P0/P1/P2 + Named Tunnel)
 
 ---
 
