@@ -802,12 +802,11 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
     if lat is None or lng is None:
         return None
     import sqlite3 as _sq3
+
     try:
         conn = _sq3.connect(DISPATCH_DB_PATH)
         conn.row_factory = _sq3.Row
-        rows = conn.execute(
-            "SELECT id, center_lat, center_lng, radius_km FROM zones"
-        ).fetchall()
+        rows = conn.execute("SELECT id, center_lat, center_lng, radius_km FROM zones").fetchall()
         conn.close()
     except Exception as e:
         logger.warning("zones lookup falló: %s", e)
@@ -841,6 +840,7 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
     - Calcula zone_id automáticamente por haversine contra las 5 zones conocidas.
     """
     import sqlite3 as _sq3
+
     try:
         name = state.get("contact_name", "") or from_phone
         address = state.get("address", "")
@@ -864,8 +864,10 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
             client_id, prev_avg = existing
             # Running average muy simple: media entre visita previa y nueva.
             # Si prev_avg era None/0, usar la visit actual.
-            new_avg = total_bottles_visit if (prev_avg or 0) == 0 else int(
-                ((prev_avg or 0) + total_bottles_visit) / 2
+            new_avg = (
+                total_bottles_visit
+                if (prev_avg or 0) == 0
+                else int(((prev_avg or 0) + total_bottles_visit) / 2)
             )
             conn.execute(
                 """
@@ -883,7 +885,9 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
             )
             logger.info(
                 "👤 Client actualizado dispatch.db id=%d phone:%s zone=%s",
-                client_id, ph_hash[:8], zone_id,
+                client_id,
+                ph_hash[:8],
+                zone_id,
             )
         else:
             conn.execute(
@@ -895,13 +899,23 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
                 ) VALUES (?, ?, ?, ?, ?, ?, 'retail', ?, 5, ?, 1, ?, ?)
                 """,
                 (
-                    from_phone, ph_hash, name, address, lat, lng,
-                    total_bottles_visit, zone_id, now, now,
+                    from_phone,
+                    ph_hash,
+                    name,
+                    address,
+                    lat,
+                    lng,
+                    total_bottles_visit,
+                    zone_id,
+                    now,
+                    now,
                 ),
             )
             logger.info(
                 "👤 Client creado dispatch.db phone:%s zone=%s bottles=%d",
-                ph_hash[:8], zone_id, total_bottles_visit,
+                ph_hash[:8],
+                zone_id,
+                total_bottles_visit,
             )
 
         conn.commit()
