@@ -129,8 +129,28 @@ DISPATCH_DB_PATH = os.getenv("DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/
 
 LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")
 
+# r5: fail-closed si LOG_SALT quedó con default inseguro en producción.
+# El .env real define 32 chars reales; si EnvironmentFile no se carga (systemd
+# mal configurado) o se ejecuta fuera de systemd, el default es predecible y
+# todos los hashes de teléfono son crackeables por tabla arcoiris.
+# Excepción: tests/deploy scripts (pueden pasar BRIDGE_ALLOW_INSECURE_SALT=1).
+_INSECURE_LOG_SALT = LOG_SALT == "change-this-in-production"
+if _INSECURE_LOG_SALT and not os.getenv("BRIDGE_ALLOW_INSECURE_SALT"):
+    import sys as _sys
+    _sys.stderr.write(
+        "\n*** FATAL: LOG_SALT inseguro. Define LOG_SALT en config/.env con "
+        "al menos 32 chars aleatorios (ej: python3 -c \"import secrets; "
+        "print(secrets.token_hex(32))\"). Para bypass en dev/tests: "
+        "BRIDGE_ALLOW_INSECURE_SALT=1\n\n"
+    )
+    raise RuntimeError("LOG_SALT default inseguro - abortando startup (fail-closed r5)")
+
 # Telegram (alerts + kill switch). Opcional: si no está configurado, se omite.
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
+
+# r7: Set para mantener referencias a asyncio tasks creados fire-and-forget.
+# Evita que el GC cancele el task silenciosamente. Auto-limpia cuando done.
+_ASYNCTASKS_REFS: set = set()
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1663148211")  # Líder por defecto
 TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN) and TELEGRAM_AVAILABLE
 
@@ -317,6 +337,10 @@ logger.addHandler(_handler)
 def _init_db() -> None:
     os.makedirs(os.path.dirname(SQLITE_PATH), exist_ok=True)
     conn = sqlite3.connect(SQLITE_PATH)
+    # r2/r3: foreign_keys + WAL activados en init (persiste en archivo)
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     conn.execute(
         """
         CREATE TABLE IF NOT EXISTS conversations (
@@ -340,9 +364,50 @@ def _init_db() -> None:
         )
         """
     )
+    # r1: dispatch_queue table (estaba ausente del _init_db original).
+    # _send_to_dispatch_queue (linea 796) la usa INSERT pero la tabla jamas
+    # era creada aqui -> regenerar BD = explosion sqlite3.OperationalError.
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS dispatch_queue (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            fs_pedido_id INTEGER,
+            cliente_nombre TEXT,
+            cliente_telefono TEXT,
+            producto_desc TEXT,
+            total_eur REAL,
+            total_bs REAL,
+            metodo_pago TEXT,
+            gps_lat REAL,
+            gps_lng REAL,
+            gps_url TEXT,
+            direccion TEXT,
+            chofer_asignado TEXT,
+            estado TEXT DEFAULT 'pending',
+            enviado_at TEXT,
+            respondido_at TEXT,
+            creado_at TEXT NOT NULL
+        )
+        """
+    )
+    # Indices para queries frecuentes (analytics 7am, dispatcher polling)
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_phone_hash ON orders(phone_hash)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)")
+    conn.execute("CREATE INDEX IF NOT EXISTS idx_dispatch_queue_estado ON dispatch_queue(estado, creado_at)")
     conn.commit()
     conn.close()
-    logger.info("SQLite inicializado en %s", SQLITE_PATH)
+    logger.info("SQLite inicializado en %s (WAL + foreign_keys ON)", SQLITE_PATH)
+
+
+def _get_db_with_fk(path: str = SQLITE_PATH, row_factory: bool = False) -> sqlite3.Connection:
+    """Abre conexion SQLite con PRAGMA foreign_keys = ON (per-conexion, no persiste).
+    r2: Usa este helper en TODA insercion/actualizacion que dependa de FK enforcement.
+    """
+    conn = sqlite3.connect(path)
+    conn.execute("PRAGMA foreign_keys = ON")
+    if row_factory:
+        conn.row_factory = sqlite3.Row
+    return conn
 
 
 def _phone_hash(phone: str) -> str:
@@ -801,11 +866,8 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
     dentro de max_km, o None si no hay GPS o ninguna zona calza."""
     if lat is None or lng is None:
         return None
-    import sqlite3 as _sq3
-
     try:
-        conn = _sq3.connect(DISPATCH_DB_PATH)
-        conn.row_factory = _sq3.Row
+        conn = _get_db_with_fk(DISPATCH_DB_PATH, row_factory=True)
         rows = conn.execute("SELECT id, center_lat, center_lng, radius_km FROM zones").fetchall()
         conn.close()
     except Exception as e:
@@ -814,14 +876,15 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
 
     best_id = None
     best_km = float("inf")
+    # r/P1 fix: factor longitud correcto es cos(lat_rad), NO 0.85 empirico.
+    # cos(10.65°π/180) = 0.9827. Pre-computado fuera del loop.
+    cos_lat = 0.9827  # Maracaibo lat ~10.65°N
     for r in rows:
         if r["center_lat"] is None or r["center_lng"] is None:
             continue
-        # Haversine simplificado
         dlat = (r["center_lat"] - lat) * 111.32
-        dlng = (r["center_lng"] - lng) * 111.32 * 0.85  # ajuste longitud Maracaibo ~10.65°N
+        dlng = (r["center_lng"] - lng) * 111.32 * cos_lat
         km = (dlat * dlat + dlng * dlng) ** 0.5
-        # Usar el radio de la zona (o max_km) como threshold
         threshold = r["radius_km"] if r["radius_km"] else max_km
         if km < threshold and km < best_km:
             best_km = km
@@ -839,8 +902,6 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
     - Si no existe, se inserta con defaults razonables (retail, priority=5, active=1).
     - Calcula zone_id automáticamente por haversine contra las 5 zones conocidas.
     """
-    import sqlite3 as _sq3
-
     try:
         name = state.get("contact_name", "") or from_phone
         address = state.get("address", "")
@@ -852,7 +913,7 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
         total_bottles_visit = qty_bot  # proxy simple; hielo no es botellones
         now = datetime.now(CARACAS_TZ).timestamp()
 
-        conn = _sq3.connect(DISPATCH_DB_PATH)
+        conn = _get_db_with_fk(DISPATCH_DB_PATH)
         # Upsert vía INSERT OR REPLACE preservando updated_at; OJO: REPLACE pierde
         # el id autoincremental en updates — usamos INSERT ... ON CONFLICT si existe.
         existing = conn.execute(
@@ -1732,7 +1793,9 @@ def _save_order_to_db_and_sheets(
     try:
         conn = sqlite3.connect(SQLITE_PATH)
         product_desc = _format_product_desc(qty_bot, qty_hielo)
-        conn.execute(
+        # r7: usar cursor.lastrowid (more limpio que SELECT last_insert_rowid())
+        # ANTES de conn.close() para evitar use-after-close.
+        cursor = conn.execute(
             "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",
             (
                 ph_hash,
@@ -1741,10 +1804,11 @@ def _save_order_to_db_and_sheets(
                 time.time(),
             ),
         )
+        pedido_id = cursor.lastrowid  # capturado antes del close
         conn.commit()
         conn.close()
         ORDERS_TOTAL.inc()
-        logger.info("Orden guardada en SQLite para phone:%s total=€%.2f", ph_hash[:8], total)
+        logger.info("Orden guardada en SQLite para phone:%s total=€%.2f id=%d", ph_hash[:8], total, pedido_id)
 
         # Notificar a Financial Shield para registro financiero
         try:
@@ -1752,14 +1816,10 @@ def _save_order_to_db_and_sheets(
             if fs:
                 import asyncio
 
-                # Obtener el ID del pedido recién creado
-                cursor = conn.execute("SELECT last_insert_rowid()")
-                pedido_id = cursor.fetchone()[0]
-                conn.close()
-
-                # Llamar a FS de forma asíncrona (no bloquear webhook)
+                # r7: pedido_id ya capturado, conn ya cerrada. Llamar a FS async.
                 metodo_pago_str = "pagomovil"  # Default, se actualiza después
-                asyncio.ensure_future(
+                # r7: usar create_task con referencia guardada (GC no cancela task).
+                _fs_task = asyncio.ensure_future(
                     fs.on_nuevo_pedido(
                         pedido_id=pedido_id,
                         cliente_telefono=from_phone,
@@ -1770,15 +1830,12 @@ def _save_order_to_db_and_sheets(
                         total_eur=total,
                     )
                 )
+                # Mantener referencia débil en una set global para evitar cancelación por GC
+                _ASYNCTASKS_REFS.add(_fs_task)
+                _fs_task.add_done_callback(_ASYNCTASKS_REFS.discard)
                 logger.info("🛡️ FS notificado: pedido=%d total=€%.2f", pedido_id, total)
-            else:
-                conn.close()
         except Exception as fs_err:
             logger.error("Error notificando a FS: %s", fs_err)
-            try:
-                conn.close()
-            except:
-                pass
     except sqlite3.Error as e:
         logger.error("Error guardando orden SQLite: %s", e)
 

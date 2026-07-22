@@ -83,12 +83,16 @@ def now_epoch():
 
 def get_dispatch_db():
     conn = sqlite3.connect(DISPATCH_DB)
+    # r2: foreign_keys ON per-conexion (PRAGMA no persiste)
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
     return conn
 
 
 def get_conv_db():
     conn = sqlite3.connect(CONV_DB)
+    # r2: foreign_keys ON per-conexion (PRAGMA no persiste)
+    conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
     return conn
 
@@ -420,7 +424,68 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             "El administrador será notificado.\n"
             "Usa /siguiente para ver la próxima parada."
         )
-        logger.warning("❌ No responde: delivery=%d chofer=%s", delivery_id, chofer["operator_name"])
+
+    # r6/FASE 1.4: Botones "new_arr/new_del/new_no" usan vehicle_id (NO delivery_id).
+    # Llegan desde send_pedido_to_chofer() en bridge._send_to_dispatch_queue flow.
+    # Estrategia: buscar el último delivery pendiente del vehículo y aplicarle
+    # la acción. Si no hay delivery en tabla, marcar como evento pendiente.
+    elif data.startswith(("new_arr_", "new_del_", "new_no_")):
+        # data format: "new_arr_<vehicle_id>", "new_del_<vehicle_id>", etc.
+        # separar: parts = ["new", "arr", "<vehicle_id>"]
+        parts = data.split("_")
+        action_kind = parts[1]
+        try:
+            vehicle_id = int(parts[2])
+        except (IndexError, ValueError):
+            logger.warning("callback_accion: new_* malformed data=%s", data)
+            await query.edit_message_text("❌ Datos del botón inválidos.")
+            return
+
+        # Buscar último delivery pendiente de este vehículo
+        conn = get_dispatch_db()
+        delivery = conn.execute(
+            """
+            SELECT id FROM deliveries
+            WHERE vehicle_id = ? AND status = 'pending'
+            ORDER BY order_sequence ASC LIMIT 1
+            """,
+            (vehicle_id,),
+        ).fetchone()
+        conn.close()
+
+        if not delivery:
+            # No hay delivery planificado en tabla — pedido recibido vía dispatch_queue
+            # pero dispatcher no ha generado route todavía. Marcar como notificación
+            # informativa para que chofer sepa que su ack no generó acción.
+            await query.edit_message_text(
+                f"ℹ️ Pedido notificado. La ruta oficial se planifica a las 7:45 AM.\n"
+                f"Si ya lo entregaste/completaste, el sistema lo procesará en la siguiente ruta.\n"
+                f"💧 Estación H2O"
+            )
+            logger.info(
+                "new_%s ack sin delivery asociado (vehicle_id=%d)", action_kind, vehicle_id
+            )
+            return
+
+        delivery_id = delivery["id"]
+        if action_kind == "arr":
+            update_delivery_status(delivery_id, "arrived")
+            await query.edit_message_text(
+                "✅ Llegada registrada.\n\n"
+                "📍 Por favor, envía tu ubicación actual por GPS.\n"
+                "(Toca el clip 📎 → Ubicación → Enviar mi ubicación actual)"
+            )
+        elif action_kind == "del":
+            update_delivery_status(delivery_id, "delivered")
+            await query.edit_message_text(
+                "✅ Entrega completada.\n\n🏁 ¡Buen trabajo!\n💧 Estación H2O"
+            )
+        elif action_kind == "no":
+            update_delivery_status(delivery_id, "no_answer", "Cliente no responde")
+            await query.edit_message_text(
+                "❌ Marcado como 'No responde'.\n\n"
+                "El administrador será notificado."
+            )
 
 
 async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
