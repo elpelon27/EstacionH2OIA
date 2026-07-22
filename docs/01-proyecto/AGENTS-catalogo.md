@@ -33,7 +33,7 @@
   - Procesar GPS
   - Persistir en SQLite + Google Sheets
 
-**Documentación**: Ver `SOUL.md`
+**Documentación**: Ver `01-proyecto/SOUL-valentina.md`
 
 ---
 
