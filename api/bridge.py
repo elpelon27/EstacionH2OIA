@@ -124,6 +124,9 @@ RATE_PER_IP = int(os.getenv("RATE_LIMIT_PER_IP", "100"))
 
 SQLITE_PATH = os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
 
+# dispatch.db contiene clients/deliveries/vehicles/zones/gps_tracks (usado por skills/dispatcher.py y route_engine.py)
+DISPATCH_DB_PATH = os.getenv("DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
+
 LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")
 
 # Telegram (alerts + kill switch). Opcional: si no está configurado, se omite.
@@ -793,6 +796,121 @@ def _format_product_desc(qty_bot: int, qty_hielo: int) -> str:
     return " y ".join(parts) if parts else "productos"
 
 
+def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) -> int | None:
+    """Haversine contra la tabla zones de dispatch.db. Retorna zone_id más cercano
+    dentro de max_km, o None si no hay GPS o ninguna zona calza."""
+    if lat is None or lng is None:
+        return None
+    import sqlite3 as _sq3
+    try:
+        conn = _sq3.connect(DISPATCH_DB_PATH)
+        conn.row_factory = _sq3.Row
+        rows = conn.execute(
+            "SELECT id, center_lat, center_lng, radius_km FROM zones"
+        ).fetchall()
+        conn.close()
+    except Exception as e:
+        logger.warning("zones lookup falló: %s", e)
+        return None
+
+    best_id = None
+    best_km = float("inf")
+    for r in rows:
+        if r["center_lat"] is None or r["center_lng"] is None:
+            continue
+        # Haversine simplificado
+        dlat = (r["center_lat"] - lat) * 111.32
+        dlng = (r["center_lng"] - lng) * 111.32 * 0.85  # ajuste longitud Maracaibo ~10.65°N
+        km = (dlat * dlat + dlng * dlng) ** 0.5
+        # Usar el radio de la zona (o max_km) como threshold
+        threshold = r["radius_km"] if r["radius_km"] else max_km
+        if km < threshold and km < best_km:
+            best_km = km
+            best_id = r["id"]
+    return best_id
+
+
+def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> None:
+    """Upsert del cliente en dispatch.db (tabla clients) por phone_hash.
+    Se llama después de encolar el pedido en dispatch_queue (conversations.db),
+    para que el módulo dispatcher tenga un cliente real al planear rutas.
+
+    Semántica:
+    - phone_hash es UNIQUE → si ya existe, se actualiza address/lat/lng/updated_at.
+    - Si no existe, se inserta con defaults razonables (retail, priority=5, active=1).
+    - Calcula zone_id automáticamente por haversine contra las 5 zones conocidas.
+    """
+    import sqlite3 as _sq3
+    try:
+        name = state.get("contact_name", "") or from_phone
+        address = state.get("address", "")
+        lat = state.get("latitude")
+        lng = state.get("longitude")
+        qty_bot = state.get("qty_botellones", 0) or 0
+        qty_hielo = state.get("qty_hielo", 0) or 0
+        zone_id = _nearest_zone_id(lat, lng)
+        total_bottles_visit = qty_bot  # proxy simple; hielo no es botellones
+        now = datetime.now(CARACAS_TZ).timestamp()
+
+        conn = _sq3.connect(DISPATCH_DB_PATH)
+        # Upsert vía INSERT OR REPLACE preservando updated_at; OJO: REPLACE pierde
+        # el id autoincremental en updates — usamos INSERT ... ON CONFLICT si existe.
+        existing = conn.execute(
+            "SELECT id, avg_bottles_per_visit FROM clients WHERE phone_hash = ?",
+            (ph_hash,),
+        ).fetchone()
+
+        if existing:
+            client_id, prev_avg = existing
+            # Running average muy simple: media entre visita previa y nueva.
+            # Si prev_avg era None/0, usar la visit actual.
+            new_avg = total_bottles_visit if (prev_avg or 0) == 0 else int(
+                ((prev_avg or 0) + total_bottles_visit) / 2
+            )
+            conn.execute(
+                """
+                UPDATE clients SET
+                    name = ?,
+                    address_text = ?,
+                    lat = ?,
+                    lng = ?,
+                    zone_id = ?,
+                    avg_bottles_per_visit = ?,
+                    updated_at = ?
+                WHERE id = ?
+                """,
+                (name, address, lat, lng, zone_id, new_avg, now, client_id),
+            )
+            logger.info(
+                "👤 Client actualizado dispatch.db id=%d phone:%s zone=%s",
+                client_id, ph_hash[:8], zone_id,
+            )
+        else:
+            conn.execute(
+                """
+                INSERT INTO clients (
+                    phone, phone_hash, name, address_text, lat, lng,
+                    client_type, avg_bottles_per_visit, priority, zone_id,
+                    active, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?, 'retail', ?, 5, ?, 1, ?, ?)
+                """,
+                (
+                    from_phone, ph_hash, name, address, lat, lng,
+                    total_bottles_visit, zone_id, now, now,
+                ),
+            )
+            logger.info(
+                "👤 Client creado dispatch.db phone:%s zone=%s bottles=%d",
+                ph_hash[:8], zone_id, total_bottles_visit,
+            )
+
+        conn.commit()
+        conn.close()
+    except Exception as e:
+        # No romper el flujo del bridge si dispatch.db falla
+        logger.error("Error sincronizando client a dispatch.db: %s", e)
+
+
 def _send_to_dispatch_queue(ph_hash: str, state: dict, from_phone: str):
     """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
     TRIGGER: cuando cliente envía dirección (NO 'ya pagué')."""
@@ -845,6 +963,9 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict, from_phone: str):
         conn.commit()
         conn.close()
         logger.info("📦 Pedido enviado a dispatch_queue para phone:%s", ph_hash[:8])
+        # FASE 1 paso 2: sincronizar cliente en dispatch.db (clients table)
+        # para que el dispatcher tenga un cliente real al planear rutas.
+        _sync_client_to_dispatch_db(ph_hash, from_phone, state)
     except Exception as e:
         logger.error("Error enviando a dispatch_queue: %s", e)
 
@@ -1443,6 +1564,8 @@ def _handle_deterministic(
             new_state["state"] = "completed"
             new_state["payment_method"] = "Efectivo"
             _set_state(ph_hash, new_state)
+            # FASE 1.5: Encolar pedido para dispatcher (antes de limpiar estado)
+            _send_to_dispatch_queue(ph_hash, new_state, from_phone)
             _clear_state(ph_hash)
             return {
                 "answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"
@@ -1508,6 +1631,8 @@ def _handle_deterministic(
             "listo",
             "ya",
         ]:
+            # FASE 1.5: Encolar pedido para dispatcher (antes de limpiar estado)
+            _send_to_dispatch_queue(ph_hash, state, from_phone)
             _clear_state(ph_hash)
             # NEXO P1: Finalización completa — qué se hizo + qué sigue + cómo volver
             qty_bot = state.get("qty_botellones", 0)
