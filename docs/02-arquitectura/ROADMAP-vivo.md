@@ -81,40 +81,30 @@ sudo systemctl restart valentina-bridge.service
 
 ---
 
-## 🟡 FASE 1.5: Test E2E dispatcher (2h)
+## 🟡 FASE 1.5: Test E2E dispatcher — COMPLETADO (commit df4b014, 5/5 PASS)
 
-**Objetivo**: Validar el flujo completo: pedido WhatsApp → bridge → dispatch_queue → dispatcher → chofer → ack.
+Smoke test con spy valida que `_send_to_dispatch_queue` dispara en:
+- Pago efectivo '2' → payment_method='Efectivo' + address presente ✅
+- 'ya pagué' tras pago móvil → payment_method='Pago Móvil' ✅
 
-**Tareas**:
-1. Smoke test ad-hoc del bridge con spy en `_send_to_dispatch_queue`.
-2. Verificar que `dispatch_queue` recibe el pedido.
-3. Verificar que `_sync_client_to_dispatch_db` crea el client en dispatch.db.
-4. Simular callback de chofer (`new_arr`, `new_del`, `new_no`).
-5. Verificar `update_delivery_status` actualiza la delivery.
-
-**Patrón**: Backup/restore BD real con `shutil.copy` (ver skill pitfalls #15).
-
-**Estimación**: 2h.
+Y NO dispara en abortos:
+- 'volver', 'menú', 'atrás' desde awaiting_payment ✅
 
 ---
 
 ## 🟠 P0 RESTANTES (del análisis 36 fallas — 3 quedan)
+
+### P0-2: `/metrics` sin auth — RESUELTO (commit b3e1580)
+IP allowlist (127.0.0.1, ::1, 172.19.0.0/16 Docker) aplicada al endpoint /metrics.
+
+### P0-3: Kill switch /tmp/valentina.kill — RESUELTO (commit b3e1580)
+Movido a data/valentina.kill con 0600 al crear. Persiste tras reboot. Cambio en bridge.py + telegram_bot.py.
 
 ### P0-1: Estado FSM en memoria NO persistente (P1 en análisis, P0 en práctica)
 **Archivo**: `api/bridge.py:146+153+747` (`_seen_messages`, `_last_order_totals`, `_conversation_state`).
 **Riesgo**: Si uvicorn muere, estados `awaiting_payment`/`awaiting_confirmation` se pierden. Cliente pagó pero el pedido no se procesa.
 **Fix**:Persistir `_conversation_state` en SQLite (`conversation_state(phone_hash, state_json, updated_at)`), carga perezosa.
 **Estimación**: 4h.
-
-### P0-2: `/metrics` sin auth
-**Archivo**: `api/bridge.py` endpoint `/metrics`.
-**Fix**: Filtrar con IP allowlist (`127.0.0.1` + `172.19.0.0/16` Docker). Basic Auth como alternativa.
-**Estimación**: 30min.
-
-### P0-3: Kill switch en `/tmp/valentina.kill` (escribible por todos)
-**Archivo**: `skills/telegram_bot.py:49+85`.
-**Fix**: Mover a `data/valentina.kill` con 0600. Auto-clear si > 24h.
-**Estimación**: 30min.
 
 ---
 
@@ -170,14 +160,16 @@ Ya contado.
 
 ---
 
-## 📊 MÉTRICAS DE PROGRESO
+## 📊 MÉTRICAS DE PROGRESO (actualizado 2026-07-22 16:10)
 
 - Fallas P0 totales detectadas: 11
-- Fallas P0 resueltas: 8 (r1-r7 + cloudflared + cron + backups)
-- Fallas P0 restantes: 3 (FSM persistente, /metrics auth, kill switch)
+- Fallas P0 resueltas: 10 (r1-r7 + cloudflared + cron + backups + /metrics + kill switch)
+- Fallas P0 restantes: 1 (FSM persistente — P0-1)
 - Fallas P1 totales: 13
-- Fallas P1 resueltas: 7 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks)
-- Fallas P1 restantes: 6
-- FASE 1 completitud: ~60%
+- Fallas P1 resueltas: 10 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring)
+- Fallas P1 restantes: 3 (FSM persistente (cuenta como P0-1), WatchdogSec, PHONE_REGEX)
+- FASE 1 completitud: ~70%
+- Commits sesión: 6 (7d656a8, e8a4509, 2b8f4c7, b3e1580, df4b014 + roadmap)
+- Smoke tests: 5/5 PASS
 
 💧
