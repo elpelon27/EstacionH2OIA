@@ -109,7 +109,7 @@ async def main():
         try:
             from src.financial.currency import get_tasa_display
             tasa_str = get_tasa_display()
-        except:
+        except Exception:
             tasa_str = "N/A"
 
         # 7. Calcular Bs.
@@ -117,7 +117,7 @@ async def main():
         try:
             from src.financial.currency import convert_eur_to_ves
             total_ingresos_bs = convert_eur_to_ves(total_ingresos_eur) or 0
-        except:
+        except Exception:
             pass
 
         # 8. Construir mensaje
