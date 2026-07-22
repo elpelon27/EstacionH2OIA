@@ -1,9 +1,11 @@
 # 🔍 Análisis Milimétrico de Arquitectura — Estación H2O
 
 **Fecha**: 2026-07-21 (Día 26 — sesión Prometeo x Líder)
-**Autor**: Prometeo (GLM 5.2 vía NVIDIA NIM)
-**Alcance**: api/bridge.py (2613 líneas), skills/dispatcher.py (659), skills/dispatch/route_engine.py (459), data/*.db, systemd, cron, logs, secrets.
-**Estado código**: Tras FASE 1.5 + paso 2 (commits 6c3b43c, fd9ff21) — bridge reiniciado, dispatch_queue activa, sync clients operacional.
+**Autor**: Prometeo (GLM 5.2 vía NVIDIA NIM) + 2 subagentes en paralelo (código backend + infraestructura/datos)
+**Alcance**: api/bridge.py (2613 líneas), skills/dispatcher.py (659), skills/dispatch/route_engine.py (459), data/*.db, systemd, cron, logs, secrets, cloudflare.
+**Estado código**: Tras FASE 1.5 + paso 2 (commits 6c3b43c, fd9ff21, 1d689c3, 90e3cdd) — bridge reiniciado, dispatch_queue activa, sync clients operacional.
+
+**Totales**: 11 P0 + 13 P1 + 12 P2 = **36 fallas** (consolidadas tras eliminar duplicados entre los 3 análisis paralelos).
 
 ---
 
@@ -35,6 +37,36 @@ Evidencia: `PRAGMA journal_mode` retorna `('delete',)`. Igual en conversations.d
 Riesgo: SQLite bloquea readers durante writes → si `dispatcher.py` lee clients mientras `_sync_client_to_dispatch_db` escribe (FASE 1.5), obtiene `database is locked` y pierde lecturas. Con 10 msg/día esto es improbable PERO cuando crezcan afectará.
 Recomendación: Activar `PRAGMA journal_mode = WAL` en ambas BDs. Es change的一次性 one-shot (`sqlite3 data/dispatch.db "PRAGMA journal_mode = WAL"`) y persiste en el archivo. Sin downtime.
 
+**[P0] [bug-funcional] — `skills/dispatcher.py:369-422 + 648` — Botones `new_arr_/new_del_/new_no_` NO disparados por handler**
+Evidencia: El callback handler hace `data.startswith("arr_")` / `"del_"` / `"no_"` pero JAMÁS checkea `"new_arr_"` etc. El patrón regex `^(arr_|del_|no_|new_)` matchea los botones nuevos pero caen al default fallthrough.
+Riesgo: Chofer toca "✅ Entregado" → delivery NUNCA se actualiza en `deliveries`. Queda stuck pending forever. Cliente cree que está pendiente.
+Recomendación: Añadir rama `elif data.startswith("new_arr_") or "new_del_" or "new_no_"` con parse `delivery_id = int(data.split("_")[-1])` defer a estados normales. Es el pendiente FASE 1 paso 4 del plan.
+
+**[P0] [bug-funcional] — `api/bridge.py:1745-1758` — use-after-close de `conn` en `_save_order_to_db_and_sheets`**
+Evidencia: `conn.commit()` → `conn.close()` (línea 1745) → DESPUÉS `cursor = conn.execute("SELECT last_insert_rowid()")` (1747) en conn CERRADA → siempre lanza `sqlite3.ProgrammingError` o retorna None. Además `asyncio.ensure_future(fs.on_nuevo_pedido(pedido_id=pedido_id, ...))` se invoca con pedido_id=None.
+Riesgo: Financial Shield nunca recibe pedido_id válido → facturación inconsistente desde Día 13. Fire-and-forget camufla el problema.
+Recomendación: Mover `cursor = conn.execute("SELECT last_insert_rowid()")` y `cursor.fetchone()` ANTES de `conn.close()`. Mejor: usar `cursor.lastrowid` directo. Sustituir `asyncio.ensure_future` por `asyncio.create_task` y guardar referencia (GC no cancela task silenciosamente).
+
+**[P0] [race-condition / infraestructura] — DOS procesos cloudflared coexistiendo (named tunnel + quick tunnel efímero)**
+Evidencia: `ps -ef | grep cloudflared`: PID 2952 (root, systemd, named tunnel permanente `valentina.estacionh2o.com`) + PID 7432 (skynet, sin systemd, quick tunnel `trycloudflare.com` efímero). Logs/url_changes.log muestra URL trycloudflare cambiando (~8h uptime típico). Callback webhook Meta apunta a `flower-columns-wan-lakes.trycloudflare.com/webhook/meta` (hardcoded en Meta Dashboard).
+Riesgo: Si PID 7432 muere o trycloudflare caduca, Meta envía webhooks a URL inexistente → mensajes WhatsApp se pierden silenciosamente. Named tunnel NO es el callback activo. Producción sostenida con red efímera.
+Recomendación: Matar PID 7432 (`kill 7432`) + desinstalar quick tunnel. Apuntar webhook Meta a `https://valentina.estacionh2o.com/webhook/meta` (permanente). Eliminar `skills/cloudflare_url_watchdog.py` y logs/url_changes.log.
+
+**[P0] [infraestructura] — cron 08:00 `run_dispatcher_checkin.py` apunta a script QUE NO EXISTE**
+Evidencia: `crontab -l` contiene la entrada, pero `ls skills/run_dispatcher_checkin.py` → file not found. `logs/dispatcher_checkin.log` contiene solo `[Errno 2] No such file or directory` repetido 7+ días.
+Riesgo: Cada mañana una alerta ensucia logs. Cuando se implemente el cron 7:45am real para rutas (FASE 1.3), podríamos no detectar falla porque "checkin" ya parece roto.
+Recomendación: Crear skills/run_dispatcher_checkin.py con stub (siguiendo patrón de run_fs_recordatorios.py para cargar .env), o eliminar la línea del crontab.
+
+**[P0] [datos/perdida] — No hay backups desde 13 jul — 19 fs_pedidos + 4 orders sin respaldo**
+Evidencia: `backups/` contiene solo 3 .db manuales; último hace 8 días. SELECT COUNT(*) fs_pedidos en data/conversations.db = 19 (vs 0 en backup). 4 orders nuevas post-13jul sin respaldo.
+Riesgo: Si conversations.db corrompe mañana (no-WAL + fsync durante corte eléctrico), se pierden todos los pedidos acumulados en 8 días. RPO indefinido.
+Recomendación: Cron diario `0 2 * * *` con `sqlite3 data/X.db ".backup '/opt/backups/h2o/X-$(date +%F).db'"` + retention 14 días. Validar restauración una vez.
+
+**[P0] [seguridad-config] — `/metrics` y `/health` HTTP 200 sin auth, expone internals**
+Evidencia: `curl http://localhost:8000/metrics` retorna 200 con `valentina_dify_calls_total`, kill_switch state, Python version, response_time bucket, error counters. Sin Basic Auth ni IP allowlist. Cloudflared catch-all futuro `admin.estacionh2o.com` podría exponerlos.
+Riesgo: Si tunnel catch-all se relaja o se abre subdominio, leakage ~= uptime, kill_switch status (indicador si Valentina está apagada), version Python para exploits dirigidos.
+Recomendación: Filtrar `/metrics` con IP allowlist (solo `127.0.0.1` y `172.19.0.0/16` Docker). Basic Auth como alternativa. `/health` sin datos sensitive (solo `ok/degraded`).
+
 **[P0] [seguridad-config] — `/etc/systemd/system/valentina-bridge.service` desincronizado de `systemd/valentina-bridge.service` en repo**
 Evidencia: `/etc/.../valentina-bridge.service` (instalado) tiene `StartLimitBurst=5` y `StartLimitIntervalSec=60`. El archivo en repo NO los tiene. readlink confirma que /etc/systemd es symlink al repo, pero el archivo en repo difiere visto que el symlink explícito o hay stale state.
 Riesgo: Las próximas ediciones de `systemd/valentina-bridge.service` no impactan producción (systemd ya cargo unit distinta). Fix FASE 1.5 pudo ser rollbackizado por algún daemon-reload previo. La feature `StartLimitBurst` (prevención tight-restart-loops) está en prod pero NO en el repo — drift real.
@@ -43,6 +75,26 @@ Recomendación: Sincronizar ambos archivos manualmente (diff + reconciliar). Est
 ---
 
 ### ⚠️ P1 — Crítico / Mantenibilidad
+
+**[P1] [race-condition] — `api/bridge.py:146+153+747` — Estado FSM en memoria NO persistente (se pierde en restart)**
+Evidencia: `_seen_messages`, `_last_order_totals`, `_conversation_state` son dicts en process memory. Si uvicorn muere, todos los estados `awaiting_address`/`awaiting_payment`/`awaiting_confirmation` activos se pierden.
+Riesgo: Cliente enviado un "ya pagué" durante restart de bridge → no recibe respuesta → realmente pagó pero no se procesó el pedido. Dedup también cae cross-worker.
+Recomendación: Persistir `_conversation_state` en SQLite (`conversation_state(phone_hash, state_json, updated_at)`), cargar perezosamente. Documentar `--workers 1` como hard requirement o pasar a un lock async singleton.
+
+**[P1] [seguridad] — `api/bridge.py:286-298` — PHONE_REGEX demasiado greedy expone PII**
+Evidencia: `PHONE_REGEX = re.compile(r"\+?\58?\d{10,15}")` matchea 10-15 dígitos consecutivos SIN anchors. IDs de pedido, timestamps, IPs en logs se confunden con teléfonos y se hashean incorrectamente. Sin `\b` ni lookarounds.
+Riesgo: Log con número ID de pedido se hashea como "phone:abc123def456" aunque no es teléfono. PII expuesta (tel real en log string) si regex falla.
+Recomendación: `re.compile(r"(?<!\d)\+?58\d{10}(?!\d)")` con lookarounds negativos. Tests unitarios con 20 casos phone/not-phone mixto. **No commitear sin test**.
+
+**[P1] [performance] — `api/bridge.py:822-823` — Aproximación Haversine errada para Maracaibo (factor 0.85 en vez de cos(10.65°)=0.98)**
+Evidencia: Mi propio código `_nearest_zone_id` usa `dlng = (r["center_lng"] - lng) * 111.32 * 0.85`. El factor correcto para longitud a lat 10.65°N es `cos(10.65 * π/180) ≈ 0.9827`, NO 0.85. Distancias Este-Oeste sobreestimadas en 16%.
+Riesgo: Clientes en bordes entre zonas se mapean a zone_id diferente que el que calcula `route_engine.py:55-70 haversine()` (que usa fórmula correcta). Inconsistencia entre bridge y dispatcher.
+Recomendación: Reemplazar implementación en bridge por `from skills.dispatch.route_engine import haversine; km = haversine(lat, lng, zlat, zlng)`. Eliminar duplicación de cálculo.
+
+**[P1] [seguridad-config] — `skills/telegram_bot.py:49+85` — kill_switch en `/tmp/valentina.kill` escribible por todos + se pierde en reboot**
+Evidencia: `KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/tmp/valentina.kill")`. `/tmp` es 1777 sticky pero writable por todos. Cualquier proceso puede `touch /tmp/valentina.kill` y silenciar Valentina.
+Riesgo: Si un atacante local o proceso accidentalmente crea el archivo, Valentina ignora webhooks silenciosamente. Bridge.py responde 200 a Meta (`reason: kill_switch_active`) pero cliente nunca recibe reply. Reboot pierde el kill switch (no persiste).
+Recomendación: Mover a `data/valentina.kill` con 0600 owned by skynet (persistente + no escribible). Mejor: tabla `system_flags` en BD. Auto-clear si file > 24h.
 
 **[P1] [seguridad] — `LOG_SALT` default inseguro en `bridge.py:127`**
 Evidencia: `LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")`. Verificar que `.env` real override esto. Si no, hashes de phone son predecibles (mismo ataque que API key filtrad).
