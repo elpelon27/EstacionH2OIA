@@ -66,7 +66,7 @@ Estado: [describir dónde quedamos]
 ├── requirements.txt           # 11 dependencias pinned
 ├── Makefile                   # 12 comandos
 ├── deploy.sh                  # Despliegue automático
-├── RUNBOOK.md                 # Guía 6 pasos
+├── 02-arquitectura/RUNBOOK-operacional.md  # Guía 6 pasos
 └── README.md                  # Arquitectura + 7 ADRs
 ```
 
@@ -76,14 +76,14 @@ Estado: [describir dónde quedamos]
 
 | Doc | Propósito | Frecuencia actualización |
 |-----|-----------|--------------------------|
-| `BOOTSTRAP.md` | Este archivo — punto de entrada | Cada sesión |
-| `MEMORY.md` | Celda de memoria maestra | Cada sesión |
-| `ROADMAP.md` | Plan de trabajo reciclado | Tras cada hito |
-| `RUNBOOK.md` | Guía operacional 6 pasos | Cuando cambia deploy |
-| `HEARTBEAT.md` | Estado del sistema en vivo | Automático cada hora |
-| `SOUL.md` | Personalidad de Valentina | Solo si cambia prompt |
-| `USER.md` | Perfil del Líder | Cambios de contacto |
-| `AGENTS.md` | Catálogo de agentes/skills | Al añadir skill nueva |
+| `01-proyecto/BOOTSTRAP.md` | Este archivo — punto de entrada | Cada sesión |
+| `05-tech-debt/MEMORY-celda.md` | Celda de memoria maestra | Cada sesión |
+| `02-arquitectura/ROADMAP-plan.md` | Plan de trabajo reciclado | Tras cada hito |
+| `02-arquitectura/RUNBOOK-operacional.md` | Guía operacional 6 pasos | Cuando cambia deploy |
+| `02-arquitectura/HEARTBEAT.md` | Estado del sistema en vivo | Automático cada hora |
+| `01-proyecto/SOUL-valentina.md` | Personalidad de Valentina | Solo si cambia prompt |
+| `01-proyecto/USER-lider.md` | Perfil del Líder | Cambios de contacto |
+| `01-proyecto/AGENTS-catalogo.md` | Catálogo de agentes/skills | Al añadir skill nueva |
 
 ---
 
