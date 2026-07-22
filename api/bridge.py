@@ -54,7 +54,7 @@ def _convert_eur_to_bs(eur):
         conn.close()
         if row and row[0] > 0:
             return round(eur * row[0], 2)
-    except:
+    except Exception:
         pass
     return None
 
@@ -155,7 +155,9 @@ TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1663148211")  # Líder por def
 TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN) and TELEGRAM_AVAILABLE
 
 # Kill switch: archivo centinela. Si existe, el bridge se detiene.
-KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/tmp/valentina.kill")
+# P0-3: movido de /tmp a data/ — /tmp es 1777 (writable por todos), data/ es del user skynet.
+# Persiste tras reboot (antes se perdía). 0600 al crear (ver telegram_bot.py cmd_stop).
+KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/mnt/ssd_trabajo/hermes-agent/data/valentina.kill")
 
 # Cliente HTTP reutilizable (connection pooling)
 _http_client: httpx.AsyncClient | None = None
@@ -863,7 +865,11 @@ def _format_product_desc(qty_bot: int, qty_hielo: int) -> str:
 
 def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) -> int | None:
     """Haversine contra la tabla zones de dispatch.db. Retorna zone_id más cercano
-    dentro de max_km, o None si no hay GPS o ninguna zona calza."""
+    dentro de max_km, o None si no hay GPS o ninguna zona calza.
+
+    P1-5: usa haversine de route_engine (fórmula esférica correcta) en vez del
+    cálculo plano aproximado local. Fallback al cálculo local si el import falla.
+    """
     if lat is None or lng is None:
         return None
     try:
@@ -874,17 +880,26 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
         logger.warning("zones lookup falló: %s", e)
         return None
 
+    # P1-5: usar haversine de route_engine (esférico, preciso) con fallback local
+    _haversine_impl = None
+    try:
+        from skills.dispatch.route_engine import haversine as _haversine_impl
+    except ImportError:
+        pass
+
     best_id = None
     best_km = float("inf")
-    # r/P1 fix: factor longitud correcto es cos(lat_rad), NO 0.85 empirico.
-    # cos(10.65°π/180) = 0.9827. Pre-computado fuera del loop.
-    cos_lat = 0.9827  # Maracaibo lat ~10.65°N
     for r in rows:
         if r["center_lat"] is None or r["center_lng"] is None:
             continue
-        dlat = (r["center_lat"] - lat) * 111.32
-        dlng = (r["center_lng"] - lng) * 111.32 * cos_lat
-        km = (dlat * dlat + dlng * dlng) ** 0.5
+        if _haversine_impl is not None:
+            km = _haversine_impl(lat, lng, r["center_lat"], r["center_lng"])
+        else:
+            # Fallback: aproximación plana con factor cos(lat) para Maracaibo
+            cos_lat = 0.9827  # cos(10.65°π/180) — Maracaibo lat ~10.65°N
+            dlat = (r["center_lat"] - lat) * 111.32
+            dlng = (r["center_lng"] - lng) * 111.32 * cos_lat
+            km = (dlat * dlat + dlng * dlng) ** 0.5
         threshold = r["radius_km"] if r["radius_km"] else max_km
         if km < threshold and km < best_km:
             best_km = km
@@ -988,7 +1003,8 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
 
 def _send_to_dispatch_queue(ph_hash: str, state: dict, from_phone: str):
     """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
-    TRIGGER: cuando cliente envía dirección (NO 'ya pagué')."""
+    TRIGGER: cuando cliente confirma pago (efectivo '2' o 'ya pagué' tras pago móvil).
+    NO encolar en abortos ('volver'/'menú' desde awaiting_payment)."""
     import sqlite3 as _sq3
 
     try:
@@ -2087,8 +2103,18 @@ async def root():
 
 
 @app.get("/metrics")
-async def metrics():
-    """Endpoint de métricas Prometheus para scrapeo."""
+async def metrics(request: Request):
+    """Endpoint de métricas Prometheus para scrapeo.
+
+    P0-2: IP allowlist — solo localhost y red Docker local (172.19.0.0/16).
+    Evita que /metrics exponga internals (kill_switch state, Python version,
+    error counters) si el tunnel catch-all se relaja o se abre subdominio.
+    """
+    # IP allowlist
+    client_ip = request.client.host if request.client else ""
+    _allowed = client_ip in ("127.0.0.1", "::1") or client_ip.startswith("172.19.")
+    if not _allowed:
+        raise HTTPException(status_code=403, detail="Access denied")
     if not PROMETHEUS_AVAILABLE:
         return JSONResponse(
             {"error": "prometheus_client no instalado"},

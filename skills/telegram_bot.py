@@ -46,7 +46,7 @@ CARACAS_TZ = timezone(timedelta(hours=-4))
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID", "1663148211"))
-KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/tmp/valentina.kill")
+KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/mnt/ssd_trabajo/hermes-agent/data/valentina.kill")
 SQLITE_PATH = os.getenv(
     "SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db"
 )
@@ -82,7 +82,10 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
-    with open(KILL_SWITCH_FILE, "w") as f:
+    # P0-3: crear con 0600 (antes en /tmp era 1777=writable por todos)
+    import os as _os
+    _fd = _os.open(KILL_SWITCH_FILE, _os.O_CREAT | _os.O_WRONLY | _os.O_TRUNC, 0o600)
+    with _os.fdopen(_fd, "w") as f:
         f.write(f"killed by {update.effective_user.username} at {datetime.now(CARACAS_TZ)}")
     await update.message.reply_text(
         "🛑 Kill switch ACTIVADO\nValentina NO responderá mensajes nuevos.\nPara reactivar: /start"
