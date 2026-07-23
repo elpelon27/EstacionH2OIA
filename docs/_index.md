@@ -44,6 +44,8 @@
 ## 🗃️ Histórico
 
 - [[03-sesiones/worklog|Worklog completo (~1400 líneas)]]
+- [[03-sesiones/CIERRE_JORNADA_2026-07-22|Cierre jornada Día 27 — recuperación tras caída API]]
+- [[03-sesiones/REPARACIONES_2026-07-21|Registro de reparaciones P0/P1 (r1-r7)]]
 - [[03-sesiones/CIERRE_JORNADA_2026-07-05|Cierre jornada Día 13 — primer cliente real]]
 - [[03-sesiones/COMMIT_SUMMARY|Resumen commit v1.3.0]]
 - [[03-sesiones/MASTER_MEMORY_CELL_PROMETEO|Celda memoria maestra histórica]]
