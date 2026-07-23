@@ -44,6 +44,7 @@
 ## 🗃️ Histórico
 
 - [[03-sesiones/worklog|Worklog completo (~1400 líneas)]]
+- [[03-sesiones/Migracion-Hermes-Prometeo-Contexto|📜 Migración Hermes + contexto completo Prometeo v1→v2]]
 - [[03-sesiones/CIERRE_JORNADA_2026-07-22|Cierre jornada Día 27 — recuperación tras caída API]]
 - [[03-sesiones/REPARACIONES_2026-07-21|Registro de reparaciones P0/P1 (r1-r7)]]
 - [[03-sesiones/CIERRE_JORNADA_2026-07-05|Cierre jornada Día 13 — primer cliente real]]
