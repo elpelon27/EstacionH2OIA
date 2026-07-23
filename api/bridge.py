@@ -305,7 +305,11 @@ else:
 class SanitizingFormatter(logging.Formatter):
     """Reemplaza números de teléfono por hash SHA256+salt en los logs."""
 
-    PHONE_REGEX = __import__("re").compile(r"\+?58?\d{10,15}")
+    # P1-1: Regex preciso con lookarounds — solo matchea teléfono venezolano
+    # real (+58XXXXXXXXXX o 58XXXXXXXXXX o XXXXXXXXXX si empieza con 412/414/416/424/426).
+    # Antes: r"\+?58?\d{10,15}" sin anchors → matcheaba IDs, timestamps, IPs.
+    # Ahora: requiere que NO haya dígitos antes ni después (boundary de dígitos).
+    PHONE_REGEX = __import__("re").compile(r"(?<!\d)\+?58\d{10}(?!\d)")
 
     def format(self, record: logging.LogRecord) -> str:
         msg = super().format(record)
