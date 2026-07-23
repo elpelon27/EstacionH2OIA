@@ -63,21 +63,24 @@ sudo systemctl restart valentina-bridge.service
 
 ---
 
-## 🟡 PRÓXIMO — FASE 1.3: Cron 7:45am ruta automática (3h)
+## 🟡 FASE 1.3: Cron 7:45am ruta automática — COMPLETADO (commit 7e2b757)
 
-**Objetivo**: Cada día a 7:45am, leer `dispatch_queue` (pedidos pending del día anterior), generar ruta óptima con OR-Tools VRP (`route_engine.py`), asignar a choferes YORDANIS + EVERT, enviar notificación Telegram.
+Script `skills/run_route_planner.py` creado y testeado con 2 pedidos fake:
+1. Lee `dispatch_queue` (estado='pending') de conversations.db
+2. Crea/actualiza clients en dispatch.db (find_by_phone o insert con phone_hash)
+3. Convierte pedidos a `ClientOrder` dataclass para route_engine
+4. Calcula rutas VRP con OR-Tools (`compute_vrp_route`) — fallback NN si falla
+5. Crea `dispatch_sessions` + `deliveries` (order_sequence) en dispatch.db
+6. Marca pedidos de `dispatch_queue` como 'enviado'
+7. Notifica choferes por Telegram (si `TELEGRAM_DISPATCH_CHAT` configurado en .env)
 
-**Tareas**:
-1. Crear `skills/run_route_planner.py` (script cron 7:45am).
-2. Leer `dispatch_queue` WHERE estado='pending' de conversations.db.
-3. Llamar `route_engine.py` con vehicles activos + deliveries pendientes.
-4. Insertar resultado en `dispatch.db.deliveries` + `dispatch_sessions`.
-5. Enviar notificación Telegram a cada chofer con su ruta del día.
-6. Cron: `45 7 * * * /mnt/ssd_trabajo/hermes-agent/venv/bin/python skills/run_route_planner.py >> logs/route_planner.log 2>&1`
+Test E2E: 2 pedidos → 2 clients creados → OR-Tools asignó 2 paradas al Vehículo 2 (EVERT),
+7.37 km, 38 min, 8 botellones → 2 sessions + 2 deliveries creadas ✅. BD restaurada post-test.
+
+Cron: `45 7 * * *` añadido al crontab.
 
 **Prerequisito**: B3 (reiniciar bridge para activar r1 = dispatch_queue table en _init_db).
-
-**Estimación**: 3h.
+**Pendiente**: Líder debe configurar `TELEGRAM_DISPATCH_CHAT` en .env con el chat_id del grupo de choferes.
 
 ---
 
@@ -160,7 +163,7 @@ Ya contado.
 
 ---
 
-## 📊 MÉTRICAS DE PROGRESO (actualizado 2026-07-22 16:10)
+## 📊 MÉTRICAS DE PROGRESO (actualizado 2026-07-22 20:10)
 
 - Fallas P0 totales detectadas: 11
 - Fallas P0 resueltas: 10 (r1-r7 + cloudflared + cron + backups + /metrics + kill switch)
@@ -168,8 +171,10 @@ Ya contado.
 - Fallas P1 totales: 13
 - Fallas P1 resueltas: 10 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring)
 - Fallas P1 restantes: 3 (FSM persistente (cuenta como P0-1), WatchdogSec, PHONE_REGEX)
-- FASE 1 completitud: ~70%
-- Commits sesión: 6 (7d656a8, e8a4509, 2b8f4c7, b3e1580, df4b014 + roadmap)
+- FASE 1 completitud: ~85%
+- Commits sesión: 10 (7d656a8 → 7e2b757 + docs)
 - Smoke tests: 5/5 PASS
+- Route planner E2E: 2 pedidos → 2 rutas OR-Tools, BD restaurada ✅
+- Cron jobs: 6 activos (analytics 7am, route_planner 7:45am, checkin 8am, backup 2am, fs_reporte 6:30pm, fs_recordatorios cada 30min)
 
 💧
