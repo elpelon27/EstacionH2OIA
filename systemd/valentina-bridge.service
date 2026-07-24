@@ -17,7 +17,7 @@ Wants=network-online.target
 StartLimitBurst=5
 
 [Service]
-Type=simple
+Type=notify
 User=skynet
 Group=skynet
 
@@ -42,6 +42,10 @@ ExecStartPre=/mnt/ssd_trabajo/hermes-agent/venv/bin/python3 -c "import fastapi, 
 # Reinicio automático
 Restart=always
 RestartSec=5
+
+# P1-2: Watchdog — systemd reinicia el bridge si no recibe
+# WATCHDOG=1 cada 30s. El bridge envia notify cada 15s.
+WatchdogSec=30s
 
 # Hardening de seguridad
 NoNewPrivileges=true
