@@ -27,6 +27,7 @@ Seguridad:
 Autor: Prometeo (arquitecto IA Estación H2O)
 """
 
+import asyncio
 import hashlib
 import hmac
 import json
@@ -38,6 +39,12 @@ import sys
 import time
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta, timezone
+
+# P1-2: sdnotify para watchdog systemd
+try:
+    import sdnotify
+except ImportError:
+    sdnotify = None
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
@@ -2170,12 +2177,39 @@ def _build_order_payload(
 # FastAPI app
 # ============================================================================
 
+# P1-2: Watchdog systemd — envia WATCHDOG=1 cada 15s.
+# systemd reinicia el servicio si no recibe notify en WatchdogSec=30s.
+_watchdog_task: asyncio.Task | None = None
+
+
+async def _watchdog_loop() -> None:
+    """Loop asyncio que envia sd_notify WATCHDOG=1 cada 15s."""
+    if sdnotify is None:
+        logger.warning("sdnotify no instalado — watchdog systemd inactivo")
+        return
+    notifier = sdnotify.SystemdNotifier()
+    interval = 15  # mitad de WatchdogSec=30s
+    logger.info("Watchdog systemd activo (interval=%ds)", interval)
+    while True:
+        try:
+            notifier.notify("WATCHDOG=1")
+        except Exception as e:
+            logger.warning("Watchdog notify fallo: %s", e)
+        await asyncio.sleep(interval)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global _http_client, _telegram_bot
+    global _http_client, _telegram_bot, _watchdog_task
     _init_db()
     _http_client = httpx.AsyncClient()
+
+    # P1-2: Iniciar watchdog systemd
+    if sdnotify is not None:
+        sdnotify.SystemdNotifier().notify("READY=1")
+        _watchdog_task = asyncio.create_task(_watchdog_loop())
+    else:
+        logger.warning("sdnotify no instalado — Type=notify puede colgar el startup")
 
     # Inicializar bot de Telegram si está configurado
     if TELEGRAM_ENABLED:
@@ -2198,6 +2232,14 @@ async def lifespan(app: FastAPI):
     logger.info("Meta API version: %s", META_API_VERSION)
     logger.info("Prometheus metrics: %s", "activadas" if PROMETHEUS_AVAILABLE else "no disponibles")
     yield
+
+    # P1-2: Cancelar watchdog en shutdown
+    if _watchdog_task:
+        _watchdog_task.cancel()
+        try:
+            await _watchdog_task
+        except asyncio.CancelledError:
+            pass
 
     # Graceful shutdown
     logger.info("Cerrando conexiones...")
