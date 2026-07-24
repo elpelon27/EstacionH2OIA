@@ -400,6 +400,26 @@ def _init_db() -> None:
     conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_phone_hash ON orders(phone_hash)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_dispatch_queue_estado ON dispatch_queue(estado, creado_at)")
+
+    # P0-1: FSM persistente — tabla conversation_state.
+    # Persiste _conversation_state y _last_order_totals en SQLite.
+    # Si uvicorn muere, los estados awaiting_payment/awaiting_confirmation
+    # se recuperan al reiniciar (lazy load desde esta tabla).
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS conversation_state (
+            phone_hash TEXT PRIMARY KEY,
+            state_json TEXT NOT NULL,
+            total REAL,
+            qty_bot INTEGER,
+            qty_hielo INTEGER,
+            updated_at REAL NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_conv_state_updated ON conversation_state(updated_at)"
+    )
     conn.commit()
     conn.close()
     logger.info("SQLite inicializado en %s (WAL + foreign_keys ON)", SQLITE_PATH)
@@ -838,18 +858,135 @@ OUT_OF_HOURS_MSG = (
 
 
 def _get_state(ph_hash: str) -> dict:
-    """Obtiene el estado conversacional del teléfono."""
-    return _conversation_state.get(ph_hash, {"state": None})
+    """Obtiene el estado conversacional del teléfono.
+    P0-1: Lazy load desde SQLite con cache en memoria."""
+    cached = _conversation_state.get(ph_hash)
+    if cached is not None:
+        return cached
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        row = conn.execute(
+            "SELECT state_json, total, qty_bot, qty_hielo FROM conversation_state WHERE phone_hash = ?",
+            (ph_hash,),
+        ).fetchone()
+        conn.close()
+        if row and row[0]:
+            state = json.loads(row[0])
+            _conversation_state[ph_hash] = state
+            logger.info("📋 FSM recuperado de SQLite para %s: state=%s", ph_hash[:8], state.get("state"))
+            return state
+    except sqlite3.Error as e:
+        logger.warning("No se pudo leer FSM de SQLite para %s: %s", ph_hash[:8], e)
+    return {"state": None}
 
 
 def _set_state(ph_hash: str, state: dict) -> None:
-    """Guarda el estado conversacional."""
+    """Guarda el estado conversacional.
+    P0-1: Write-through a SQLite + cache en memoria."""
     _conversation_state[ph_hash] = state
+    try:
+        state_json = json.dumps(state, ensure_ascii=False)
+        now = time.time()
+        conn = sqlite3.connect(SQLITE_PATH)
+        conn.execute(
+            """
+            INSERT INTO conversation_state (phone_hash, state_json, total, qty_bot, qty_hielo, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(phone_hash) DO UPDATE SET
+                state_json = excluded.state_json,
+                total = excluded.total,
+                qty_bot = excluded.qty_bot,
+                qty_hielo = excluded.qty_hielo,
+                updated_at = excluded.updated_at
+            """,
+            (
+                ph_hash,
+                state_json,
+                state.get("total"),
+                state.get("qty_bot"),
+                state.get("qty_hielo"),
+                now,
+            ),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        logger.warning("No se pudo persistir FSM a SQLite para %s: %s", ph_hash[:8], e)
 
 
 def _clear_state(ph_hash: str) -> None:
-    """Limpia el estado (pedido completado o reinicio)."""
+    """Limpia el estado (pedido completado o reinicio).
+    P0-1: DELETE de SQLite + pop de cache."""
     _conversation_state.pop(ph_hash, None)
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        conn.execute(
+            "DELETE FROM conversation_state WHERE phone_hash = ?", (ph_hash,)
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        logger.warning("No se pudo limpiar FSM de SQLite para %s: %s", ph_hash[:8], e)
+
+
+def _save_order_totals(ph_hash: str, total: float, qty_bot: int, qty_hielo: int) -> None:
+    """P0-1: Persiste _last_order_totals en conversation_state (mismo row del FSM)."""
+    _last_order_totals[ph_hash] = {"total": total, "qty_bot": qty_bot, "qty_hielo": qty_hielo}
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        conn.execute(
+            """
+            INSERT INTO conversation_state (phone_hash, state_json, total, qty_bot, qty_hielo, updated_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+            ON CONFLICT(phone_hash) DO UPDATE SET
+                total = excluded.total,
+                qty_bot = excluded.qty_bot,
+                qty_hielo = excluded.qty_hielo,
+                updated_at = excluded.updated_at
+            """,
+            (ph_hash, json.dumps({"state": None}, ensure_ascii=False), total, qty_bot, qty_hielo, time.time()),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        logger.warning("No se pudo persistir order_totals a SQLite para %s: %s", ph_hash[:8], e)
+
+
+def _get_order_totals(ph_hash: str) -> dict | None:
+    """P0-1: Lee _last_order_totals con cache + fallback SQLite."""
+    cached = _last_order_totals.get(ph_hash)
+    if cached is not None:
+        return cached
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        row = conn.execute(
+            "SELECT total, qty_bot, qty_hielo FROM conversation_state WHERE phone_hash = ?",
+            (ph_hash,),
+        ).fetchone()
+        conn.close()
+        if row and row[0] is not None:
+            totals = {"total": row[0], "qty_bot": row[1] or 0, "qty_hielo": row[2] or 0}
+            _last_order_totals[ph_hash] = totals
+            logger.info("📋 order_totals recuperado de SQLite para %s: total=€%.2f", ph_hash[:8], row[0])
+            return totals
+    except sqlite3.Error as e:
+        logger.warning("No se pudo leer order_totals de SQLite para %s: %s", ph_hash[:8], e)
+    return None
+
+
+def _clear_order_totals(ph_hash: str) -> None:
+    """P0-1: Limpia order_totals de cache + SQLite (columnas a NULL)."""
+    _last_order_totals.pop(ph_hash, None)
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        conn.execute(
+            "UPDATE conversation_state SET total=NULL, qty_bot=NULL, qty_hielo=NULL WHERE phone_hash = ?",
+            (ph_hash,),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        logger.warning("No se pudo limpiar order_totals de SQLite para %s: %s", ph_hash[:8], e)
 
 
 def _calc_total(qty_bot: int, qty_hielo: int) -> float:
@@ -1859,12 +1996,8 @@ def _save_order_to_db_and_sheets(
     except sqlite3.Error as e:
         logger.error("Error guardando orden SQLite: %s", e)
 
-    # Guardar en _last_order_totals para compatibilidad
-    _last_order_totals[ph_hash] = {
-        "total": total,
-        "qty_bot": qty_bot,
-        "qty_hielo": qty_hielo,
-    }
+    # P0-1: Guardar order_totals con persistencia SQLite
+    _save_order_totals(ph_hash, total, qty_bot, qty_hielo)
 
     # Google Sheets async
     order_payload = {
@@ -2576,12 +2709,13 @@ async def meta_webhook(request: Request):
             contact_name=value.get("contacts", [{}])[0].get("profile", {}).get("name", ""),
             conversation_id=new_conv,
         )
-        # Guardar total para correcciones futuras
-        _last_order_totals[ph_hash] = {
-            "total": order_payload_fix["total_eur"],
-            "qty_bot": order_payload_fix["qty_botellones"],
-            "qty_hielo": order_payload_fix["qty_hielo"],
-        }
+        # P0-1: Guardar total para correcciones futuras (persistente)
+        _save_order_totals(
+            ph_hash,
+            order_payload_fix["total_eur"],
+            order_payload_fix["qty_botellones"],
+            order_payload_fix["qty_hielo"],
+        )
         answer = _fix_total_in_response(answer, order_payload_fix)
         logger.info(
             "🔧 Total corregido en confirmación para phone:%s total=€%.2f",
@@ -2590,20 +2724,21 @@ async def meta_webhook(request: Request):
         )
 
     # Para TODAS las respuestas que contengan "€", corregir el total si tenemos uno guardado
-    elif "€" in answer and ph_hash in _last_order_totals:
-        saved = _last_order_totals[ph_hash]
-        # Crear payload temporal con el total guardado
-        temp_payload = {"total_eur": saved["total"], "_llm_total": 0}
-        answer = _fix_total_in_response(answer, temp_payload)
-        logger.info(
-            "🔧 Total corregido en respuesta posterior para phone:%s total=€%.2f",
-            ph_short,
-            saved["total"],
-        )
+    elif "€" in answer:
+        saved = _get_order_totals(ph_hash)
+        if saved:
+            # Crear payload temporal con el total guardado
+            temp_payload = {"total_eur": saved["total"], "_llm_total": 0}
+            answer = _fix_total_in_response(answer, temp_payload)
+            logger.info(
+                "🔧 Total corregido en respuesta posterior para phone:%s total=€%.2f",
+                ph_short,
+                saved["total"],
+            )
 
     # Limpiar state si el pedido se completa ("Gracias por su compra")
     if "Gracias por su compra" in answer or "pedido está confirmado y en camino" in answer:
-        _last_order_totals.pop(ph_hash, None)
+        _clear_order_totals(ph_hash)
         logger.info("🧹 State limpiado para phone:%s (pedido completado)", ph_short)
 
     msg_type_info = _detect_message_type(answer)
