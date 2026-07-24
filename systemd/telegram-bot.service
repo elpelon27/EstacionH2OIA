@@ -1,0 +1,50 @@
+# ============================================================================
+# systemd unit — Telegram Bot (kill switch + alerts)
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+# Instalar:
+#   sudo cp systemd/telegram-bot.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable telegram-bot
+#   sudo systemctl start telegram-bot
+# ============================================================================
+
+[Unit]
+Description=Telegram Bot — Kill Switch + Alerts para Valentina Bridge
+After=network-online.target valentina-bridge.service
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=skynet
+Group=skynet
+
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/skills
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python telegram_bot.py
+
+Restart=always
+RestartSec=10
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictNamespaces=true
+LockPersonality=true
+
+MemoryMax=256M
+CPUQuota=50%
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=telegram-bot
+
+[Install]
+WantedBy=multi-user.target
