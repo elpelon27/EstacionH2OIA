@@ -118,9 +118,11 @@ Movido a data/valentina.kill con 0600 al crear. Persiste tras reboot. Cambio en 
 **Fix**: `re.compile(r"(?<!\d)\+?58\d{10}(?!\d)")` con lookarounds + tests.
 **Estimación**: 1h (con tests).
 
-### P1-2: WatchdogSec= en systemd
-**Fix**: Añadir `WatchdogSec=30s` + `sd_notify("WATCHDOG=1")` desde task asyncio periódica. Paquete `sdnotify`.
-**Estimación**: 2h.
+### P1-2: WatchdogSec systemd — RESUELTO (commit e24fcbf)
+**Antes**: Si el bridge se colgaba (deadlock, memory leak), systemd no lo detectaba — servicio 'active' pero no respondia.
+**Fix**: `Type=notify` + `WatchdogSec=30s` en systemd unit. `_watchdog_loop()` en bridge.py envia `WATCHDOG=1` cada 15s via `sdnotify`. `READY=1` al arrancar. Cancelacion limpia en shutdown.
+**Test**: 8/8 PASS (tests/smoke/test_watchdog.py).
+**Requiere**: Reiniciar bridge + copiar systemd unit a /etc.
 
 ### P1-3: Bare `except:` (E722) en bridge.py + run_analytics_7am.py
 **Fix**: Cambiar a `except Exception:`.
@@ -166,15 +168,13 @@ Ya contado.
 ## 📊 MÉTRICAS DE PROGRESO (actualizado 2026-07-24)
 
 - Fallas P0 totales detectadas: 11
-- Fallas P0 resueltas: 11 (r1-r7 + cloudflared + cron + backups + /metrics + kill switch + FSM persistente)
-- Fallas P0 restantes: 0 — TODAS LAS P0 RESUELTAS
+- Fallas P0 resueltas: 11 — TODAS LAS P0 RESUELTAS
 - Fallas P1 totales: 13
-- Fallas P1 resueltas: 11 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring, PHONE_REGEX)
-- Fallas P1 restantes: 2 (WatchdogSec, FSM persistente ya contado como P0-1)
-- FASE 1 completitud: ~95%
-- Commits sesión 2026-07-24: 1 (3cda570 — P0-1 FSM persistente)
-- Commits sesión 2026-07-22: 13 (7d656a8 → 89d4747)
-- Smoke tests: 26/26 PASS (5 E2E dispatcher + 20 PHONE_REGEX + 21 FSM persistente, 2 suites)
-- Cron jobs: 6 activos (analytics 7am, route_planner 7:45am, checkin 8am, backup 2am, fs_reporte 6:30pm, fs_recordatorios cada 30min)
+- Fallas P1 resueltas: 12 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring, PHONE_REGEX, WatchdogSec)
+- Fallas P1 restantes: 1 (FSM persistente ya contado como P0-1)
+- FASE 1 completitud: ~97%
+- Commits sesión 2026-07-24: 4 (3cda570 P0-1, aea8648 docs, e24fcbf P1-2, + este docs)
+- Smoke tests: 29/29 PASS (5 E2E dispatcher + 20 PHONE_REGEX + 21 FSM + 8 watchdog, 3 suites)
+- Cron jobs: 6 activos
 
 💧
