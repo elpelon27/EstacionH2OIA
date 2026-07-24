@@ -102,12 +102,12 @@ Mismo bug que tenia el bridge (StartLimitIntervalSec en [Service] en lugar de [U
 
 ---
 
-## P2 COSMETICO (postergable)
+## P2 COSMETICO — estado al 2026-07-24
 
-- P2-1: 78 errores E501 (ruff line-length) en bridge.py.
-- P2-2: 96 errores mypy (type hints faltantes) en bridge.py.
-- P2-4: Crear `tests/unit/test_bridge.py` (suite pytest nueva).
-- P2-5: RESUMEN_RETOMAR.md desactualizado (rutas viejas /home/z/my-project).
+- P2-1: 46 errores E501 → 40 tras ruff format → subagente arreglando los 40 restantes.
+- P2-2: mypy type hints — pendiente (N errores en bridge.py).
+- P2-4: tests/unit/test_bridge.py — RESUELTO (27 tests, commit a3a58ee).
+- P2-5: RESUMEN_RETOMAR.md — RESUELTO (reescrito Dia 29, commit ff25415).
 
 ---
 
@@ -121,19 +121,16 @@ Tras FASE 1 completa (~97%), iniciar FASE 2 segun `docs/DISPATCHER_ARCHITECTURE.
 
 ---
 
-## METRICAS DE PROGRESO (actualizado 2026-07-24 17:30)
+## METRICAS DE PROGRESO (actualizado 2026-07-24 19:15)
 
-- Fallas P0 totales detectadas: 11
-- Fallas P0 resueltas: 11 — TODAS LAS P0 RESUELTAS
-- Fallas P1 totales: 13
-- Fallas P1 resueltas: 12 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring, PHONE_REGEX, WatchdogSec)
-- Fallas P1 restantes: 1 (FSM persistente ya contado como P0-1)
-- FASE 1 completitud: ~97%
-- Commits totales repo: 71
-- Commits sesion 2026-07-24: 4 (3cda570 P0-1, aea8648 docs, e24fcbf P1-2, c3addd3 docs)
-- Smoke tests: 29/29 PASS (5 E2E dispatcher + 20 PHONE_REGEX + 21 FSM + 8 watchdog, 3 suites)
-- pytest suite: 78 pass, 14 fail/error (preexistente, cero regresiones)
-- Servicios prod: 4 active (valentina-bridge, dispatcher-bot, telegram-bot, cloudflared)
-- Cron jobs: 6 activos (analytics 7am, route_planner 7:45am, checkin 8am, backup 2am, fs_reporte 6:30pm, fs_recordatorios cada 30min)
+- Fallas P0 totales: 11 — TODAS RESUELTAS
+- Fallas P1 totales: 13 — 12 resueltas (1 restante = FSM ya contado como P0-1)
+- FASE 1 completitud: ~99%
+- Commits totales repo: 75+
+- Smoke tests: 29/29 PASS (3 suites)
+- pytest suite: 105 passed, 14 skipped, 0 failed (27 nuevos test_bridge.py)
+- Servicios prod: 4 active (bridge Type=notify + WatchdogSec, dispatcher, telegram, cloudflared)
+- Cron jobs: 6 activos
+- TELEGRAM_DISPATCH_CHAT: configurado (8523722341)
 - GitHub: sincronizado (https://github.com/elpelon27/EstacionH2OIA)
 
