@@ -56,7 +56,8 @@ def _convert_eur_to_bs(eur):
 
         conn = sqlite3.connect(SQLITE_PATH)
         row = conn.execute(
-            "SELECT tasa FROM fs_tasas_cambio WHERE par='EUR/VES' ORDER BY registrado_at DESC LIMIT 1"
+            "            "SELECT tasa FROM fs_tasas_cambio "
+            "WHERE par='EUR/VES' ORDER BY registrado_at DESC LIMIT 1""
         ).fetchone()
         conn.close()
         if row and row[0] > 0:
@@ -131,7 +132,8 @@ RATE_PER_IP = int(os.getenv("RATE_LIMIT_PER_IP", "100"))
 
 SQLITE_PATH = os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
 
-# dispatch.db contiene clients/deliveries/vehicles/zones/gps_tracks (usado por skills/dispatcher.py y route_engine.py)
+# dispatch.db contiene clients/deliveries/vehicles/zones/gps_tracks
+# (usado por skills/dispatcher.py y route_engine.py)
 DISPATCH_DB_PATH = os.getenv("DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
 
 LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")
@@ -144,10 +146,11 @@ LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")
 _INSECURE_LOG_SALT = LOG_SALT == "change-this-in-production"
 if _INSECURE_LOG_SALT and not os.getenv("BRIDGE_ALLOW_INSECURE_SALT"):
     import sys as _sys
+
     _sys.stderr.write(
         "\n*** FATAL: LOG_SALT inseguro. Define LOG_SALT en config/.env con "
-        "al menos 32 chars aleatorios (ej: python3 -c \"import secrets; "
-        "print(secrets.token_hex(32))\"). Para bypass en dev/tests: "
+        'al menos 32 chars aleatorios (ej: python3 -c "import secrets; '
+        'print(secrets.token_hex(32))"). Para bypass en dev/tests: '
         "BRIDGE_ALLOW_INSECURE_SALT=1\n\n"
     )
     raise RuntimeError("LOG_SALT default inseguro - abortando startup (fail-closed r5)")
@@ -164,7 +167,9 @@ TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN) and TELEGRAM_AVAILABLE
 # Kill switch: archivo centinela. Si existe, el bridge se detiene.
 # P0-3: movido de /tmp a data/ — /tmp es 1777 (writable por todos), data/ es del user skynet.
 # Persiste tras reboot (antes se perdía). 0600 al crear (ver telegram_bot.py cmd_stop).
-KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/mnt/ssd_trabajo/hermes-agent/data/valentina.kill")
+KILL_SWITCH_FILE = os.getenv(
+    "KILL_SWITCH_FILE", "/mnt/ssd_trabajo/hermes-agent/data/valentina.kill"
+)
 
 # Cliente HTTP reutilizable (connection pooling)
 _http_client: httpx.AsyncClient | None = None
@@ -406,7 +411,9 @@ def _init_db() -> None:
     # Indices para queries frecuentes (analytics 7am, dispatcher polling)
     conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_phone_hash ON orders(phone_hash)")
     conn.execute("CREATE INDEX IF NOT EXISTS idx_orders_created_at ON orders(created_at)")
-    conn.execute("CREATE INDEX IF NOT EXISTS idx_dispatch_queue_estado ON dispatch_queue(estado, creado_at)")
+    conn.execute(
+        "CREATE INDEX IF NOT EXISTS idx_dispatch_queue_estado ON dispatch_queue(estado, creado_at)"
+    )
 
     # P0-1: FSM persistente — tabla conversation_state.
     # Persiste _conversation_state y _last_order_totals en SQLite.
@@ -504,7 +511,7 @@ async def _send_whatsapp_message(phone: str, text: str) -> bool:
     if not META_ACCESS_TOKEN or not META_PHONE_NUMBER_ID:
         logger.error("META_ACCESS_TOKEN o META_PHONE_NUMBER_ID no configurados")
         return False
-    url = f"https://graph.facebook.com/{META_API_VERSION}" f"/{META_PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{META_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {META_ACCESS_TOKEN}",
         "Content-Type": "application/json",
@@ -560,7 +567,7 @@ async def _send_whatsapp_interactive(
         logger.error("META_ACCESS_TOKEN o META_PHONE_NUMBER_ID no configurados")
         return False
 
-    url = f"https://graph.facebook.com/{META_API_VERSION}" f"/{META_PHONE_NUMBER_ID}/messages"
+    url = f"https://graph.facebook.com/{META_API_VERSION}/{META_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {META_ACCESS_TOKEN}",
         "Content-Type": "application/json",
@@ -873,14 +880,17 @@ def _get_state(ph_hash: str) -> dict:
     try:
         conn = sqlite3.connect(SQLITE_PATH)
         row = conn.execute(
-            "SELECT state_json, total, qty_bot, qty_hielo FROM conversation_state WHERE phone_hash = ?",
+            "SELECT state_json, total, qty_bot, qty_hielo "
+            "FROM conversation_state WHERE phone_hash = ?",
             (ph_hash,),
         ).fetchone()
         conn.close()
         if row and row[0]:
             state = json.loads(row[0])
             _conversation_state[ph_hash] = state
-            logger.info("📋 FSM recuperado de SQLite para %s: state=%s", ph_hash[:8], state.get("state"))
+            logger.info(
+                "📋 FSM recuperado de SQLite para %s: state=%s", ph_hash[:8], state.get("state")
+            )
             return state
     except sqlite3.Error as e:
         logger.warning("No se pudo leer FSM de SQLite para %s: %s", ph_hash[:8], e)
@@ -927,9 +937,7 @@ def _clear_state(ph_hash: str) -> None:
     _conversation_state.pop(ph_hash, None)
     try:
         conn = sqlite3.connect(SQLITE_PATH)
-        conn.execute(
-            "DELETE FROM conversation_state WHERE phone_hash = ?", (ph_hash,)
-        )
+        conn.execute("DELETE FROM conversation_state WHERE phone_hash = ?", (ph_hash,))
         conn.commit()
         conn.close()
     except sqlite3.Error as e:
@@ -951,7 +959,14 @@ def _save_order_totals(ph_hash: str, total: float, qty_bot: int, qty_hielo: int)
                 qty_hielo = excluded.qty_hielo,
                 updated_at = excluded.updated_at
             """,
-            (ph_hash, json.dumps({"state": None}, ensure_ascii=False), total, qty_bot, qty_hielo, time.time()),
+            (
+                ph_hash,
+                json.dumps({"state": None}, ensure_ascii=False),
+                total,
+                qty_bot,
+                qty_hielo,
+                time.time(),
+            ),
         )
         conn.commit()
         conn.close()
@@ -974,7 +989,9 @@ def _get_order_totals(ph_hash: str) -> dict | None:
         if row and row[0] is not None:
             totals = {"total": row[0], "qty_bot": row[1] or 0, "qty_hielo": row[2] or 0}
             _last_order_totals[ph_hash] = totals
-            logger.info("📋 order_totals recuperado de SQLite para %s: total=€%.2f", ph_hash[:8], row[0])
+            logger.info(
+                "📋 order_totals recuperado de SQLite para %s: total=€%.2f", ph_hash[:8], row[0]
+            )
             return totals
     except sqlite3.Error as e:
         logger.warning("No se pudo leer order_totals de SQLite para %s: %s", ph_hash[:8], e)
@@ -1972,7 +1989,12 @@ def _save_order_to_db_and_sheets(
         conn.commit()
         conn.close()
         ORDERS_TOTAL.inc()
-        logger.info("Orden guardada en SQLite para phone:%s total=€%.2f id=%d", ph_hash[:8], total, pedido_id)
+        logger.info(
+            "Orden guardada en SQLite para phone:%s total=€%.2f id=%d",
+            ph_hash[:8],
+            total,
+            pedido_id,
+        )
 
         # Notificar a Financial Shield para registro financiero
         try:
