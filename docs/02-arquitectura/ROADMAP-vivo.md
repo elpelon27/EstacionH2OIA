@@ -103,11 +103,11 @@ IP allowlist (127.0.0.1, ::1, 172.19.0.0/16 Docker) aplicada al endpoint /metric
 ### P0-3: Kill switch /tmp/valentina.kill — RESUELTO (commit b3e1580)
 Movido a data/valentina.kill con 0600 al crear. Persiste tras reboot. Cambio en bridge.py + telegram_bot.py.
 
-### P0-1: Estado FSM en memoria NO persistente (P1 en análisis, P0 en práctica)
-**Archivo**: `api/bridge.py:146+153+747` (`_seen_messages`, `_last_order_totals`, `_conversation_state`).
-**Riesgo**: Si uvicorn muere, estados `awaiting_payment`/`awaiting_confirmation` se pierden. Cliente pagó pero el pedido no se procesa.
-**Fix**:Persistir `_conversation_state` en SQLite (`conversation_state(phone_hash, state_json, updated_at)`), carga perezosa.
-**Estimación**: 4h.
+### P0-1: Estado FSM en memoria NO persistente — RESUELTO (commit 3cda570)
+**Antes**: `_conversation_state` y `_last_order_totals` eran dicts en memoria. Si uvicorn moria, estados `awaiting_payment`/`awaiting_confirmation` se perdian.
+**Fix**: Tabla `conversation_state` en SQLite (`phone_hash` PK, `state_json`, `total`, `qty_bot`, `qty_hielo`, `updated_at`). `_get_state` hace lazy load desde SQLite con cache en memoria. `_set_state` es write-through. `_last_order_totals` persiste en mismo row via helpers `_save_order_totals`/`_get_order_totals`/`_clear_order_totals`. `_seen_messages` permanece en memoria (TTL 5min, efimero).
+**Test**: 21/21 PASS (tests/smoke/test_fsm_persistente.py) — recupera estados tras reinicio simulado, upsert, clear, multiplex telefonos.
+**Requiere**: Reinicio del bridge para activar `_init_db` (crea tabla nueva).
 
 ---
 
@@ -163,18 +163,18 @@ Ya contado.
 
 ---
 
-## 📊 MÉTRICAS DE PROGRESO (actualizado 2026-07-22 20:10)
+## 📊 MÉTRICAS DE PROGRESO (actualizado 2026-07-24)
 
 - Fallas P0 totales detectadas: 11
-- Fallas P0 resueltas: 10 (r1-r7 + cloudflared + cron + backups + /metrics + kill switch)
-- Fallas P0 restantes: 1 (FSM persistente — P0-1)
+- Fallas P0 resueltas: 11 (r1-r7 + cloudflared + cron + backups + /metrics + kill switch + FSM persistente)
+- Fallas P0 restantes: 0 — TODAS LAS P0 RESUELTAS
 - Fallas P1 totales: 13
-- Fallas P1 resueltas: 10 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring)
-- Fallas P1 restantes: 3 (FSM persistente (cuenta como P0-1), WatchdogSec, PHONE_REGEX)
-- FASE 1 completitud: ~85%
-- Commits sesión: 10 (7d656a8 → 7e2b757 + docs)
-- Smoke tests: 5/5 PASS
-- Route planner E2E: 2 pedidos → 2 rutas OR-Tools, BD restaurada ✅
+- Fallas P1 resueltas: 11 (API key, .bak, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring, PHONE_REGEX)
+- Fallas P1 restantes: 2 (WatchdogSec, FSM persistente ya contado como P0-1)
+- FASE 1 completitud: ~95%
+- Commits sesión 2026-07-24: 1 (3cda570 — P0-1 FSM persistente)
+- Commits sesión 2026-07-22: 13 (7d656a8 → 89d4747)
+- Smoke tests: 26/26 PASS (5 E2E dispatcher + 20 PHONE_REGEX + 21 FSM persistente, 2 suites)
 - Cron jobs: 6 activos (analytics 7am, route_planner 7:45am, checkin 8am, backup 2am, fs_reporte 6:30pm, fs_recordatorios cada 30min)
 
 💧
