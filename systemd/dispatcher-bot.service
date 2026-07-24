@@ -1,0 +1,29 @@
+[Unit]
+Description=Dispatcher Bot — Choferes (YORDANIS + EVERT) Estación H2O
+After=network-online.target valentina-bridge.service
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=skynet
+Group=skynet
+
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python skills/dispatcher.py
+
+Restart=always
+RestartSec=10
+
+MemoryMax=256M
+LimitNOFILE=4096
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dispatcher-bot
+
+[Install]
+WantedBy=multi-user.target
