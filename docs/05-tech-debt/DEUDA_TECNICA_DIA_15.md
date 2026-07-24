@@ -92,7 +92,19 @@
 
 ---
 
-## 📊 Resumen de prioridades Día 16
+## ✅ ESTADO: TODOS RESUELTOS (verificado 2026-07-24)
+
+**Bug 1 (minimo 3)**: RESUELTO — Guard en bridge.py intercepta cantidades < 3 con mensaje calido en multiples estados (awaiting_qty_agua, awaiting_qty_hielo, awaiting_qty_combo, custom_qty). Lineas 1264, 1281, 1297, 1523-1531, 1563, 1582-1593, 1621, 1651.
+
+**Bug 2 (calculos incorrectos)**: RESUELTO — `_calc_total()` deterministico en bridge.py (linea 999). `_fix_total_in_response()` sobrescribe el total que el LLM dicta con el calculo correcto del bridge. Lineas 1734, 2036, 2761, 2774.
+
+**Bug 3 (mensaje compuesto)**: RESUELTO — Regex en bridge.py linea 1254 detecta "N recargas/botellones/agua" e interpreta como opcion 1 + cantidad N. Ej: "buenas me envían 3 recargas" → agua + cantidad 3.
+
+**Bug 4 (botones de pago)**: RESUELTO — `_detect_message_type()` detecta multiples variaciones: "cómo desea pagar", "como desea pagar", "desea pagar", "metodo de pago", "metodo de pago". Renderiza Quick Reply con botones. Lineas 705-725.
+
+---
+
+## 📋 Resumen original (Día 15)
 
 | # | Bug | Prioridad | Tiempo estimado |
 |---|-----|-----------|-----------------|
