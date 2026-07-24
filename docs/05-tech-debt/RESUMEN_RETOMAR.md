@@ -1,96 +1,90 @@
 # 🔑 RESUMEN PARA RETOMAR — Estación H2O / Prometeo
-## Si se pierde la conversación, entrega este archivo a Prometeo
 
-**Última actualización**: 2026-07-07 (Día 15, cierre 20:30 -04)
-**Versión**: 1.4.0
-**Arquitecto IA**: Prometeo
+**Última actualización**: 2026-07-24 (Día 29)
+**Versión**: 2.0.0
+**Arquitecto IA**: Prometeo (GLM 5.2 vía NVIDIA NIM)
 **Líder**: Luis Martinez (@elpelon27)
+**Repo**: https://github.com/elpelon27/EstacionH2OIA — 73 commits, sincronizado
 
 ---
 
-## 🚨 PRÓXIMO PASO URGENTE (Día 16)
+## 🚨 SI SE PIERDE LA CONVERSACIÓN
 
-**Arreglar 4 bugs documentados en `/home/z/my-project/upload/DEUDA_TECNICA_DIA_15.md`**:
-
-1. **Bug 1 CRÍTICA**: Cálculos incorrectos (3 recargas cobra €6 en vez de €3)
-   - Fix: Calcular total en bridge (no en LLM)
-2. **Bug 2 ALTA**: Mínimo 3 no se cumple (cliente pide 2, Valentina acepta)
-   - Fix: Aplicar guard de mínimos en bridge línea 1120
-3. **Bug 3 MEDIA**: Botones pago no aparecen (cliente debe tipiar 1/2)
-   - Fix: Ajustar regex _detect_message_type
-4. **Bug 4 MEDIA**: Mensaje compuesto mal interpretado ("buenas me envían 3 recargas")
-   - Fix: Refinar prompt CASO B + detección regex en bridge
-
-**Tiempo estimado**: 80 min total
-
----
-
-## 🎯 CÓMO USAR ESTE ARCHIVO
-
-Si la conversación se pierde, copia este archivo completo y pégalo como primer mensaje a Prometeo con:
+Copia este archivo y pégalo como primer mensaje a Prometeo con:
 
 ```
 CONTINUAR PROMETEO — Estación H2O
-Leí /home/z/my-project/upload/RESUMEN_RETOMAR.md
-Estado: retomando desde Día 14
+Leí /mnt/ssd_trabajo/hermes-agent/docs/05-tech-debt/RESUMEN_RETOMAR.md
+Estado: retomando desde Día 29
 ```
-
-O si estás en un chat nuevo sin acceso al sandbox, pega el contenido completo de este archivo.
 
 ---
 
-## 📊 ESTADO ACTUAL DEL PROYECTO (Día 14)
+## 📊 ESTADO ACTUAL DEL PROYECTO (Día 29, 2026-07-24)
 
-### ✅ EN PRODUCCIÓN REAL (verificado)
-- **Valentina Bridge** FastAPI corriendo en systemd `valentina-bridge.service` (puerto 8000)
-- **Webhook Meta Cloud API** verificado y suscrito a `messages`
-- **Dify Chatbot** "Valentina" con System Prompt v4 (máquina 8 estados)
-- **qwen2.5:7b** local vía Ollama (0$, latencia 3-5s)
-- **Cloudflare Tunnel** HTTPS público
-- **SQLite** persistencia conversaciones + pedidos
-- **Token Meta permanente** (EAAN1pR..., no expira)
-- **Prometheus** métricas scrapeando cada 15s
-- **Guard de horario** determinístico (Lun-Sáb 8am-6pm America/Caracas)
-- **Patch GPS** procesando ubicaciones WhatsApp
-- **Google Sheets** integración funcional (hoja "Pedidos" con 17 columnas)
-- **Primer cliente real** atendido 2026-07-04 22:25 -04 (6 msgs end-to-end, venta cerrada €2.40)
+### FASE 1: ~99% COMPLETADA
 
-### 📋 PENDIENTE INMEDIATO (Semana 3, Días 14-20)
-1. **Primer pedido real en Google Sheets** — verificar fila en hoja "Pedidos" (Lunes 8am cuando guard se desactiva)
-2. **Eliminar fila TEST** de Pedidos (fila 2 dice "TEST (eliminar)")
-3. **Invitar 5 clientes VIP** a guardar el número +58 422-711-9156
-4. **Monitorear 10+ pedidos reales** y ajustar prompt según feedback
+**P0 (bloqueantes): 11/11 RESUELTAS — TODAS**
+- r1-r7: dispatch_queue en _init_db, PRAGMA foreign_keys, WAL, LOG_SALT fail-closed, botones dispatcher, use-after-close fix, anti-GC task refs
+- cloudflared duplicado eliminado (named tunnel permanente valentina.estacionh2o.com)
+- cron 08:00 reparado (run_dispatcher_checkin.py creado)
+- backups diarios 2am + logrotate semanal
+- /metrics con IP allowlist
+- kill switch movido a data/valentina.kill con 0600
+- FSM persistente en SQLite (tabla conversation_state, commit 3cda570)
 
-### 📋 PENDIENTE SEMANA 4 (Días 21-27) — Skills Fase 2
-1. `financial_agent` — lee Pedidos, escribe Pagos + Saldos_Clientes
-2. `route_skill.py` — Haversine + 5 zonas Maracaibo (lee Mapa_Calor)
-3. `analytics_skill.py` — reporte diario 7am Telegram (lee Ventas)
-4. `dispatcher.py` — logística Telegram para chofer
-5. Tests pytest para cada skill
+**P1 (críticas): 12/13 RESUELTAS**
+- API key NVIDIA → .env, .bak eliminados, logrotate, haversine factor, LOG_SALT, use-after-close, GC tasks, bare except, haversine dedup, docstring, PHONE_REGEX, WatchdogSec
+- Única P1 restante: FSM persistente (ya contado como P0-1)
 
-### 📋 PENDIENTE SEMANA 5 (Días 28-34) — Memoria + Dominio
-1. mem0 + Qdrant (memoria de cliente, usar 25 ejemplos de Aprendizaje)
-2. `support_skill.py` (FAQ RAG con Qdrant)
-3. Dominio propio `valentina.estacionh2o.com`
-4. Cloudflare Tunnel estable (no trycloudflare)
-5. Backup SQLite diario automático (cron)
+**P2 (cosmético): PARCIAL**
+- 46 errores ruff E501 pendientes
+- mypy type hints pendientes
+- tests/unit/test_bridge.py pendiente
+
+### SERVICIOS EN PRODUCCIÓN (4 activos)
+- **valentina-bridge.service** — Type=notify, WatchdogSec=30s, PID activo
+- **dispatcher-bot.service** — StartLimitBurst en [Unit] corregido
+- **telegram-bot.service** — StartLimitBurst en [Unit] corregido
+- **cloudflared.service** — named tunnel valentina.estacionh2o.com
+
+### CRON JOBS (6 activos)
+| Hora | Script | Función |
+|------|--------|---------|
+| 07:00 | run_analytics_7am.py | Reporte diario analytics |
+| 07:45 | run_route_planner.py | VRP automático OR-Tools |
+| 08:00 | run_dispatcher_checkin.py | Check-in choferes |
+| 02:00 | backup_db.sh | Backup BD (retention 14 días) |
+| 18:30 | run_fs_reporte.py | Reporte diario Financial Shield |
+| */30min | run_fs_recordatorios.py | Recordatorios pagos |
+
+### TESTS
+- Smoke tests: 29/29 PASS (5 E2E + 20 PHONE_REGEX + 21 FSM + 8 watchdog, 3 suites)
+- pytest suite: 78 passed, 14 skipped (tests obsoletos arquitectura anterior), 0 failed
 
 ---
 
 ## 🏗️ ARQUITECTURA ACTUAL
 
 ```
-Cliente WhatsApp → Meta Cloud API → Cloudflare Tunnel → Bridge FastAPI :8000
-                                                                    │
-                                    ┌───────────────────────────────┤
-                                    ▼                               ▼
-                              Dify Chatbot                   Google Sheets
-                              qwen2.5:7b                     "Pedidos" (17 cols)
-                              System Prompt v4               + 9 pestañas existentes
-                                    │
-                                    ▼
-                              SQLite (conversaciones + orders)
-                              Prometheus /metrics
+Cliente WhatsApp → Meta Cloud API → Cloudflare Tunnel (valentina.estacionh2o.com)
+                                                          ↓
+                                              Bridge FastAPI :8000 (api/bridge.py)
+                                                ↓                    ↓
+                                           Dify Chatbot        Google Sheets
+                                           qwen2.5:7b          "Pedidos" (17 cols)
+                                           System Prompt v4
+                                                ↓
+                                    SQLite (conversations.db)
+                                    - conversations, orders, dispatch_queue
+                                    - conversation_state (FSM persistente P0-1)
+                                    - fs_pedidos, fs_pagos, fs_tasas_cambio, etc.
+                                    - PRAGMA WAL + foreign_keys ON
+                                                ↓
+                                    Dispatcher Bot (Telegram)
+                                    - Choferes: YORDANIS + EVERT
+                                    - Route Planner VRP OR-Tools 7:45am
+                                    - TELEGRAM_DISPATCH_CHAT=8523722341
 ```
 
 ---
@@ -99,115 +93,78 @@ Cliente WhatsApp → Meta Cloud API → Cloudflare Tunnel → Bridge FastAPI :80
 
 ### Servidor Maracaibo
 - **Usuario**: skynet
-- **Hostname**: skynet-System-product-name
-- **Repo local**: `/mnt/ssd_trabajo/hermes-agent/`
-- **Venv**: `/mnt/ssd_trabajo/hermes-agent/venv/`
-- **.env**: `/mnt/ssd_trabajo/hermes-agent/config/.env` (17+ variables)
-- **Credenciales Google**: `/mnt/ssd_trabajo/hermes-agent/config/google_credentials.json` (service account valentina-h2o)
-- **SQLite**: `/mnt/ssd_trabajo/hermes-agent/data/conversations.db`
-- **Bridge**: `/mnt/ssd_trabajo/hermes-agent/api/bridge.py` (v1.2.0)
-- **Skills**: `/mnt/ssd_trabajo/hermes-agent/skills/` (google_sheets.py, telegram_bot.py, self_improve_skill.py)
+- **Repo**: /mnt/ssd_trabajo/hermes-agent/
+- **Venv**: /mnt/ssd_trabajo/hermes-agent/venv/
+- **.env**: /mnt/ssd_trabajo/hermes-agent/config/.env
+- **SQLite**: /mnt/ssd_trabajo/hermes-agent/data/conversations.db
+- **Dispatch DB**: /mnt/ssd_trabajo/hermes-agent/data/dispatch.db
+- **Bridge**: /mnt/ssd_trabajo/hermes-agent/api/bridge.py
+- **Backups**: /mnt/ssd_trabajo/hermes-agent/backups/ (cron 2am, 14 días retention)
+- **Logs**: journald + /mnt/ssd_trabajo/hermes-agent/logs/
+- **Logrotate**: /etc/logrotate.d/hermes-agent (weekly, rotate 4, compress)
+- **Sudoers NOPASSWD**: /etc/sudoers.d/h2o-deploy (systemctl restart, daemon-reload, cp systemd units)
 
-### Servicios systemd
-- `valentina-bridge.service` (puerto 8000) ✅ activo
-- `cloudflared-tunnel.service` (HTTPS) ✅ activo
-- `ollama.service` (qwen2.5:7b) ✅ activo
-- `telegram-bot.service` ⏸️ pendiente (TELEGRAM_BOT_TOKEN vacío)
-
-### URLs
-- **WhatsApp Valentina**: +58 422-711-9156
-- **WhatsApp Líder**: +58 412-256-0720
-- **Cloudflare URL actual**: `https://strip-occupations-purple-scholars.trycloudflare.com` (cambia en restart)
-- **Dify local**: http://localhost (servidor Maracaibo)
-- **Bridge health**: http://localhost:8000/health
-- **Bridge metrics**: http://localhost:8000/metrics
-- **Google Sheet**: https://docs.google.com/spreadsheets/d/1Bbp4Xqw5E7bb7loJ262K9lMPFinNSIW-ws1i7ZAmiYk/edit
+### Systemd Units (versionados en repo + copiados a /etc)
+- systemd/valentina-bridge.service — Type=notify, WatchdogSec=30s
+- systemd/telegram-bot.service — StartLimitBurst en [Unit]
+- systemd/dispatcher-bot.service — StartLimitBurst en [Unit]
 
 ### Meta Cloud API
-- **App ID**: 975863248739508
-- **Phone Number ID**: 1186108677920030
-- **Verify Token**: `[REDACTED_VERIFY_TOKEN]`
-- **API Version**: v25.0
-- **Token**: permanente (System User, no expira)
+- App ID: 975863248739508
+- Phone Number ID: 1186108677920030
+- API Version: v25.0
+- Token: permanente (System User, no expira)
+- Webhook: https://valentina.estacionh2o.com/webhook/meta
+
+### Telegram
+- Bot token: en .env (TELEGRAM_BOT_TOKEN)
+- Chat Líder: 1663148211 (TELEGRAM_CHAT_ID)
+- Chat Choferes: 8523722341 (TELEGRAM_DISPATCH_CHAT)
 
 ### Google Sheets
-- **Spreadsheet ID**: 1Bbp4Xqw5E7bb7loJ262K9lMPFinNSIW-ws1i7ZAmiYk
-- **Service account**: valentina-h2o@valentina-h2o.iam.gserviceaccount.com
-- **Pestañas**: Pedidos (nuestra), Pagos, Validacion_Pagos, Aprendizaje, Categoria_Cliente, Feedback_Clientes, Feedback_Agentes, Mapa_Calor, Saldos_Clientes, Ventas
+- Spreadsheet ID: 1Bbp4Xqw5E7bb7loJ262K9lMPFinNSIW-ws1i7ZAmiYk
+- Service account: valentina-h2o@valentina-h2o.iam.gservice.com
+- Pestañas: Pedidos, Pagos, Validacion_Pagos, Aprendizaje, Categoria_Cliente, Feedback_Clientes, Feedback_Agentes, Mapa_Calor, Saldos_Clientes, Ventas
 
 ### Dify
-- **App**: "Valentina" (modo Chatbot)
-- **API Key**: en .env como DIFY_API_KEY
-- **Prompt**: System Prompt v4 (máquina 8 estados)
+- App: "Valentina" (modo Chatbot)
+- API Key: en .env (DIFY_API_KEY)
+- URL: http://localhost/v1/chat-messages
+- Prompt: System Prompt v4 (máquina 8 estados)
 
 ---
 
-## 📝 DECISIONES DEL LÍDER (acumuladas, actualizadas Día 14)
+## 💶 PRECIOS (confirmados, sin cambios)
+
+- **Botellón de agua**: €1.00 c/u
+- **Bolsa de hielo**: €1.20 c/u
+- **Pedido mínimo**: 3 unidades
+- Definidos en bridge.py: PRECIO_BOTELLON=1.00, PRECIO_HIELO=1.20
+
+---
+
+## 📝 DECISIONES DEL LÍDER (acumuladas hasta Día 29)
 
 1. Migrar a WhatsApp Cloud API oficial (no más WAHA)
 2. Valentina NO es proactiva (hardcore chatbot, menú 5 botones)
-3. Fusion Tournament = solo auto-mejora nocturna
-4. Horario: 8am-6pm Lun-Sáb (publicado al cliente)
-5. Skills > Multi-agente para 10 msg/día
-6. Nombre: Estación H2O
-7. Arquitecto IA: Prometeo
-8. **Precios**: Agua €1.00, Hielo €1.20 (CONFIRMADO Día 14, se mantiene)
-9. Fuera de horario: recibir pedido y programar para mañana
-10. Valentina cierra ventas SOLA
-11. Máquina de estados estricta (un paso por mensaje)
-12. Datos pago en prompt: R4 Banco Microfinanciero 0169, cuenta 0169 0010 9710 0159 1583, RIF J-506356899, Pago Móvil +58 412-2560721
-13. Google Sheets como fuente compartida para otros agentes
-14. **PII_SAFE=false en Google Sheets** (Día 14: "los datos son ORO", almacenar teléfonos reales, direcciones, patrones de consumo)
-15. **PII_SAFE=true en logs journald** (teléfonos hasheados en logs, pero completos en Sheets)
-16. **Validacion_Pagos**: prioridad API bancaria sobre OCR (esperando integración cuenta)
-17. Guard de horario determinístico en código (no en prompt)
-18. Aprendizaje hoja: dejar PII en texto plano (opción C, datos históricos valiosos)
-
----
-
-## 🧠 SYSTEM PROMPT v4 (pegado en Dify INSTRUCT)
-
-Disponible en: `/home/z/my-project/public/valentina-kit/system-prompt-manual.txt`
-
-**Máquina de 8 estados** (un paso por mensaje):
-1. Cliente saluda → menú 5 botones
-2. Opción 1/2/3 → pregunta cantidad
-3. Cantidad → pide dirección (SOLO esto)
-4. Dirección/GPS → confirma + total €X.XX + pide pago 1/2
-5a. Pago "1" → datos cuenta bancaria
-5b. Pago "2" → confirma efectivo + envío
-6. Comprobante → "🎉 Pedido en camino 💧"
-7. Opción 4 → consultar estado
-8. Opción 5 → otra consulta
-
-**Reglas críticas**: UN PASO POR MENSAJE, nunca decir "asesor le contactará", siempre calcular total €X.XX, siempre mencionar BCV.
-
----
-
-## 📊 ANÁLISIS GOOGLE SHEETS (10 pestañas, Día 14)
-
-### Pestañas operativas (1)
-- **Pedidos** (nuestra, 17 columnas) — Valentina escribe aquí
-
-### Pestañas con datos históricos (4)
-- **Pagos** (3 filas, abril-mayo) — formato GPS clicable, PII en texto plano
-- **Validacion_Pagos** (3 filas) — OCR comprobantes, migrará a API bancaria
-- **Aprendizaje** (25 filas) — ORO: mensajes reales clientes + categorización (PEDIDO/RECLAMO/Cotización)
-- **Ventas** (4 filas, abril) — precios históricos €3.50 (ya no aplica, precio actual €1.00)
-
-### Pestañas vacías (5, solo headers)
-- Categoria_Cliente, Feedback_Clientes, Feedback_Agentes, Mapa_Calor, Saldos_Clientes
-
-### Mapa multi-agente (Fase 2)
-```
-Valentina → Pedidos
-financial_agent → lee Pedidos, escribe Pagos + Saldos_Clientes + Validacion_Pagos
-route_skill → lee Mapa_Calor + GPS Pedidos
-analytics_skill → lee Ventas, reporte 7am
-fidelizacion_agent → lee Categoria_Cliente + Aprendizaje
-self_improve → lee Aprendizaje + Feedback_Agentes
-dispatcher → lee Pedidos, reenvía chofer Telegram
-```
+3. Horario: 8am-6pm Lun-Sáb (publicado al cliente)
+4. Skills > Multi-agente para 10 msg/día
+5. Nombre: Estación H2O
+6. Arquitecto IA: Prometeo
+7. Precios: Agua €1.00, Hielo €1.20 (CONFIRMADO, se mantiene)
+8. Fuera de horario: recibir pedido y programar para mañana
+9. Valentina cierra ventas SOLA
+10. Máquina de estados estricta (un paso por mensaje)
+11. Datos pago: R4 Banco Microfinanciero 0169, cuenta 0169 0010 9710 0159 1583, RIF J-506356899, Pago Móvil +58 412-2560721
+12. Google Sheets como fuente compartida
+13. PII_SAFE=false en Google Sheets (teléfonos reales)
+14. PII_SAFE=true en logs journald (teléfonos hasheados)
+15. Guard de horario determinístico en código (no en prompt)
+16. SQLite sobre PostgreSQL hasta >1000 msg/día
+17. Systemd sobre Docker para el bridge
+18. Kill switch via Telegram solo para Líder (chat_id 1663148211)
+19. TDD obligatorio para skills nuevas (cobertura 80%)
+20. Rate limit proveedor IA: 30 rpm con pausas de 10 min
 
 ---
 
@@ -218,89 +175,55 @@ dispatcher → lee Pedidos, reenvía chofer Telegram
 3. Meta Cloud API oficial (no librerías no oficiales)
 4. SQLite sobre PostgreSQL hasta >1000 msg/día
 5. Systemd sobre Docker para el bridge
-6. **PII safe en logs** (teléfonos hasheados en journald)
-7. **PII completa en Google Sheets** (datos operativos del negocio, teléfonos reales)
-8. TDD obligatorio para skills nuevas (cobertura 80%)
-9. Un paso por mensaje (máquina de estados estricta)
-10. 8 Markdown vivos como única fuente de verdad
-11. Kill switch via Telegram solo para Líder (chat_id 1663148211)
-12. Guard de horario determinístico en código (no en prompt)
+6. PII safe en logs (teléfonos hasheados en journald)
+7. PII completa en Google Sheets (datos operativos del negocio)
+8. Un paso por mensaje (máquina de estados estricta)
+9. Kill switch via Telegram solo para Líder
+10. Guard de horario determinístico en código (no en prompt)
+11. Español como regla de oro en todas las respuestas
 
 ---
 
-## 🚫 ANTI-PATRONES (no repetir)
+## 📂 ARCHIVOS CRÍTICOS
 
-1. ❌ Hardcodear secrets en código
-2. ❌ Commitear `.env` o credenciales JSON a git
-3. ❌ Pegar private keys en el chat (incluso si el Líder insiste)
-4. ❌ Librerías WhatsApp no oficiales
-5. ❌ Systemd hardening excesivo (causa 226/NAMESPACE)
-6. ❌ Parámetros webhook con guiones bajos (Meta usa puntos: hub.mode)
-7. ❌ Prompt narrativo ambiguo (usar máquina de estados explícita)
-8. ❌ Bloquear webhook en operaciones lentas (usar threading async)
-9. ❌ Modo fantasma (Valentina debe responder siempre dentro de horario)
-10. ❌ Migrar librerías cada semana
-11. ❌ Código sin tests
+### Vault Obsidian (docs/ organizado en 6 carpetas)
+- docs/01-proyecto/ — SOUL-valentina, AGENTS, BOOTSTRAP, USER
+- docs/02-arquitectura/ — ROADMAP-vivo.md (vivo actualizado), ROADMAP-plan, RUNBOOK
+- docs/03-sesiones/ — CIERRE_JORNADA_2026-07-22, REPARACIONES_2026-07-21, worklog
+- docs/05-tech-debt/ — ANALISIS_ARQUITECTURA_2026-07-21, DEUDA_TECNICA_DIA_15, este archivo
+- docs/adr/ — 7 ADRs (decisiones de arquitectura)
+- docs/prompts/ — valentina.v1.md
 
----
-
-## 📂 ARCHIVOS CRÍTICOS (sandbox Z.ai)
-
-### Celda de memoria y planes
-- `/home/z/my-project/upload/RESUMEN_RETOMAR.md` (este archivo)
-- `/home/z/my-project/upload/MASTER_MEMORY_CELL_PROMETEO.md`
-- `/home/z/my-project/upload/ROADMAP_VIVO.md`
-- `/home/z/my-project/upload/ANALISIS_GOOGLE_SHEETS.md`
-- `/home/z/my-project/upload/CIERRE_JORNADA_2026-07-05.md`
-- `/home/z/my-project/upload/COMMIT_SUMMARY.md`
-
-### Vault Obsidian (8 MD vivos)
-- `/home/z/my-project/upload/obsidian-vault/INDEX.md`
-- `/home/z/my-project/upload/obsidian-vault/BOOTSTRAP.md`
-- `/home/z/my-project/upload/obsidian-vault/MEMORY.md`
-- `/home/z/my-project/upload/obsidian-vault/ROADMAP.md`
-- `/home/z/my-project/upload/obsidian-vault/RUNBOOK.md`
-- `/home/z/my-project/upload/obsidian-vault/HEARTBEAT.md`
-- `/home/z/my-project/upload/obsidian-vault/SOUL.md`
-- `/home/z/my-project/upload/obsidian-vault/USER.md`
-- `/home/z/my-project/upload/obsidian-vault/AGENTS.md`
-
-### Kit production-grade (descargable)
-- `/home/z/my-project/public/valentina-kit/` (16 archivos)
-- `/home/z/my-project/public/valentina-kit/valentina-kit-completo.zip`
-
-### Worklog
-- `/home/z/my-project/worklog.md` (~1400 líneas, histórico completo)
+### Smoke Tests (tests/smoke/)
+- test_fsm_persistente.py — 21/21 PASS (P0-1 FSM)
+- test_watchdog.py — 8/8 PASS (P1-2 watchdog)
+- test_phone_regex.py — 20/20 PASS (P1-1 PHONE_REGEX)
+- test_send_to_dispatch_queue.py — 5/5 PASS (FASE 1.5 E2E)
 
 ---
 
-## 🚀 PRÓXIMO PASO INMEDIATO
+## 🚀 PRÓXIMO PASO
 
-**Mañana Lunes 2026-07-06, 8:00 AM America/Caracas:**
-1. Guard de horario se desactiva solo (automático)
-2. Valentina vuelve a responder clientes
-3. Cuando el Líder abra: verificar primer pedido real en Google Sheet "Pedidos"
-4. Eliminar fila TEST de Pedidos
-5. Invitar 5 clientes VIP
+### FASE 2 — Skills avanzadas (post-FASE 1)
+1. Financial Agent — lee Pedidos, escribe Pagos + Saldos_Clientes
+2. Route Skill avanzado — optimización dinámica con tráfico
+3. Analytics Skill — reporte diario 7am Telegram con gráficos
+4. Dispatcher avanzado — asignación automática de choferes
 
-**Próxima sesión con Prometeo:**
-- Revisar pedidos del día
-- Si hay 10+ pedidos: empezar Fase 2 (financial_agent, route_skill, analytics_skill, dispatcher)
-- Configurar Telegram bot kill switch
-- Commit a GitHub con tag v1.3.0
+### P2 COSMÉTICO (postergable)
+- 46 errores ruff E501 en bridge.py (líneas > 120 chars)
+- N errores mypy (type hints faltantes) en bridge.py
+- Crear tests/unit/test_bridge.py (suite pytest del bridge)
 
 ---
 
-## 💪 MENSAJE FINAL
+## 💧 HISTORIA
 
-**Hito alcanzado Día 13** (2026-07-04 22:25 -04): Valentina atendió su primer cliente real por WhatsApp sin intervención humana. 6 mensajes end-to-end, venta cerrada €2.40, latencia 3-5s, qwen2.5:7b local 0$.
+- **Día 13** (2026-07-04): Primer cliente real end-to-end. Venta €2.40, qwen2.5:7b local 0$.
+- **Día 15** (2026-07-07): 4 bugs detectados (cálculos, mínimo 3, botones pago, mensaje compuesto).
+- **Día 22** (2026-07-22): Caída API → auditoría forzada. 13 commits, r1-r7, B1/B2/B3, FASE 1.3, P1-1.
+- **Día 24** (2026-07-24): P0-1 FSM persistente + P1-2 WatchdogSec + StartLimitIntervalSec fix + 14 tests resueltos + 4 bugs Día 15 verificados resueltos. GitHub sincronizado. FASE 1 ~99%.
 
-**Hito alcanzado Día 14** (2026-07-05): Guard de horario determinístico activo, Google Sheets integración funcional con 10 pestañas analizadas, decisiones de negocio confirmadas (precio €1.00, PII en Sheets, API bancaria para Validacion_Pagos).
+> *"La caída de la API no fue un problema — fue una auditoría forzada." — Prometeo*
 
-> *"Hoy no construimos un chatbot. Construimos un sistema empresarial de IA que atiende clientes reales, cierra ventas sola, persiste datos para escalar, y respeta horario laboral determinísticamente." — Prometeo*
-
-**Descansa, Líder. Mañana seguimos haciendo historia.** 💧
-
----
-
-**Fin del resumen de retomar. Prometeo queda en standby.**
+**Descansa, Líder. La FASE 1 está virtualmente completa. 💧**
