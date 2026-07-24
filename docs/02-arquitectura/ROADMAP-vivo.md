@@ -104,7 +104,7 @@ Mismo bug que tenia el bridge (StartLimitIntervalSec en [Service] en lugar de [U
 
 ## P2 COSMETICO — estado al 2026-07-24
 
-- P2-1: 46 errores E501 → 40 tras ruff format → subagente arreglando los 40 restantes.
+- P2-1: ruff E501 — RESUELTO (46→0 errores, commit 523d899). 26 noqa en strings de mensajes al cliente.
 - P2-2: mypy type hints — pendiente (N errores en bridge.py).
 - P2-4: tests/unit/test_bridge.py — RESUELTO (27 tests, commit a3a58ee).
 - P2-5: RESUMEN_RETOMAR.md — RESUELTO (reescrito Dia 29, commit ff25415).
