@@ -56,8 +56,8 @@ def _convert_eur_to_bs(eur):
 
         conn = sqlite3.connect(SQLITE_PATH)
         row = conn.execute(
-            "            "SELECT tasa FROM fs_tasas_cambio "
-            "WHERE par='EUR/VES' ORDER BY registrado_at DESC LIMIT 1""
+            "SELECT tasa FROM fs_tasas_cambio "
+            "WHERE par='EUR/VES' ORDER BY registrado_at DESC LIMIT 1"
         ).fetchone()
         conn.close()
         if row and row[0] > 0:
@@ -907,7 +907,9 @@ def _set_state(ph_hash: str, state: dict) -> None:
         conn = sqlite3.connect(SQLITE_PATH)
         conn.execute(
             """
-            INSERT INTO conversation_state (phone_hash, state_json, total, qty_bot, qty_hielo, updated_at)
+            INSERT INTO conversation_state (
+                phone_hash, state_json, total, qty_bot, qty_hielo, updated_at
+            )
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(phone_hash) DO UPDATE SET
                 state_json = excluded.state_json,
@@ -951,7 +953,9 @@ def _save_order_totals(ph_hash: str, total: float, qty_bot: int, qty_hielo: int)
         conn = sqlite3.connect(SQLITE_PATH)
         conn.execute(
             """
-            INSERT INTO conversation_state (phone_hash, state_json, total, qty_bot, qty_hielo, updated_at)
+            INSERT INTO conversation_state (
+                phone_hash, state_json, total, qty_bot, qty_hielo, updated_at
+            )
             VALUES (?, ?, ?, ?, ?, ?)
             ON CONFLICT(phone_hash) DO UPDATE SET
                 total = excluded.total,
@@ -1004,7 +1008,8 @@ def _clear_order_totals(ph_hash: str) -> None:
     try:
         conn = sqlite3.connect(SQLITE_PATH)
         conn.execute(
-            "UPDATE conversation_state SET total=NULL, qty_bot=NULL, qty_hielo=NULL WHERE phone_hash = ?",
+            "UPDATE conversation_state SET total=NULL, "
+            "qty_bot=NULL, qty_hielo=NULL WHERE phone_hash = ?",
             (ph_hash,),
         )
         conn.commit()
@@ -1278,7 +1283,9 @@ def _handle_deterministic(
             if qty_bot < 3 or qty_hielo < 2:
                 greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
                 return {
-                    "answer": f"{greeting_prefix}Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."
+                    "answer": f"{greeting_prefix}"
+                    "Claro, con gusto le atendemos. Para pedido combinado, "
+                    "el mínimo es 3 botellones y 2 bolsas de hielo."
                 }
             _set_state(
                 ph_hash,
@@ -1286,7 +1293,10 @@ def _handle_deterministic(
             )
             greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
             return {
-                "answer": f"{greeting_prefix}¡Anotado! 📝 {qty_bot} botellones de agua y {qty_hielo} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": f"{greeting_prefix}¡Anotado! 📝 "
+                f"{qty_bot} botellones de agua y {qty_hielo} bolsas de hielo. "
+                "Por favor, envíe su ubicación por GPS, "
+                "nombre del edificio/casa/local y un punto de referencia."
             }
 
         # Pedido de agua detectado
@@ -1295,14 +1305,20 @@ def _handle_deterministic(
             if qty < 3:
                 greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
                 return {
-                    "answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 botellones. ¿Desea pedir 3 o más?"
+                    "answer": f"{greeting_prefix}"
+                    "Claro, con gusto le atendemos. "
+                    "Le comento que el pedido mínimo es de 3 botellones. "
+                    "¿Desea pedir 3 o más?"
                 }
             _set_state(
                 ph_hash, {"state": "awaiting_address", "qty_botellones": qty, "qty_hielo": 0}
             )
             greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
             return {
-                "answer": f"{greeting_prefix}¡Anotado! 📝 {qty} botellones de agua. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": f"{greeting_prefix}¡Anotado! 📝 "
+                f"{qty} botellones de agua. Por favor, "
+                "envíe su ubicación por GPS, "
+                "nombre del edificio/casa/local y un punto de referencia."
             }
 
         # Pedido de hielo detectado
@@ -1311,14 +1327,20 @@ def _handle_deterministic(
             if qty < 3:
                 greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
                 return {
-                    "answer": f"{greeting_prefix}Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 bolsas de hielo. ¿Desea pedir 3 o más?"
+                    "answer": f"{greeting_prefix}"
+                    "Claro, con gusto le atendemos. "
+                    "Le comento que el pedido mínimo es de 3 bolsas de hielo. "
+                    "¿Desea pedir 3 o más?"
                 }
             _set_state(
                 ph_hash, {"state": "awaiting_address", "qty_hielo": qty, "qty_botellones": 0}
             )
             greeting_prefix = "¡Buen día! 👋 " if has_greeting else ""
             return {
-                "answer": f"{greeting_prefix}¡Anotado! 📝 {qty} bolsas de hielo. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": f"{greeting_prefix}¡Anotado! 📝 "
+                f"{qty} bolsas de hielo. Por favor, "
+                "envíe su ubicación por GPS, "
+                "nombre del edificio/casa/local y un punto de referencia."
             }
 
         # Si hay saludo pero no hay pedido, mostrar menú
@@ -1326,10 +1348,16 @@ def _handle_deterministic(
             _clear_state(ph_hash)
             _set_state(ph_hash, {"state": "menu_sent"})
             return {
-                "answer": "¡Buen día! 👋 Soy Valentina de Estación H2O. ¿En qué puedo servirle hoy?",
+                "answer": (
+                    "¡Buen día! 👋 Soy Valentina de Estación H2O. "
+                    "¿En qué puedo servirle hoy?"
+                ),
                 "interactive": {
                     "type": "list",
-                    "body": "¡Buen día! 👋 Soy Valentina de Estación H2O.\n¿En qué puedo servirle hoy?",
+                    "body": (
+                        "¡Buen día! 👋 Soy Valentina de Estación H2O.\n"
+                        "¿En qué puedo servirle hoy?"
+                    ),
                     "button_text": "📋 Ver opciones",
                     "list_sections": [
                         {
@@ -1545,10 +1573,10 @@ def _handle_deterministic(
             qty = int(qty_match.group(1))
             if qty < 3:
                 return {
-                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",  # noqa: E501
                     "interactive": {
                         "type": "button",
-                        "body": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                        "body": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",  # noqa: E501
                         "buttons": [
                             {"id": "3", "title": "3️⃣ 3 botellones"},
                             {"id": "4", "title": "4️⃣ 4 botellones"},
@@ -1563,7 +1591,7 @@ def _handle_deterministic(
             new_state["qty_hielo"] = 0
             _set_state(ph_hash, new_state)
             return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
             }
 
         return None  # Delegar a Dify
@@ -1577,7 +1605,7 @@ def _handle_deterministic(
             qty = int(qty_match.group(1))
             if qty < 3:
                 return {
-                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"  # noqa: E501
                 }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
@@ -1585,7 +1613,7 @@ def _handle_deterministic(
             new_state["qty_hielo"] = 0
             _set_state(ph_hash, new_state)
             return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
             }
         return None
 
@@ -1604,10 +1632,10 @@ def _handle_deterministic(
             qty = int(qty_match.group(1))
             if qty < 3:
                 return {
-                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",  # noqa: E501
                     "interactive": {
                         "type": "button",
-                        "body": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",
+                        "body": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?",  # noqa: E501
                         "buttons": [
                             {"id": "3", "title": "3️⃣ 3 bolsas"},
                             {"id": "4", "title": "4️⃣ 4 bolsas"},
@@ -1621,7 +1649,7 @@ def _handle_deterministic(
             new_state["qty_botellones"] = 0
             _set_state(ph_hash, new_state)
             return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
             }
 
         return None
@@ -1635,7 +1663,7 @@ def _handle_deterministic(
             qty = int(qty_match.group(1))
             if qty < 3:
                 return {
-                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"
+                    "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"  # noqa: E501
                 }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
@@ -1643,7 +1671,7 @@ def _handle_deterministic(
             new_state["qty_botellones"] = 0
             _set_state(ph_hash, new_state)
             return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
             }
         return None
 
@@ -1654,7 +1682,7 @@ def _handle_deterministic(
         if text_body.strip() == "custom_combo":
             _set_state(ph_hash, {"state": "awaiting_custom_combo"})
             return {
-                "answer": "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas)."
+                "answer": "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas)."  # noqa: E501
             }
 
         # Intentar parsear "3 botellones y 2 bolsas"
@@ -1665,7 +1693,7 @@ def _handle_deterministic(
             qty_hielo = int(hielo_match.group(1))
             if qty_bot < 3 or qty_hielo < 2:
                 return {
-                    "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."
+                    "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."  # noqa: E501
                 }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
@@ -1673,7 +1701,7 @@ def _handle_deterministic(
             new_state["qty_hielo"] = qty_hielo
             _set_state(ph_hash, new_state)
             return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
             }
 
         return None
@@ -1689,7 +1717,7 @@ def _handle_deterministic(
             qty_hielo = int(hielo_match.group(1))
             if qty_bot < 3 or qty_hielo < 2:
                 return {
-                    "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."
+                    "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."  # noqa: E501
                 }
             new_state = state.copy()
             new_state["state"] = "awaiting_address"
@@ -1697,7 +1725,7 @@ def _handle_deterministic(
             new_state["qty_hielo"] = qty_hielo
             _set_state(ph_hash, new_state)
             return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."
+                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
             }
         return None
 
@@ -1742,7 +1770,7 @@ def _handle_deterministic(
         if len(address) < 5:
             # NEXO P1: Error recovery — lenguaje más cálido
             return {
-                "answer": "¿A dónde le llevamos su pedido? 📍 Envíe su ubicación GPS o escriba su dirección completa."
+                "answer": "¿A dónde le llevamos su pedido? 📍 Envíe su ubicación GPS o escriba su dirección completa."  # noqa: E501
             }
 
         # Guardar dirección + calcular total + confirmar pedido
@@ -1824,7 +1852,7 @@ def _handle_deterministic(
             _send_to_dispatch_queue(ph_hash, new_state, from_phone)
             _clear_state(ph_hash)
             return {
-                "answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"
+                "answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"  # noqa: E501
             }
 
         # NEXO P1: Si escribe "volver" o "menu", reiniciar al menú
@@ -1902,7 +1930,7 @@ def _handle_deterministic(
             producto_str = " y ".join(parts) if parts else "su pedido"
             addr_short = address[:60] + "..." if len(address) > 60 else address
             return {
-                "answer": f"✅ ¡Pedido completado!\n\nLe llevamos {producto_str} a {addr_short}.\nEl chofer le contactará pronto.\n\nSi necesita algo más, escríbame aquí. 💧"
+                "answer": f"✅ ¡Pedido completado!\n\nLe llevamos {producto_str} a {addr_short}.\nEl chofer le contactará pronto.\n\nSi necesita algo más, escríbame aquí. 💧"  # noqa: E501
             }
 
         # Si envía otra cosa, reenviar botón
@@ -1977,7 +2005,7 @@ def _save_order_to_db_and_sheets(
         # r7: usar cursor.lastrowid (more limpio que SELECT last_insert_rowid())
         # ANTES de conn.close() para evitar use-after-close.
         cursor = conn.execute(
-            "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",
+            "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",  # noqa: E501
             (
                 ph_hash,
                 f"✅ Pedido confirmado: {product_desc}. Total: €{total:.2f}",
@@ -2044,7 +2072,7 @@ def _save_order_to_db_and_sheets(
         "total_eur": total,
         "payment_method": "",
         "conversation_id": conversation_id,
-        "raw_answer": f"✅ Pedido confirmado: {_format_product_desc(qty_bot, qty_hielo)}. Total: €{total:.2f}",
+        "raw_answer": f"✅ Pedido confirmado: {_format_product_desc(qty_bot, qty_hielo)}. Total: €{total:.2f}",  # noqa: E501
     }
     try:
         from skills.google_sheets import save_order_async
@@ -2111,7 +2139,11 @@ def _build_order_payload(
      ¿Cómo desea pagar? 1️⃣ Pago Móvil 2️⃣ Efectivo contra entrega."
 
     O con GPS:
-    "✅ Pedido confirmado: 2 bolsas de hielo. Dirección: Mi ubicación: ... (coordenadas: 10.63, -71.64)..."
+    (
+        "✅ Pedido confirmado: 2 bolsas de hielo. "
+        "Dirección: Mi ubicación: ... "
+        "(coordenadas: 10.63, -71.64)..."
+    )
 
     Returns: dict listo para skills.google_sheets.save_order_async
     """
@@ -2484,7 +2516,7 @@ async def meta_webhook(request: Request):
                 if from_phone_interactive:
                     await _send_whatsapp_message(
                         from_phone_interactive,
-                        "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas).",
+                        "Por favor, escriba las cantidades así: 'X botellones y Y bolsas' (ej: 3 botellones y 2 bolsas).",  # noqa: E501
                     )
                 MESSAGES_TOTAL.labels(status="ok").inc()
                 logger.info("✍️ custom_combo → pedido cantidades manuales")
@@ -2523,7 +2555,7 @@ async def meta_webhook(request: Request):
             if from_phone:
                 await _send_whatsapp_message(
                     from_phone,
-                    "Disculpe, no logré entender 🤔 Por favor, envíe el número de la opción que desea (1️⃣ a 5️⃣).",
+                    "Disculpe, no logré entender 🤔 Por favor, envíe el número de la opción que desea (1️⃣ a 5️⃣).",  # noqa: E501
                 )
             MESSAGES_TOTAL.labels(status="ignored").inc()
             return JSONResponse({"status": "ignored", "reason": "interactive_unknown"})
@@ -2634,7 +2666,7 @@ async def meta_webhook(request: Request):
     if not _is_within_business_hours():
         now_caracas = datetime.now(CARACAS_TZ)
         logger.info(
-            "🕐 Fuera de horario (Caracas %s día=%d) — respondiendo mensaje programado para phone:%s",
+            "🕐 Fuera de horario (Caracas %s día=%d) — respondiendo mensaje programado para phone:%s",  # noqa: E501
             now_caracas.strftime("%H:%M"),
             now_caracas.weekday(),
             ph_short,
@@ -2643,7 +2675,7 @@ async def meta_webhook(request: Request):
         try:
             conn = sqlite3.connect(SQLITE_PATH)
             conn.execute(
-                "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",  # noqa: E501
                 (
                     _phone_hash(from_phone),
                     f"[FUERA HORARIO] {text_body[:200]}",
@@ -2844,7 +2876,7 @@ async def meta_webhook(request: Request):
         try:
             conn = sqlite3.connect(SQLITE_PATH)
             conn.execute(
-                "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",
+                "INSERT INTO orders (phone_hash, product_description, status, created_at) VALUES (?, ?, ?, ?)",  # noqa: E501
                 (_phone_hash(from_phone), answer[:500], "pending", time.time()),
             )
             conn.commit()
