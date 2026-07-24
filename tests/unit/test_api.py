@@ -1,4 +1,9 @@
-"""Tests para api/main.py."""
+"""Tests para api/main.py.
+
+NOTA: Estos tests son de la arquitectura anterior (WAHA + ValentinaAgent).
+El sistema actual usa api/bridge.py (Meta Cloud API + Dify + FSM deterministico).
+Los tests que referencian funciones eliminadas (_send_waha_message) estan marcados skip.
+"""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -35,56 +40,23 @@ async def test_metrics(client):
 
 @pytest.mark.asyncio
 async def test_webhook_whatsapp_no_hmac_in_dev(client):
-    """En desarrollo (sin secret), webhook debe procesar sin HMAC."""
-    # Mock Valentina para no depender de Ollama
-
-    mock_valentina = MagicMock()
-    mock_valentina.process_message = AsyncMock(
-        return_value={
-            "response": "Hola",
-            "needs_human_escalation": False,
-            "memory_used": 0,
-        }
-    )
-
-    with (
-        patch("api.main.get_valentina", return_value=mock_valentina),
-        patch("api.main._send_waha_message", new=AsyncMock()),
-    ):
-        resp = await client.post(
-            "/webhook/whatsapp",
-            json={
-                "from": "584122560721@s.whatsapp.net",
-                "body": "hola",
-                "contact": {"name": "Luis"},
-            },
-        )
-
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["status"] == "ok"
-    assert data["response_sent"] is True
+    """En desarrollo (sin secret), webhook debe procesar sin HMAC.
+    SKIP: _send_waha_message fue eliminado en migracion a Meta Cloud API."""
+    pytest.skip("Arquitectura anterior: _send_waha_message eliminado, bridge.py usa Meta Graph API")
 
 
 @pytest.mark.asyncio
 async def test_webhook_whatsapp_missing_fields(client):
-    """Webhook sin 'from' o 'body' debe retornar 400."""
-    resp = await client.post(
-        "/webhook/whatsapp",
-        json={"from": "", "body": ""},
-    )
-    assert resp.status_code == 400
+    """Webhook sin 'from' o 'body' debe retornar 400.
+    SKIP: /webhook/whatsapp migrado a /webhook/meta en bridge.py."""
+    pytest.skip("Ruta /webhook/whatsapp migrada a /webhook/meta en bridge.py")
 
 
 @pytest.mark.asyncio
 async def test_webhook_whatsapp_invalid_json(client):
-    """JSON inválido debe retornar 400."""
-    resp = await client.post(
-        "/webhook/whatsapp",
-        content="invalid json",
-        headers={"Content-Type": "application/json"},
-    )
-    assert resp.status_code == 400
+    """JSON invalido debe retornar 400.
+    SKIP: /webhook/whatsapp migrado a /webhook/meta en bridge.py."""
+    pytest.skip("Ruta /webhook/whatsapp migrada a /webhook/meta en bridge.py")
 
 
 @pytest.mark.asyncio
