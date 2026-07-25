@@ -37,12 +37,14 @@ import re
 import sqlite3
 import sys
 import time
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta, timezone
+from typing import Any
 
 # P1-2: sdnotify para watchdog systemd
 try:
-    import sdnotify
+    import sdnotify  # type: ignore[import-untyped]
 except ImportError:
     sdnotify = None
 
@@ -50,7 +52,7 @@ sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
 
 # Helper: convertir EUR a Bs. usando última tasa guardada en fs_tasas_cambio
-def _convert_eur_to_bs(eur):
+def _convert_eur_to_bs(eur: float) -> float | None:
     try:
         import sqlite3
 
@@ -61,7 +63,7 @@ def _convert_eur_to_bs(eur):
         ).fetchone()
         conn.close()
         if row and row[0] > 0:
-            return round(eur * row[0], 2)
+            return float(round(eur * row[0], 2))
     except Exception:
         pass
     return None
@@ -73,16 +75,16 @@ try:
 
     _fs_agent = None  # Lazy init
 
-    def _get_fs():
+    def _get_fs() -> Any:
         global _fs_agent
         if _fs_agent is None:
             _fs_agent = get_fs_agent()
-            _fs_agent.init()
+            _fs_agent.init()  # type: ignore[no-untyped-call]
         return _fs_agent
 except Exception:
     _fs_agent = None
 
-    def _get_fs():
+    def _get_fs() -> Any:
         return None
 
 
@@ -160,7 +162,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 
 # r7: Set para mantener referencias a asyncio tasks creados fire-and-forget.
 # Evita que el GC cancele el task silenciosamente. Auto-limpia cuando done.
-_ASYNCTASKS_REFS: set = set()
+_ASYNCTASKS_REFS: set[asyncio.Task[Any]] = set()
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1663148211")  # Líder por defecto
 TELEGRAM_ENABLED = bool(TELEGRAM_BOT_TOKEN) and TELEGRAM_AVAILABLE
 
@@ -184,7 +186,8 @@ DEDUP_TTL_SECONDS = 300  # 5 minutos
 START_TIME = time.time()
 
 # State tracking: último total correcto por teléfono (para corregir en mensajes posteriores)
-_last_order_totals: dict = {}  # phone_hash -> {"total": float, "qty_bot": int, "qty_hielo": int}
+# phone_hash -> {"total": float, "qty_bot": int, "qty_hielo": int}
+_last_order_totals: dict[str, dict[str, float | int]] = {}
 
 # --- Horario laboral (America/Caracas UTC-4) ---
 # Publicado al cliente: "Lunes a Sábado, 8:00 AM - 6:00 PM"
@@ -199,7 +202,7 @@ CARACAS_TZ = timezone(timedelta(hours=-4))  # America/Caracas UTC-4
 
 
 # Mensaje fuera de horario (verbatim del System Prompt v4)
-def _get_out_of_hours_message():
+def _get_out_of_hours_message() -> str:
     """Mensaje dinámico según qué tan cerca está de la apertura."""
     now = datetime.now(CARACAS_TZ)
     day = now.weekday() + 1
@@ -292,21 +295,21 @@ if PROMETHEUS_AVAILABLE:
 else:
     # Stubs si prometheus_client no está instalado
     class _Stub:
-        def labels(self, *a, **kw):
+        def labels(self, *a: Any, **kw: Any) -> "_Stub":
             return self
 
-        def inc(self, *a, **kw):
+        def inc(self, *a: Any, **kw: Any) -> None:
             pass
 
-        def observe(self, *a, **kw):
+        def observe(self, *a: Any, **kw: Any) -> None:
             pass
 
-        def set(self, *a, **kw):
+        def set(self, *a: Any, **kw: Any) -> None:
             pass
 
-    MESSAGES_TOTAL = RESPONSE_TIME = DIFY_CALLS = META_SEND = _Stub()
-    ORDERS_TOTAL = ESCALATIONS_TOTAL = DEDUP_HITS = _Stub()
-    ACTIVE_CONVERSATIONS = _Stub()
+    MESSAGES_TOTAL = RESPONSE_TIME = DIFY_CALLS = META_SEND = _Stub()  # type: ignore[assignment]
+    ORDERS_TOTAL = ESCALATIONS_TOTAL = DEDUP_HITS = _Stub()  # type: ignore[assignment]
+    ACTIVE_CONVERSATIONS = _Stub()  # type: ignore[assignment]
 
 
 # ============================================================================
@@ -327,12 +330,12 @@ class SanitizingFormatter(logging.Formatter):
         msg = super().format(record)
 
         # Hashear cualquier cosa que parezca un teléfono venezolano
-        def _hash_phone(match):
+        def _hash_phone(match: re.Match[str]) -> str:
             phone = match.group(0)
             h = hashlib.sha256(f"{LOG_SALT}:{phone}".encode()).hexdigest()[:12]
             return f"phone:{h}"
 
-        return self.PHONE_REGEX.sub(_hash_phone, msg)
+        return str(self.PHONE_REGEX.sub(_hash_phone, msg))
 
 
 logger = logging.getLogger("valentina_bridge")
@@ -524,6 +527,7 @@ async def _send_whatsapp_message(phone: str, text: str) -> bool:
         "text": {"body": text, "preview_url": False},
     }
     try:
+        assert _http_client is not None, "http client not initialized"
         resp = await _http_client.post(url, headers=headers, json=payload, timeout=10)
         if resp.status_code == 200:
             logger.info("Mensaje enviado a phone:%s (len=%d)", _phone_hash(phone)[:8], len(text))
@@ -544,11 +548,11 @@ async def _send_whatsapp_interactive(
     phone: str,
     body_text: str,
     interactive_type: str,
-    buttons: list = None,
-    list_sections: list = None,
+    buttons: list[dict[str, Any]] | None = None,
+    list_sections: list[dict[str, Any]] | None = None,
     button_text: str = "Ver opciones",
-    header_text: str = None,
-    footer_text: str = None,
+    header_text: str | None = None,
+    footer_text: str | None = None,
 ) -> bool:
     """
     Envía un mensaje interactivo (list o button) via Meta Graph API.
@@ -609,6 +613,7 @@ async def _send_whatsapp_interactive(
     }
 
     try:
+        assert _http_client is not None, "http client not initialized"
         resp = await _http_client.post(url, headers=headers, json=payload, timeout=10)
         if resp.status_code == 200:
             logger.info(
@@ -628,7 +633,7 @@ async def _send_whatsapp_interactive(
         return False
 
 
-def _detect_message_type(answer: str) -> dict:
+def _detect_message_type(answer: str) -> dict[str, Any]:
     """
     Analiza la respuesta de Valentina (Dify) y decide qué tipo de
     mensaje interactivo enviar (si aplica).
@@ -755,7 +760,7 @@ def _detect_message_type(answer: str) -> dict:
     return {"type": "text"}
 
 
-async def _call_dify(query: str, phone: str, conv_id: str | None) -> dict | None:
+async def _call_dify(query: str, phone: str, conv_id: str | None) -> dict[str, Any] | None:
     """Llama al Chatflow de Dify y devuelve {answer, conversation_id}."""
     if not DIFY_API_KEY:
         logger.error("DIFY_API_KEY no configurada")
@@ -773,6 +778,7 @@ async def _call_dify(query: str, phone: str, conv_id: str | None) -> dict | None
     if conv_id:
         payload["conversation_id"] = conv_id
     try:
+        assert _http_client is not None, "http client not initialized"
         resp = await _http_client.post(DIFY_API_URL, headers=headers, json=payload, timeout=30)
         if resp.status_code == 200:
             data = resp.json()
@@ -849,7 +855,7 @@ def _is_kill_switch_active() -> bool:
 # ============================================================================
 
 # State tracking por teléfono: phone_hash -> estado de conversación
-_conversation_state: dict = {}
+_conversation_state: dict[str, dict[str, Any]] = {}
 
 # Precios oficiales
 PRECIO_BOTELLON = 1.00
@@ -871,7 +877,7 @@ OUT_OF_HOURS_MSG = (
 )
 
 
-def _get_state(ph_hash: str) -> dict:
+def _get_state(ph_hash: str) -> dict[str, Any]:
     """Obtiene el estado conversacional del teléfono.
     P0-1: Lazy load desde SQLite con cache en memoria."""
     cached = _conversation_state.get(ph_hash)
@@ -891,13 +897,13 @@ def _get_state(ph_hash: str) -> dict:
             logger.info(
                 "📋 FSM recuperado de SQLite para %s: state=%s", ph_hash[:8], state.get("state")
             )
-            return state
+            return dict(state)
     except sqlite3.Error as e:
         logger.warning("No se pudo leer FSM de SQLite para %s: %s", ph_hash[:8], e)
     return {"state": None}
 
 
-def _set_state(ph_hash: str, state: dict) -> None:
+def _set_state(ph_hash: str, state: dict[str, Any]) -> None:
     """Guarda el estado conversacional.
     P0-1: Write-through a SQLite + cache en memoria."""
     _conversation_state[ph_hash] = state
@@ -978,7 +984,7 @@ def _save_order_totals(ph_hash: str, total: float, qty_bot: int, qty_hielo: int)
         logger.warning("No se pudo persistir order_totals a SQLite para %s: %s", ph_hash[:8], e)
 
 
-def _get_order_totals(ph_hash: str) -> dict | None:
+def _get_order_totals(ph_hash: str) -> dict[str, Any] | None:
     """P0-1: Lee _last_order_totals con cache + fallback SQLite."""
     cached = _last_order_totals.get(ph_hash)
     if cached is not None:
@@ -1051,7 +1057,7 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
         return None
 
     # P1-5: usar haversine de route_engine (esférico, preciso) con fallback local
-    _haversine_impl = None
+    _haversine_impl: Any = None
     try:
         from skills.dispatch.route_engine import haversine as _haversine_impl
     except ImportError:
@@ -1077,7 +1083,7 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
     return best_id
 
 
-def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> None:
+def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict[str, Any]) -> None:
     """Upsert del cliente en dispatch.db (tabla clients) por phone_hash.
     Se llama después de encolar el pedido en dispatch_queue (conversations.db),
     para que el módulo dispatcher tenga un cliente real al planear rutas.
@@ -1171,7 +1177,7 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict) -> N
         logger.error("Error sincronizando client a dispatch.db: %s", e)
 
 
-def _send_to_dispatch_queue(ph_hash: str, state: dict, from_phone: str):
+def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str) -> None:
     """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
     TRIGGER: cuando cliente confirma pago (efectivo '2' o 'ya pagué' tras pago móvil).
     NO encolar en abortos ('volver'/'menú' desde awaiting_payment)."""
@@ -1236,9 +1242,9 @@ def _handle_deterministic(
     text_body: str,
     from_phone: str,
     contact_name: str,
-    msg: dict,
-    value: dict,
-) -> dict | None:
+    msg: dict[str, Any],
+    value: dict[str, Any],
+) -> dict[str, Any] | None:
     """
     Maneja la conversación determinísticamente (sin Dify).
     Returns: dict con 'answer' (str) y opcional 'interactive' (dict), o None si debe delegar a Dify.
@@ -1991,11 +1997,11 @@ def _save_order_to_db_and_sheets(
     qty_bot: int,
     qty_hielo: int,
     address: str,
-    latitude,
-    longitude,
+    latitude: float | None,
+    longitude: float | None,
     total: float,
     conversation_id: str,
-):
+) -> None:
     """Guarda el pedido en SQLite + Google Sheets (no bloqueante)."""
     import sqlite3
 
@@ -2083,7 +2089,7 @@ def _save_order_to_db_and_sheets(
         logger.error("Error enviando a Google Sheets: %s", gs_err)
 
 
-def _fix_total_in_response(answer: str, payload: dict) -> str:
+def _fix_total_in_response(answer: str, payload: dict[str, Any]) -> str:
     """
     Reemplaza el total en la respuesta de Valentina por el cálculo
     determinístico del bridge. Si Dify calculó mal, el bridge lo corrige.
@@ -2129,7 +2135,7 @@ def _build_order_payload(
     answer: str,
     contact_name: str,
     conversation_id: str,
-) -> dict:
+) -> dict[str, Any]:
     """
     Parsea la respuesta de Valentina para extraer datos del pedido.
 
@@ -2186,8 +2192,10 @@ def _build_order_payload(
     # El LLM puede equivocarse en cálculos. El bridge calcula con precios oficiales.
     PRECIO_BOTELLON = 1.00  # €
     PRECIO_HIELO = 1.20  # €
+    qty_bot_val: Any = payload.get("qty_botellones", 0)
+    qty_hielo_val: Any = payload.get("qty_hielo", 0)
     payload["total_eur"] = round(
-        (payload["qty_botellones"] * PRECIO_BOTELLON) + (payload["qty_hielo"] * PRECIO_HIELO), 2
+        (float(qty_bot_val) * PRECIO_BOTELLON) + (float(qty_hielo_val) * PRECIO_HIELO), 2
     )
 
     # Método de pago (si aparece en la respuesta de confirmación de pago)
@@ -2205,7 +2213,7 @@ def _build_order_payload(
         # Si la dirección contiene coordenadas, extraerlas
         coord_match = re.search(
             r"(?:coordenadas:|GPS:)\s*(-?\d+[.,]?\d*)\s*,\s*(-?\d+[.,]?\d*)",
-            payload["address"],
+            str(payload["address"]),
             re.IGNORECASE,
         )
         if coord_match:
@@ -2233,7 +2241,7 @@ def _build_order_payload(
 
 # P1-2: Watchdog systemd — envia WATCHDOG=1 cada 15s.
 # systemd reinicia el servicio si no recibe notify en WatchdogSec=30s.
-_watchdog_task: asyncio.Task | None = None
+_watchdog_task: asyncio.Task[None] | None = None
 
 
 async def _watchdog_loop() -> None:
@@ -2253,7 +2261,7 @@ async def _watchdog_loop() -> None:
 
 
 @asynccontextmanager
-async def lifespan(app: FastAPI):
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     global _http_client, _telegram_bot, _watchdog_task
     _init_db()
     _http_client = httpx.AsyncClient()
@@ -2312,11 +2320,11 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 
 @app.get("/")
-async def root():
+async def root() -> dict[str, Any]:
     """Endpoint raíz — info básica para verificar que el puente está vivo."""
     return {
         "name": "Valentina Bridge",
@@ -2336,7 +2344,7 @@ async def root():
 
 
 @app.get("/metrics")
-async def metrics(request: Request):
+async def metrics(request: Request) -> RawResponse:
     """Endpoint de métricas Prometheus para scrapeo.
 
     P0-2: IP allowlist — solo localhost y red Docker local (172.19.0.0/16).
@@ -2371,7 +2379,7 @@ async def metrics(request: Request):
 
 
 @app.get("/health")
-async def health():
+async def health() -> JSONResponse:
     """Health check para systemd / Prometheus / Cloudflare."""
     ok = bool(DIFY_API_KEY and META_ACCESS_TOKEN and META_PHONE_NUMBER_ID)
     kill_switch = _is_kill_switch_active()
@@ -2398,8 +2406,8 @@ async def health():
     )
 
 
-@app.get("/webhook/meta", response_class=PlainTextResponse)
-async def meta_verify(request: Request):
+@app.get("/webhook/meta", response_class=PlainTextResponse, response_model=None)
+async def meta_verify(request: Request) -> PlainTextResponse:
     """Verificación del webhook de Meta Cloud API (paso de configuración único).
 
     Meta envía los parámetros con PUNTOS (hub.mode, hub.verify_token, hub.challenge),
@@ -2424,7 +2432,7 @@ async def meta_verify(request: Request):
 
 @app.post("/webhook/meta")
 @limiter.limit(f"{RATE_PER_IP}/minute")
-async def meta_webhook(request: Request):
+async def meta_webhook(request: Request) -> JSONResponse:
     """
     Recibe mensajes de WhatsApp desde Meta Cloud API.
 

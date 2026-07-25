@@ -1,6 +1,6 @@
 # MAPA DE RUTA VIVO — Estación H2O / Prometeo
 
-**Última actualización**: 2026-07-24 (Día 29 — sesión P0-1 + P1-2 + reinicio bridge + push GitHub)
+**Última actualización**: 2026-07-25 (Día 30 — sesión P2-2 mypy resuelto en api/)
 **Autor**: Prometeo (GLM 5.2 vía NVIDIA NIM)
 **Fuente**: docs/05-tech-debt/ANALISIS_ARQUITECTURA_2026-07-21.md (36 fallas) + estado actual del repo
 **Repo**: https://github.com/elpelon27/EstacionH2OIA — 71 commits, sincronizado
@@ -102,10 +102,10 @@ Mismo bug que tenia el bridge (StartLimitIntervalSec en [Service] en lugar de [U
 
 ---
 
-## P2 COSMETICO — estado al 2026-07-24
+## P2 COSMETICO — estado al 2026-07-25
 
 - P2-1: ruff E501 — RESUELTO (46→0 errores, commit 523d899). 26 noqa en strings de mensajes al cliente.
-- P2-2: mypy type hints — pendiente (N errores en bridge.py).
+- P2-2: mypy type hints — RESUELTO (74→0 errores en api/, commit pendiente). bridge.py 66→0, main.py 8→0. Sin cambiar lógica, solo anotaciones + casts + asserts. pytest 105 pass, 0 fail.
 - P2-4: tests/unit/test_bridge.py — RESUELTO (27 tests, commit a3a58ee).
 - P2-5: RESUMEN_RETOMAR.md — RESUELTO (reescrito Dia 29, commit ff25415).
 
@@ -129,6 +129,7 @@ Tras FASE 1 completa (~97%), iniciar FASE 2 segun `docs/DISPATCHER_ARCHITECTURE.
 - Commits totales repo: 75+
 - Smoke tests: 29/29 PASS (3 suites)
 - pytest suite: 105 passed, 14 skipped, 0 failed (27 nuevos test_bridge.py)
+- mypy api/: 0 errores (bridge.py 66→0, main.py 8→0)
 - Servicios prod: 4 active (bridge Type=notify + WatchdogSec, dispatcher, telegram, cloudflared)
 - Cron jobs: 6 activos
 - TELEGRAM_DISPATCH_CHAT: configurado (8523722341)
