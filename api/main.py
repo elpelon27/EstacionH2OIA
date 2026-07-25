@@ -49,26 +49,26 @@ _dedup_cache: dict[str, float] = {}
 _message_cache: dict[str, dict[str, Any]] = {}
 
 
-@app.get("/health")  # type: ignore[misc]
+@app.get("/health")
 async def health() -> dict[str, str]:
     """Healthcheck para Prometheus."""
     return {"status": "ok", "version": "0.2.0"}
 
 
-@app.get("/metrics")  # type: ignore[misc]
+@app.get("/metrics")
 async def metrics() -> PlainTextResponse:
     """Métricas para Prometheus."""
     return PlainTextResponse(generate_latest(), media_type=CONTENT_TYPE_LATEST)
 
 
 # ===== WEBHOOK VERIFICATION (GET) =====
-@app.get("/webhook/meta")  # type: ignore[misc]
+@app.get("/webhook/meta")
 async def verify_webhook(
     request: Request,
     hub_mode: str = Query(..., alias="hub.mode"),
     hub_challenge: str = Query(..., alias="hub.challenge"),
     hub_verify_token: str = Query(..., alias="hub.verify_token"),
-) -> str:
+) -> PlainTextResponse:
     """Verificación inicial del webhook por Meta.
 
     Meta envía un GET con hub.mode=subscribe, hub.verify_token y hub.challenge.
@@ -85,7 +85,7 @@ async def verify_webhook(
 
 
 # ===== WEBHOOK RECEIVER (POST) =====
-@app.post("/webhook/meta")  # type: ignore[misc]
+@app.post("/webhook/meta")
 async def webhook_meta(request: Request) -> JSONResponse:
     """Recibir webhook de Meta Cloud API.
 
@@ -245,7 +245,7 @@ async def _process_message_background(
 
 
 # ===== TELEGRAM WEBHOOK =====
-@app.post("/webhook/telegram")  # type: ignore[misc]
+@app.post("/webhook/telegram")
 async def webhook_telegram(request: Request) -> JSONResponse:
     """Recibir webhook de Telegram (comandos del Líder)."""
     global _kill_switch_active
@@ -290,7 +290,7 @@ async def webhook_telegram(request: Request) -> JSONResponse:
 
 
 # ===== KILL SWITCH API =====
-@app.post("/kill-switch")  # type: ignore[misc]
+@app.post("/kill-switch")
 async def kill_switch(request: Request) -> JSONResponse:
     """Activar/desactivar kill switch vía API (requiere token)."""
     global _kill_switch_active
@@ -313,7 +313,7 @@ async def kill_switch(request: Request) -> JSONResponse:
 
 
 # ===== SEND MESSAGE API =====
-@app.post("/send-message")  # type: ignore[misc]
+@app.post("/send-message")
 async def send_message(request: Request) -> JSONResponse:
     """Enviar mensaje proactivo a un cliente."""
     try:
