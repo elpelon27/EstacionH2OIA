@@ -285,7 +285,7 @@ class FinancialShieldAgent:
 
     async def generar_y_enviar_reporte(self):
         """Genera y envía reporte diario por Telegram (6:30 PM)."""
-        await reportes.generar_y_enviar_reporte()
+        return await reportes.generar_y_enviar_reporte()
 
     # ========================================================================
     # 7. NÓMINA
