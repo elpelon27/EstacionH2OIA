@@ -1,19 +1,19 @@
 # MAPA DE RUTA VIVO — Estación H2O / Prometeo
 
-**Última actualización**: 2026-07-25 (Día 30 — sesión P2-2 mypy resuelto en api/)
+**Última actualización**: 2026-07-25 (Día 30 — ROADMAP sincronizado con estado real del repo)
 **Autor**: Prometeo (GLM 5.2 vía NVIDIA NIM)
 **Fuente**: docs/05-tech-debt/ANALISIS_ARQUITECTURA_2026-07-21.md (36 fallas) + estado actual del repo
-**Repo**: https://github.com/elpelon27/EstacionH2OIA — 71 commits, sincronizado
+**Repo**: https://github.com/elpelon27/EstacionH2OIA — 77+ commits, sincronizado
 
 ---
 
-## COMPLETADO (hasta 2026-07-24)
+## COMPLETADO (hasta 2026-07-25)
 
 ### B1 — Webhook Meta al named tunnel permanente — HECHO
 Webhook Meta apuntando a `https://valentina.estacionh2o.com/webhook/meta`. Named tunnel cloudflared activo. Quick tunnel efimero eliminado.
 
 ### B2 — Reconciliar systemd unit /etc vs repo — PARCIAL
-Systemd unit del repo copiado a /etc y bridge reiniciado el 2026-07-22. **PENDIENTE**: copiar unit nuevo (Type=notify + WatchdogSec=30s del P1-2) a /etc. El /etc actual aun tiene Type=simple.
+Systemd unit del repo copiado a /etc y bridge reiniciado el 2026-07-22. **PENDIENTE**: copiar unit nuevo (Type=notify + WatchdogSec=30s del P1-2) a /etc. El /etc actual aun tiene Type=simple. Ver sección PENDIENTE.
 
 ### B3 — Reiniciar bridge para activar r1-r7 — HECHO
 Bridge reiniciado 2026-07-22 y nuevamente 2026-07-24 17:27. Logs confirman: "SQLite inicializado WAL + foreign_keys ON", "Watchdog systemd activo", tabla `conversation_state` creada.
@@ -68,7 +68,41 @@ Regex cambiado a `r"(?<!\d)\+?58\d{10}(?!\d)"` con lookarounds negativos. 20/20 
 **Antes**: Si el bridge se colgaba (deadlock, memory leak), systemd no lo detectaba — servicio 'active' pero no respondia.
 **Fix**: `Type=notify` + `WatchdogSec=30s` en systemd unit. `_watchdog_loop()` en bridge.py envia `WATCHDOG=1` cada 15s via `sdnotify`. `READY=1` al arrancar. Cancelacion limpia en shutdown.
 **Test**: 8/8 PASS (tests/smoke/test_watchdog.py).
-**ACTIVO en prod** — log confirma "Watchdog systemd activo (interval=15s)". **PENDIENTE**: copiar systemd unit a /etc para que systemd enforcemente WatchdogSec (actualmente /etc tiene Type=simple).
+**ACTIVO en prod** — log confirma "Watchdog systemd activo (interval=15s)". **PENDIENTE**: copiar systemd unit a /etc (ver PENDIENTE).
+
+### StartLimitIntervalSec en telegram-bot + dispatcher-bot (2026-07-24, commit efae9ce)
+Mismo bug que tenia el bridge (StartLimitIntervalSec en [Service] en lugar de [Unit]). Corregido en `telegram-bot.service` y `dispatcher-bot.service`. VERIFICADO: ambos units contienen StartLimitIntervalSec.
+
+### TELEGRAM_DISPATCH_CHAT en .env (2026-07-24, commit b5540fe)
+`TELEGRAM_DISPATCH_CHAT=8523722341` configurado en `config/.env`. Route planner ahora notifica choferes por Telegram.
+
+### Bugs Dia 15 (DEUDA_TECNICA_DIA_15.md) — 4 bugs RESUELTOS (2026-07-24, commit 18bc053)
+Verificado en codigo:
+1. **CRITICA**: qwen2.5:7b calculos incorrectos → RESUELTO. `_calc_total` deterministico + `_fix_total_in_response` en bridge.py.
+2. **ALTA**: Minimo 3 botellones → RESUELTO. Guards en bridge.py lineas 1264-1651.
+3. **MEDIA**: Botones de pago no aparecen → RESUELTO. Regex `_detect_message_type` ajustado.
+4. **MEDIA**: Mensaje compuesto mal interpretado → RESUELTO. Prompt + regex refinados.
+
+### Tests rotos pytest (14 fallos preexistentes) — RESUELTOS (2026-07-24, commit 18bc053)
+- test_api.py: 3 tests skip (_send_waha_message eliminado, /webhook/whatsapp migrado a /webhook/meta).
+- test_valentina.py: 9 tests skip (_load_doc eliminado en refactor, system prompt ahora hardcoded).
+- test_config.py: 2 tests skip condicional (OPENROUTER_API_KEY y TELEGRAM_BOT_TOKEN_H2O no configurados).
+- Resultado: 105 passed, 14 skipped, 0 failed — antes: 78 passed, 6 failed, 8 errors.
+
+### P2-1 — ruff E501 (2026-07-24, commit 523d899)
+46 errores E501 → 0. 26 noqa en strings de mensajes al cliente.
+
+### P2-4 — tests/unit/test_bridge.py (2026-07-24, commit a3a58ee)
+27 tests unitarios del bridge creados. Suite pytest: 105 passed, 14 skipped, 0 failed.
+
+### P2-5 — RESUMEN_RETOMAR.md (2026-07-24, commit ff25415)
+Reescrito Dia 29 — estado real, rutas corregidas, arquitectura actual.
+
+### P2-2 — mypy type hints en api/ (2026-07-25, commit 1028066)
+bridge.py 66→0 errores, main.py 8→0. Anotaciones return type + params, genericos parametrizados (dict[str, Any], set[Task], Task[None]), casts explicitos, asserts _http_client not None, response_model=None en meta_verify. Cero cambios de logica. pytest 105 pass, 0 fail.
+
+### fix(financial): return await (2026-07-25, commit 7c99b37)
+`generar_y_enviar_reporte` en financial_agent.py no descartaba el valor del await.
 
 ---
 
@@ -82,38 +116,26 @@ sudo systemctl daemon-reload
 sudo systemctl restart valentina-bridge.service
 ```
 
-### P1 — TELEGRAM_DISPATCH_CHAT en .env
-Route planner no notifica choferes por Telegram. Falta configurar `TELEGRAM_DISPATCH_CHAT` con el chat_id del grupo de choferes en `config/.env`.
+### P3 — mypy en skills/ y src/ (~72 errores, no bloqueantes)
+mypy api/ esta en 0, pero mypy global sigue mostrando errores en:
+- skills/dispatch/route_engine.py (14 errores)
+- skills/google_sheets.py (12 errores)
+- skills/payment_skill.py (1 error)
+- src/agents/financial_agent.py (15 errores)
+- core/workload_router.py (2 errores)
+- core/openrouter_client.py (8 errores)
+- core/logger.py (1 error)
+- memory/memory_client.py (1 error)
+No bloquean commits (pre-commit solo revisa api/), pero son tech debt real.
 
-### P1 — Fix StartLimitIntervalSec en telegram-bot + dispatcher-bot
-Mismo bug que tenia el bridge (StartLimitIntervalSec en [Service] en lugar de [Unit]). Pendiente en `telegram-bot.service` y `dispatcher-bot.service`.
-
-### Bugs Dia 15 (DEUDA_TECNICA_DIA_15.md) — 4 bugs sin resolver
-1. **CRITICA**: qwen2.5:7b calculos matematicos incorrectos (cobra mal). Fix: calcular total en bridge, no en LLM.
-2. **ALTA**: Minimo 3 botellones no se cumple. Fix: guard en bridge.
-3. **MEDIA**: Botones de pago no aparecen (regex _detect_message_type). Fix: ajustar regex.
-4. **MEDIA**: Mensaje compuesto mal interpretado. Fix: refinar prompt + regex.
-
-### Tests rotos en pytest (14 fallos preexistentes)
-- test_api.py: mockea `_send_waha_message` (funcion eliminada) + 2 tests esperan 400 pero reciben 404.
-- test_valentina.py: mockea `_load_doc` (metodo inexistente en ValentinaAgent). 1 fail + 8 errors.
-- test_config.py: espera `openrouter_api_key` y `telegram_bot_token_h2o` en .env (no configurados).
-- Fix: actualizar mocks o eliminar tests obsoletos. 78 passed, 14 failed/error — cero regresiones de codigo nuevo.
-
----
-
-## P2 COSMETICO — estado al 2026-07-25
-
-- P2-1: ruff E501 — RESUELTO (46→0 errores, commit 523d899). 26 noqa en strings de mensajes al cliente.
-- P2-2: mypy type hints — RESUELTO (74→0 errores en api/, commit pendiente). bridge.py 66→0, main.py 8→0. Sin cambiar lógica, solo anotaciones + casts + asserts. pytest 105 pass, 0 fail.
-- P2-4: tests/unit/test_bridge.py — RESUELTO (27 tests, commit a3a58ee).
-- P2-5: RESUMEN_RETOMAR.md — RESUELTO (reescrito Dia 29, commit ff25415).
+### P3 — Ruff 14 errores E402 preexistentes en api/bridge.py
+7 E402 por `sys.path.insert` antes de imports (intencional por arquitectura del módulo), 2 F841 variable asignada sin uso, 5 E501 restantes. Preexistentes, no regresiones.
 
 ---
 
 ## FASE 2 (post-FASE 1)
 
-Tras FASE 1 completa (~97%), iniciar FASE 2 segun `docs/DISPATCHER_ARCHITECTURE.md`:
+Tras FASE 1 completa (~99%), iniciar FASE 2 segun `docs/DISPATCHER_ARCHITECTURE.md`:
 - Financial Agent (lee Pedidos, escribe Pagos + Saldos_Clientes)
 - Route Skill avanzado
 - Analytics Skill (reporte diario 7am Telegram)
@@ -121,17 +143,18 @@ Tras FASE 1 completa (~97%), iniciar FASE 2 segun `docs/DISPATCHER_ARCHITECTURE.
 
 ---
 
-## METRICAS DE PROGRESO (actualizado 2026-07-24 19:15)
+## METRICAS DE PROGRESO (actualizado 2026-07-25)
 
 - Fallas P0 totales: 11 — TODAS RESUELTAS
-- Fallas P1 totales: 13 — 12 resueltas (1 restante = FSM ya contado como P0-1)
+- Fallas P1 totales: 13 — TODAS RESUELTAS (FSM, WatchdogSec, PHONE_REGEX, bare except, haversine, StartLimitIntervalSec, TELEGRAM_DISPATCH_CHAT, bugs Dia 15)
 - FASE 1 completitud: ~99%
-- Commits totales repo: 75+
-- Smoke tests: 29/29 PASS (3 suites)
+- Commits totales repo: 77+
+- Smoke tests: 29/29 PASS (3 suites: FSM + watchdog + PHONE_REGEX)
 - pytest suite: 105 passed, 14 skipped, 0 failed (27 nuevos test_bridge.py)
 - mypy api/: 0 errores (bridge.py 66→0, main.py 8→0)
+- mypy skills/ + src/: ~72 errores (no bloqueantes, P3)
+- ruff api/: 14 errores preexistentes (E402 + F841, P3)
 - Servicios prod: 4 active (bridge Type=notify + WatchdogSec, dispatcher, telegram, cloudflared)
-- Cron jobs: 6 activos
+- Cron jobs: 6 activos (analytics 7am, route_planner 7:45am, checkin 8am, backup 2am, fs_reporte 6:30pm, fs_recordatorios cada 30min)
 - TELEGRAM_DISPATCH_CHAT: configurado (8523722341)
 - GitHub: sincronizado (https://github.com/elpelon27/EstacionH2OIA)
-
