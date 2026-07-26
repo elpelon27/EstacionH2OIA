@@ -17,7 +17,7 @@ class MemoryClient:
     _instance: "MemoryClient | None" = None
 
     def __init__(self) -> None:
-        from mem0 import Memory
+        from mem0 import Memory  # type: ignore[import-untyped]
 
         settings = get_settings()
         config = {

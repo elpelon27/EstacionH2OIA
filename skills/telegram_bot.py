@@ -54,21 +54,30 @@ BRIDGE_HEALTH_URL = os.getenv("BRIDGE_HEALTH_URL", "http://localhost:8000/health
 
 
 def _is_authorized(update: Update) -> bool:
-    return update.effective_chat.id == TELEGRAM_CHAT_ID
+    chat = update.effective_chat
+    assert chat is not None
+    return chat.id == TELEGRAM_CHAT_ID
 
 
 async def _unauthorized(update: Update) -> None:
-    await update.message.reply_text("🚫 No autorizado. Este bot es privado de Estación H2O.")
+    msg = update.message
+    chat = update.effective_chat
+    user = update.effective_user
+    assert msg is not None
+    assert chat is not None
+    assert user is not None
+    await msg.reply_text("🚫 No autorizado. Este bot es privado de Estación H2O.")
     logger.warning(
         "Acceso no autorizado de chat_id=%s username=%s",
-        update.effective_chat.id,
-        update.effective_user.username,
+        chat.id,
+        user.username,
     )
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
     if os.path.exists(KILL_SWITCH_FILE):
         os.remove(KILL_SWITCH_FILE)
         await update.message.reply_text(
@@ -82,6 +91,8 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
+    assert update.effective_user is not None
     # P0-3: crear con 0600 (antes en /tmp era 1777=writable por todos)
     import os as _os
     _fd = _os.open(KILL_SWITCH_FILE, _os.O_CREAT | _os.O_WRONLY | _os.O_TRUNC, 0o600)
@@ -96,6 +107,7 @@ async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
     import httpx
     try:
         async with httpx.AsyncClient() as client:
@@ -122,6 +134,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_orders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
     if not os.path.exists(SQLITE_PATH):
         await update.message.reply_text("❌ BD no encontrada")
         return
@@ -148,6 +161,7 @@ async def cmd_orders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
     import subprocess
     try:
         result = subprocess.run(
@@ -169,6 +183,7 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_metrics(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
     import httpx
     try:
         async with httpx.AsyncClient() as client:
@@ -178,7 +193,7 @@ async def cmd_metrics(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("❌ No se pudo obtener métricas: " + str(e))
         return
 
-    def _extract(name):
+    def _extract(name: str) -> str:
         for line in metrics_text.split("\n"):
             if line.startswith(name) and not line.startswith(name + "_"):
                 parts = line.split()
@@ -199,6 +214,7 @@ async def cmd_tasa(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Ver o cambiar tasa EUR/VES."""
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
     args = ctx.args
     if not args:
         sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
@@ -219,6 +235,7 @@ async def cmd_tasa(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
+    assert update.message is not None
     help_text = (
         "💧 Valentina Bridge — Comandos\n\n"
         "/status — Estado del bridge\n"
@@ -234,7 +251,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(help_text)
 
 
-def main():
+def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN no configurado")
         sys.exit(1)

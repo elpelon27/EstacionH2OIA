@@ -71,13 +71,14 @@ class OpenRouterClient:
         try:
             response = await self.client.chat.completions.create(
                 model=model,
-                messages=messages,
+                messages=messages,  # type: ignore[arg-type]
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
 
             content = response.choices[0].message.content or ""
             usage = response.usage
+            assert usage is not None
 
             # Cálculo de costo aproximado (OpenRouter no lo da directo)
             # Se actualiza con la API /credits cuando esté disponible

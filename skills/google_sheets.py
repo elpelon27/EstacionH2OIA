@@ -63,7 +63,7 @@ GOOGLE_SHEET_NAME = os.getenv("GOOGLE_SHEET_NAME", "Pedidos")
 GOOGLE_SHEETS_ENABLED = os.getenv("GOOGLE_SHEETS_ENABLED", "true").lower() == "true"
 
 
-def _get_client():
+def _get_client() -> Any:
     """Inicializa el cliente gspread de forma perezosa (lazy + thread-safe)."""
     global _sheets_client, _spreadsheet
     if _spreadsheet is not None:
@@ -88,8 +88,10 @@ def _get_client():
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
-        creds = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_PATH, scopes=scopes)
-        _sheets_client = gspread.authorize(creds)
+        creds = Credentials.from_service_account_file(  # type: ignore[no-untyped-call]
+            GOOGLE_CREDENTIALS_PATH, scopes=scopes
+        )
+        _sheets_client = gspread.authorize(creds)  # type: ignore[attr-defined]
         _spreadsheet = _sheets_client.open_by_key(GOOGLE_SPREADSHEET_ID)
         logger.info(
             "Google Sheets conectado: spreadsheet=%s hoja=%s",
@@ -108,7 +110,7 @@ def _get_client():
         return None
 
 
-def _ensure_header(worksheet) -> None:
+def _ensure_header(worksheet: Any) -> None:
     """Asegura que la fila 1 tenga los headers correctos. Idempotente."""
     expected_headers = [
         "Fecha",
@@ -142,7 +144,7 @@ def _ensure_header(worksheet) -> None:
         logger.warning("No se pudieron verificar headers: %s", e)
 
 
-def _get_or_create_worksheet(spreadsheet):
+def _get_or_create_worksheet(spreadsheet: Any) -> Any:
     """Obtiene la hoja 'Pedidos' o la crea si no existe."""
     try:
         return spreadsheet.worksheet(GOOGLE_SHEET_NAME)

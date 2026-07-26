@@ -15,6 +15,7 @@ import sqlite3
 import logging
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Any
 
 # Cargar .env
 env_path = Path("/mnt/ssd_trabajo/hermes-agent/config/.env")
@@ -52,7 +53,7 @@ def _get_conv_db() -> sqlite3.Connection:
     return conn
 
 
-def _fetch_pending_orders() -> list:
+def _fetch_pending_orders() -> list[Any]:
     """Lee pedidos pending de dispatch_queue en conversations.db."""
     conn = _get_conv_db()
     rows = conn.execute(
@@ -81,7 +82,7 @@ def _find_or_create_client(conn: sqlite3.Connection, name: str, phone: str,
                 "UPDATE clients SET lat=?, lng=?, address_text=?, updated_at=? WHERE id=?",
                 (lat, lng, address, datetime.now(CARACAS_TZ).timestamp(), row["id"]),
             )
-        return row["id"]
+        return row["id"]  # type: ignore[no-any-return]
 
     # Crear nuevo client
     conn.execute(
@@ -91,7 +92,7 @@ def _find_or_create_client(conn: sqlite3.Connection, name: str, phone: str,
         (phone, phone_hash, name or phone, address, lat, lng,
          datetime.now(CARACAS_TZ).timestamp(), datetime.now(CARACAS_TZ).timestamp()),
     )
-    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]  # type: ignore[no-any-return]
 
 
 def _extract_bottles(producto_desc: str) -> int:
@@ -101,14 +102,14 @@ def _extract_bottles(producto_desc: str) -> int:
     return int(m.group(1)) if m else 1
 
 
-def _get_active_vehicles(conn: sqlite3.Connection) -> list:
+def _get_active_vehicles(conn: sqlite3.Connection) -> list[Any]:
     """Retorna vehicles activos con su operator_name."""
     return conn.execute(
         "SELECT id, name, operator_name, max_full_bottles FROM vehicles WHERE active=1"
     ).fetchall()
 
 
-async def _notify_chofer(route, total_distance: float):
+async def _notify_chofer(route: Any, total_distance: float) -> None:
     """Envía notificación Telegram al chofer con su ruta del día."""
     if not TELEGRAM_BOT_TOKEN or not TELEGRAM_DISPATCH_CHAT:
         logger.info("Telegram no configurado — skip notificación chofer")
@@ -148,7 +149,7 @@ async def _notify_chofer(route, total_distance: float):
         logger.error("Error Telegram: %s", e)
 
 
-async def main():
+async def main() -> None:
     try:
         from skills.dispatch.route_engine import (
             compute_vrp_route, ClientOrder, DEPOT_LAT, DEPOT_LNG,

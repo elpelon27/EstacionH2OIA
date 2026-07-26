@@ -24,10 +24,10 @@ Salida:
 
 import math
 import logging
-from typing import List, Dict, Tuple, Optional
+from typing import List, Dict, Tuple, Optional, Any
 from dataclasses import dataclass
 
-from ortools.constraint_solver import routing_enums_pb2
+from ortools.constraint_solver import routing_enums_pb2  # type: ignore[import-untyped]
 from ortools.constraint_solver import pywrapcp
 
 logger = logging.getLogger("dispatcher.route_engine")
@@ -138,7 +138,7 @@ def compute_vrp_route(
     vehicle_capacity: int = MAX_FULL_BOTTLES,
     depot_lat: float = DEPOT_LAT,
     depot_lng: float = DEPOT_LNG,
-    operators: List[str] = None,
+    operators: Optional[List[str]] = None,
 ) -> VRPResult:
     """
     Calcula rutas optimizadas usando OR-Tools CVRP.
@@ -175,7 +175,7 @@ def compute_vrp_route(
     distance_matrix = build_distance_matrix(locations)
 
     # Crear modelo de datos para OR-Tools
-    data = {}
+    data: Dict[str, Any] = {}
     data["distance_matrix"] = distance_matrix
     data["num_vehicles"] = num_vehicles
     data["depot"] = 0  # Índice del depot en la matriz
@@ -193,18 +193,18 @@ def compute_vrp_route(
     routing = pywrapcp.RoutingModel(manager)
 
     # Función de distancia
-    def distance_callback(from_index, to_index):
+    def distance_callback(from_index: int, to_index: int) -> int:
         from_node = manager.IndexToNode(from_index)
         to_node = manager.IndexToNode(to_index)
-        return data["distance_matrix"][from_node][to_node]
+        return int(data["distance_matrix"][from_node][to_node])
 
     transit_callback_index = routing.RegisterTransitCallback(distance_callback)
     routing.SetArcCostEvaluatorOfAllVehicles(transit_callback_index)
 
     # Restricción de capacidad
-    def demand_callback(from_index):
+    def demand_callback(from_index: int) -> int:
         from_node = manager.IndexToNode(from_index)
-        return data["demands"][from_node]
+        return int(data["demands"][from_node])
 
     demand_callback_index = routing.RegisterUnaryTransitCallback(demand_callback)
     routing.AddDimensionWithVehicleCapacity(
@@ -234,10 +234,10 @@ def compute_vrp_route(
         return _fallback_nearest_neighbor(orders, num_vehicles, depot_lat, depot_lng, operators)
 
     # Extraer rutas
-    routes = []
-    total_distance = 0
+    routes: List[RouteResult] = []
+    total_distance = 0.0
     total_duration = 0
-    unassigned = []
+    unassigned: List[ClientOrder] = []
 
     for vehicle_id in range(num_vehicles):
         index = routing.Start(vehicle_id)
@@ -322,7 +322,7 @@ def _fallback_nearest_neighbor(
     sorted_orders = sorted(orders, key=lambda o: o.priority)
 
     # Distribuir entre vehículos
-    vehicle_orders = [[] for _ in range(num_vehicles)]
+    vehicle_orders: List[List[ClientOrder]] = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
 
     for order in sorted_orders:
@@ -344,13 +344,13 @@ def _fallback_nearest_neighbor(
             vehicle_loads[0] += order.bottles_full
 
     # Calcular distancias
-    routes = []
-    total_distance = 0
+    routes: List[RouteResult] = []
+    total_distance = 0.0
     total_duration = 0
 
     for v in range(num_vehicles):
         route_stops = vehicle_orders[v]
-        route_distance = 0
+        route_distance = 0.0
         prev_lat, prev_lng = depot_lat, depot_lng
 
         for stop in route_stops:
@@ -399,7 +399,7 @@ def check_operation_perimeter(lat: float, lng: float) -> bool:
     return distance <= OPERATION_RADIUS_KM
 
 
-def find_nearest_zone(lat: float, lng: float, zones: List[Dict]) -> Optional[int]:
+def find_nearest_zone(lat: float, lng: float, zones: List[Dict[str, Any]]) -> Optional[int]:
     """
     Encuentra la zona más cercana a un punto.
     zones: lista de dicts con id, center_lat, center_lng, radius_km
@@ -416,9 +416,9 @@ def find_nearest_zone(lat: float, lng: float, zones: List[Dict]) -> Optional[int
     return nearest
 
 
-def check_zone_membership(lat: float, lng: float, zones: List[Dict]) -> List[int]:
+def check_zone_membership(lat: float, lng: float, zones: List[Dict[str, Any]]) -> List[int]:
     """Retorna IDs de zonas a las que pertenece el punto."""
-    matching = []
+    matching: List[int] = []
     for zone in zones:
         dist = haversine(lat, lng, zone["center_lat"], zone["center_lng"])
         if dist <= zone["radius_km"]:

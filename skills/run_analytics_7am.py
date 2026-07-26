@@ -26,7 +26,7 @@ DB_PATH = os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversat
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1663148211")
 
-async def main():
+async def main() -> None:
     try:
         import httpx
 
@@ -113,7 +113,7 @@ async def main():
             tasa_str = "N/A"
 
         # 7. Calcular Bs.
-        total_ingresos_bs = 0
+        total_ingresos_bs: float = 0
         try:
             from src.financial.currency import convert_eur_to_ves
             total_ingresos_bs = convert_eur_to_ves(total_ingresos_eur) or 0

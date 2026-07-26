@@ -23,7 +23,7 @@ import math
 import sqlite3
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Optional, List
+from typing import Optional, List, Any
 
 # Cargar .env
 from pathlib import Path
@@ -69,11 +69,11 @@ if not DISPATCHER_TOKEN:
     sys.exit(1)
 
 
-def now_iso():
+def now_iso() -> str:
     return datetime.now(CARACAS_TZ).isoformat()
 
 
-def now_epoch():
+def now_epoch() -> float:
     return time.time()
 
 
@@ -81,7 +81,7 @@ def now_epoch():
 # Base de datos helpers
 # ============================================================================
 
-def get_dispatch_db():
+def get_dispatch_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DISPATCH_DB)
     # r2: foreign_keys ON per-conexion (PRAGMA no persiste)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -89,7 +89,7 @@ def get_dispatch_db():
     return conn
 
 
-def get_conv_db():
+def get_conv_db() -> sqlite3.Connection:
     conn = sqlite3.connect(CONV_DB)
     # r2: foreign_keys ON per-conexion (PRAGMA no persiste)
     conn.execute("PRAGMA foreign_keys = ON")
@@ -97,7 +97,7 @@ def get_conv_db():
     return conn
 
 
-def register_chofer(chat_id: int, empleado_id: int, nombre: str):
+def register_chofer(chat_id: int, empleado_id: int, nombre: str) -> None:
     """Registra o actualiza chofer en vehicles table."""
     conn = get_dispatch_db()
     conn.execute("""
@@ -108,7 +108,7 @@ def register_chofer(chat_id: int, empleado_id: int, nombre: str):
     logger.info("Chofer registrado: %s → chat_id=%d (vehicle_id=%d)", nombre, chat_id, empleado_id)
 
 
-def get_chofer_by_chat_id(chat_id: int) -> Optional[dict]:
+def get_chofer_by_chat_id(chat_id: int) -> Optional[dict[str, Any]]:
     """Obtiene datos del chofer por chat_id."""
     conn = get_dispatch_db()
     row = conn.execute(
@@ -119,7 +119,7 @@ def get_chofer_by_chat_id(chat_id: int) -> Optional[dict]:
     return dict(row) if row else None
 
 
-def get_all_choferes() -> List[dict]:
+def get_all_choferes() -> List[dict[str, Any]]:
     """Obtiene todos los choferes activos con chat_id."""
     conn = get_dispatch_db()
     rows = conn.execute(
@@ -129,7 +129,7 @@ def get_all_choferes() -> List[dict]:
     return [dict(r) for r in rows]
 
 
-def get_pending_deliveries_for_chofer(vehicle_id: int) -> List[dict]:
+def get_pending_deliveries_for_chofer(vehicle_id: int) -> List[dict[str, Any]]:
     """Obtiene entregas pendientes para un vehículo."""
     conn = get_dispatch_db()
     rows = conn.execute("""
@@ -144,7 +144,7 @@ def get_pending_deliveries_for_chofer(vehicle_id: int) -> List[dict]:
     return [dict(r) for r in rows]
 
 
-def update_delivery_status(delivery_id: int, status: str, notes: str = ""):
+def update_delivery_status(delivery_id: int, status: str, notes: str = "") -> None:
     """Actualiza estado de una entrega."""
     conn = get_dispatch_db()
     now = now_epoch()
@@ -168,10 +168,10 @@ def update_delivery_status(delivery_id: int, status: str, notes: str = ""):
     logger.info("Entrega #%d → %s", delivery_id, status)
 
 
-def save_gps_track(vehicle_id: int, lat: float, lng: float, 
-                   accuracy: float = None, speed: float = None,
-                   source: str = "telegram", delivery_id: int = None,
-                   track_type: str = "checkin"):
+def save_gps_track(vehicle_id: int, lat: float, lng: float,
+                   accuracy: float | None = None, speed: float | None = None,
+                   source: str = "telegram", delivery_id: int | None = None,
+                   track_type: str = "checkin") -> None:
     """Guarda punto GPS para mapa de calor futuro. DATOS = ORO."""
     conn = get_dispatch_db()
     conn.execute("""
@@ -183,7 +183,7 @@ def save_gps_track(vehicle_id: int, lat: float, lng: float,
     logger.info("📍 GPS guardado: vehicle=%d lat=%f lng=%f type=%s", vehicle_id, lat, lng, track_type)
 
 
-def check_geofence(vehicle_id: int, lat: float, lng: float):
+def check_geofence(vehicle_id: int, lat: float, lng: float) -> bool:
     """Verifica geofencing y registra eventos."""
     in_perimeter = check_operation_perimeter(lat, lng)
     if not in_perimeter:
@@ -209,12 +209,15 @@ def format_gps_url(lat: float, lng: float) -> str:
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Registro de chofer."""
-    chat_id = update.effective_chat.id
+    chat = update.effective_chat
+    message = update.message
+    assert chat is not None and message is not None
+    chat_id = chat.id
 
     # Verificar si ya está registrado
     chofer = get_chofer_by_chat_id(chat_id)
     if chofer:
-        await update.message.reply_text(
+        await message.reply_text(
             f"✅ Ya estás registrado como {chofer['operator_name']}.\n\n"
             f"Comandos:\n"
             f"/ruta — Ver tu ruta de hoy\n"
@@ -232,10 +235,10 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     conn.close()
 
     if not vehicles:
-        await update.message.reply_text("❌ No hay vehículos disponibles para registrar.")
+        await message.reply_text("❌ No hay vehículos disponibles para registrar.")
         return
 
-    keyboard = []
+    keyboard: list[list[InlineKeyboardButton]] = []
     for v in vehicles:
         keyboard.append([
             InlineKeyboardButton(
@@ -245,7 +248,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ])
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(
+    await message.reply_text(
         "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n"
         "¿Quién eres?",
         reply_markup=reply_markup
@@ -572,7 +575,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 # ============================================================================
 
 async def send_delivery_to_chofer(
-    app: Application,
+    app: "Application[Any, Any, Any, Any, Any, Any]",
     vehicle_id: int,
     client_name: str,
     client_phone: str,
@@ -583,7 +586,7 @@ async def send_delivery_to_chofer(
     total_eur: float = 0,
     total_bs: float = 0,
     metodo_pago: str = "",
-):
+) -> bool:
     """Envía un pedido al chofer por Telegram."""
 
     conn = get_dispatch_db()
@@ -649,7 +652,7 @@ async def send_delivery_to_chofer(
 # Check-in 8:00 AM
 # ============================================================================
 
-async def enviar_checkin_manana(app: Application):
+async def enviar_checkin_manana(app: "Application[Any, Any, Any, Any, Any, Any]") -> None:
     """Envía check-in a todos los choferes a las 8am."""
     choferes = get_all_choferes()
 
@@ -696,7 +699,7 @@ async def callback_checkin(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
 # Aplicación principal
 # ============================================================================
 
-def main():
+def main() -> None:
     logger.info("🚚 Dispatcher Bot iniciando...")
 
     app = Application.builder().token(DISPATCHER_TOKEN).build()

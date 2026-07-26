@@ -97,14 +97,14 @@ async def _try_frankfurter() -> Optional[float]:
     return None
 
 
-def set_manual_rate(tasa: float, par: str = "EUR/VES"):
+def set_manual_rate(tasa: float, par: str = "EUR/VES") -> float:
     """Líder envía tasa manual via Telegram."""
     db.save_tasa(par, tasa, "manual", "Ingresada por Líder via Telegram")
     logger.info("Tasa %s manual: %.2f", par, tasa)
     return tasa
 
 
-def convert_eur_to_ves(monto_eur: float, tasa: float = None) -> float:
+def convert_eur_to_ves(monto_eur: float, tasa: float | None = None) -> float:
     """Convierte EUR a VES usando tasa dada o última guardada."""
     if tasa is None or tasa == 0:
         last = db.get_last_tasa("EUR/VES")
@@ -112,7 +112,7 @@ def convert_eur_to_ves(monto_eur: float, tasa: float = None) -> float:
     return round(monto_eur * tasa, 2)
 
 
-def convert_ves_to_eur(monto_ves: float, tasa: float = None) -> float:
+def convert_ves_to_eur(monto_ves: float, tasa: float | None = None) -> float:
     """Convierte VES a EUR."""
     if tasa is None or tasa == 0:
         last = db.get_last_tasa("EUR/VES")
