@@ -12,7 +12,7 @@ import os
 import sqlite3
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Optional, Iterator, cast
 from contextlib import contextmanager
 
 from .models import (
@@ -235,7 +235,7 @@ INSERT OR IGNORE INTO fs_productos (id, nombre, precio_base_eur, precio_volumen_
 # ============================================================================
 
 @contextmanager
-def get_db():
+def get_db() -> Iterator[sqlite3.Connection]:
     """Context manager para conexión SQLite (thread-safe)."""
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -251,7 +251,7 @@ def get_db():
         conn.close()
 
 
-def init_database():
+def init_database() -> None:
     """Inicializa tablas fs_* y carga seed de productos."""
     with get_db() as conn:
         conn.executescript(SCHEMA_SQL)

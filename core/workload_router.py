@@ -99,18 +99,18 @@ class WorkloadRouter:
         # === SKILLS ===
         if route == Route.PAYMENT_SKILL:
             from skills.payment_skill import PaymentSkill
-            skill = PaymentSkill()
-            return await skill.execute(**kwargs)
+            payment_skill = PaymentSkill()
+            return await payment_skill.execute(**kwargs)
 
         if route == Route.INVENTORY_SKILL:
             from skills.inventory_skill import InventorySkill
-            skill = InventorySkill()
-            return await skill.execute(**kwargs)
+            inventory_skill = InventorySkill()
+            return await inventory_skill.execute(**kwargs)
 
         if route == Route.SELF_IMPROVE_SKILL:
             from skills.self_improve_skill import SelfImproveSkill
-            skill = SelfImproveSkill()
-            return await skill.execute(**kwargs)
+            self_improve_skill = SelfImproveSkill()
+            return await self_improve_skill.execute(**kwargs)
 
         # === LLM ROUTING ===
         if route == Route.QWEN_LOCAL:

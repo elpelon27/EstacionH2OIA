@@ -142,7 +142,7 @@ def send_telegram_alert(old_url: str | None, new_url: str) -> bool:
         return False
 
 
-def main():
+def main() -> None:
     """Función principal — ejecutar cada 5 min via systemd timer."""
     logger.info("Watchdog ejecutándose...")
 

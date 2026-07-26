@@ -10,7 +10,7 @@ Comisión SOLO botellones, NO hielo.
 
 import logging
 from datetime import datetime, timezone, timedelta
-from typing import List
+from typing import Any, List
 
 from . import database as db
 from .models import Empleado, Nomina
@@ -25,7 +25,7 @@ CARACAS_TZ = timezone(timedelta(hours=-4))
 async def calcular_nomina_periodo(
     fecha_inicio: str,
     fecha_fin: str,
-    empleados: List[Empleado] = None,
+    empleados: List[Empleado] | None = None,
 ) -> List[Nomina]:
     """
     Calcula nómina para un período dado.
@@ -51,14 +51,14 @@ async def calcular_nomina_periodo(
     for emp in empleados:
         # Contar botellones repartidos en el período
         # (Consulta a fs_pedidos donde operador_id = emp.id y fecha en rango)
-        botellones = _contar_botellones_repartidos(emp.id, fecha_inicio, fecha_fin)
+        botellones = _contar_botellones_repartidos(int(emp.id) if emp.id else 0, fecha_inicio, fecha_fin)
 
         comision = round(botellones * emp.comision_botellon_eur, 2)
         total_eur = round(emp.sueldo_fijo_eur + comision, 2)
         total_ves = convert_eur_to_ves(total_eur, tasa)
 
         nom = Nomina(
-            empleado_id=emp.id,
+            empleado_id=int(emp.id) if emp.id else 0,
             empleado_nombre=emp.nombre,
             fecha_inicio=fecha_inicio,
             fecha_fin=fecha_fin,

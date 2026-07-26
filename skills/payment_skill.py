@@ -70,7 +70,7 @@ Retorna SOLO JSON: {"amount":"515.18","reference":"123","bank":"Banesco","date":
             text = response.get("message", {}).get("content", "")
             if "```json" in text:
                 text = text.split("```json")[1].split("```")[0]
-            return json.loads(text.strip())
+            return json.loads(text.strip())  # type: ignore[no-any-return]
         except Exception as e:
             self.logger.error("ocr_error", error=str(e))
             return {}

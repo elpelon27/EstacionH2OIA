@@ -27,15 +27,15 @@ import os
 import logging
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 # Configurar path para imports
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from financial import database as db
-from financial import currency, cobranzas, nomina, proveedores, verificacion, reportes
-from financial.models import Producto, PedidoFinanciero, Pago
+from financial import database as db  # type: ignore[import-not-found]
+from financial import currency, cobranzas, nomina, proveedores, verificacion, reportes  # type: ignore[import-not-found]
+from financial.models import Producto, PedidoFinanciero, Pago  # type: ignore[import-not-found]
 
 logger = logging.getLogger("financial_shield.agent")
 
@@ -45,10 +45,10 @@ CARACAS_TZ = timezone(timedelta(hours=-4))
 class FinancialShieldAgent:
     """Agente financiero — ÚNICO que maneja transacciones financieras."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.initialized = False
 
-    def init(self):
+    def init(self) -> None:
         """Inicializa BD y configuración."""
         db.init_database()
         self.initialized = True
@@ -127,7 +127,7 @@ class FinancialShieldAgent:
             fs_id, pedido_id, cliente_nombre, total_eur
         )
 
-        return fs_id
+        return int(fs_id)
 
     # ========================================================================
     # 2. VERIFICACIÓN DE PAGO
@@ -138,10 +138,10 @@ class FinancialShieldAgent:
         fs_pedido_id: int,
         monto_eur: float,
         metodo_pago: str,
-        referencia: str = None,
-        comprobante_image_url: str = None,
-        meta_token: str = None,
-    ) -> dict:
+        referencia: str | None = None,
+        comprobante_image_url: str | None = None,
+        meta_token: str | None = None,
+    ) -> dict[str, Any]:
         """
         Called when customer claims "ya pagué".
         Verifies payment using best available method.
@@ -157,7 +157,7 @@ class FinancialShieldAgent:
                 fs_pedido_id, comprobante_image_url, monto_eur, meta_token
             )
             if result.get("success"):
-                return result
+                return dict(result)  # type: ignore[no-any-return]
             # Si OCR falla, continuar a manual
 
         # Método 2: API bancaria (si hay referencia/código)
@@ -166,7 +166,7 @@ class FinancialShieldAgent:
                 fs_pedido_id, referencia, monto_eur
             )
             if result.get("success"):
-                return result
+                return dict(result)  # type: ignore[no-any-return]
 
         # Método 3: Manual (default)
         result = await verificacion.verificar_pago_manual(
@@ -176,17 +176,17 @@ class FinancialShieldAgent:
             referencia=referencia,
         )
 
-        return result
+        return dict(result)  # type: ignore[no-any-return]
 
     async def confirmar_pago_manual(
         self,
         fs_pedido_id: int,
         monto_eur: float,
         metodo_pago: str,
-        referencia: str = None,
-    ) -> dict:
+        referencia: str | None = None,
+    ) -> dict[str, Any]:
         """Líder confirma pago via Telegram /pagado."""
-        return await verificacion.verificar_pago_manual(
+        return await verificacion.verificar_pago_manual(  # type: ignore[no-any-return]
             fs_pedido_id, monto_eur, metodo_pago, referencia, "telegram_lider"
         )
 
@@ -194,7 +194,7 @@ class FinancialShieldAgent:
     # 3. ENTREGA CONFIRMADA (trigger loop verificación)
     # ========================================================================
 
-    def on_entrega_confirmada(self, fs_pedido_id: int, operador_id: int = None):
+    def on_entrega_confirmada(self, fs_pedido_id: int, operador_id: int | None = None) -> None:
         """
         Called when dispatcher confirms delivery.
         Triggers payment verification loop.
@@ -251,7 +251,7 @@ class FinancialShieldAgent:
         pedido = db.get_pedido_financiero_by_pedido_id(fs_pedido_id)
         if not pedido:
             # Buscar por fs_pedido_id directamente
-            from .database import get_db
+            from .database import get_db  # type: ignore[import-not-found]
             with get_db() as conn:
                 row = conn.execute(
                     "SELECT * FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
@@ -266,7 +266,7 @@ class FinancialShieldAgent:
         cuenta_id = cobranzas.crear_cuenta_cobrar(pedido, tipo_credito)
 
         # Actualizar pedido con tipo de crédito
-        from .database import get_db
+        from .database import get_db  # type: ignore[import-not-found]
         now = datetime.now(CARACAS_TZ).isoformat()
         venc = cobranzas.calcular_fecha_vencimiento(tipo_credito)
         with get_db() as conn:
@@ -277,13 +277,13 @@ class FinancialShieldAgent:
             """, (tipo_credito, venc, now, fs_pedido_id))
 
         logger.info("Crédito %s asignado a pedido %s", tipo_credito, fs_pedido_id)
-        return cuenta_id
+        return int(cuenta_id)
 
     # ========================================================================
     # 6. REPORTE DIARIO
     # ========================================================================
 
-    async def generar_y_enviar_reporte(self):
+    async def generar_y_enviar_reporte(self) -> Any:
         """Genera y envía reporte diario por Telegram (6:30 PM)."""
         return await reportes.generar_y_enviar_reporte()
 
@@ -293,7 +293,8 @@ class FinancialShieldAgent:
 
     async def calcular_nomina(self, fecha_inicio: str, fecha_fin: str) -> str:
         """Calcula nómina y retorna reporte para Telegram."""
-        return await nomina.generar_reporte_nomina(fecha_inicio, fecha_fin)
+        reporte = await nomina.generar_reporte_nomina(fecha_inicio, fecha_fin)
+        return str(reporte)
 
     # ========================================================================
     # 8. PROVEEDORES
@@ -302,10 +303,10 @@ class FinancialShieldAgent:
     async def registrar_pago_proveedor(
         self, proveedor_nombre: str, concepto: str,
         monto_eur: float, metodo_pago: str = "efectivo_eur",
-        referencia: str = None,
+        referencia: str | None = None,
     ) -> int:
         """Registra pago a proveedor (solo contado)."""
-        return await proveedores.registrar_pago_proveedor(
+        result = await proveedores.registrar_pago_proveedor(
             proveedor_id=0,  # ID auto-generado o asignado
             proveedor_nombre=proveedor_nombre,
             concepto=concepto,
@@ -313,6 +314,7 @@ class FinancialShieldAgent:
             metodo_pago=metodo_pago,
             referencia=referencia,
         )
+        return int(result)
 
     # ========================================================================
     # 9. UTILIDADES

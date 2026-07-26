@@ -37,7 +37,7 @@ TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID", "1663148211")
 
 
-def _check_conversations_db() -> dict:
+def _check_conversations_db() -> dict[str, int]:
     """Verifica conversations.db: dispatch_queue pedidos pending."""
     info = {"dispatch_queue_pending": 0, "dispatch_queue_total": 0, "orders_today": 0}
     try:
@@ -55,7 +55,7 @@ def _check_conversations_db() -> dict:
     return info
 
 
-def _check_dispatch_db() -> dict:
+def _check_dispatch_db() -> dict[str, int]:
     """Verifica dispatch.db: clientes, vehicles, deliveries."""
     info = {"clients": 0, "vehicles": 0, "deliveries_pending": 0}
     try:
@@ -88,7 +88,7 @@ def _check_service() -> str:
         return "unknown"
 
 
-async def main():
+async def main() -> None:
     try:
         import httpx
 

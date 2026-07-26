@@ -8,7 +8,7 @@ Registro de egresos a proveedores. Solo contado, no hay crédito.
  """
 
 import logging
-from typing import List, Optional
+from typing import Any, List, Optional
 
 from . import database as db
 from .models import ProveedorPago
@@ -24,8 +24,8 @@ async def registrar_pago_proveedor(
     concepto: str,
     monto_eur: float,
     metodo_pago: str = "efectivo_eur",
-    referencia: str = None,
-    comprobante_url: str = None,
+    referencia: str | None = None,
+    comprobante_url: str | None = None,
     creado_por: str = "manual",
 ) -> int:
     """
@@ -57,7 +57,7 @@ async def registrar_pago_proveedor(
     return pago_id
 
 
-def get_total_egresos_periodo(fecha_inicio: str, fecha_fin: str) -> dict:
+def get_total_egresos_periodo(fecha_inicio: str, fecha_fin: str) -> dict[str, Any]:
     """Total de egresos a proveedores en un período."""
     from .database import get_db
     try:

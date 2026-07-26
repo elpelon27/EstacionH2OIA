@@ -59,7 +59,7 @@ def setup_logging(log_level: str = "INFO") -> None:
             structlog.contextvars.merge_contextvars,
             structlog.processors.add_log_level,
             structlog.processors.TimeStamper(fmt="iso"),
-            _pii_processor,
+            _pii_processor,  # type: ignore[list-item]
             structlog.processors.JSONRenderer(),
         ],
         wrapper_class=structlog.make_filtering_bound_logger(level),

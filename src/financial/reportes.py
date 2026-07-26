@@ -11,7 +11,7 @@ import os
 import logging
 import httpx
 from datetime import datetime, timezone, timedelta
-from typing import Optional
+from typing import Any, Optional
 
 from . import database as db
 from .models import ReporteDiario
@@ -158,7 +158,7 @@ async def enviar_reporte_telegram(reporte: ReporteDiario) -> bool:
             )
             if resp.status_code == 200:
                 msg_id = resp.json().get("result", {}).get("message_id", "")
-                db.mark_reporte_enviado(reporte.id, str(msg_id))
+                db.mark_reporte_enviado(int(reporte.id) if reporte.id else 0, str(msg_id))
                 logger.info("Reporte diario enviado por Telegram")
                 return True
             else:
@@ -168,7 +168,7 @@ async def enviar_reporte_telegram(reporte: ReporteDiario) -> bool:
     return False
 
 
-async def generar_y_enviar_reporte():
+async def generar_y_enviar_reporte() -> Any:
     """Función principal: genera + envía reporte diario."""
     reporte = await generar_reporte_diario()
     await enviar_reporte_telegram(reporte)

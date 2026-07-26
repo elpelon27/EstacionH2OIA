@@ -16,7 +16,7 @@ import os
 import logging
 import base64
 import httpx
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 
 from . import database as db
@@ -40,9 +40,9 @@ async def verificar_pago_manual(
     fs_pedido_id: int,
     monto_eur: float,
     metodo_pago: str,
-    referencia: str = None,
+    referencia: str | None = None,
     verificado_por: str = "manual",
-) -> dict:
+) -> dict[str, Any]:
     """
     Verificación manual: Líder confirma pago via Telegram.
 
@@ -99,7 +99,7 @@ async def verificar_pago_api_bancaria(
     fs_pedido_id: int,
     codigo_confirmacion: str,
     monto_esperado_eur: float,
-) -> dict:
+) -> dict[str, Any]:
     """
     Verificación via API bancaria (FUTURO).
     Cliente pega código de confirmación del banco.
@@ -123,8 +123,8 @@ async def verificar_pago_ocr(
     fs_pedido_id: int,
     image_url: str,
     monto_esperado_eur: float,
-    meta_token: str = None,
-) -> dict:
+    meta_token: str | None = None,
+) -> dict[str, Any]:
     """
     Verificación via OCR: cliente envía comprobante por WhatsApp.
     Usa Qwen2.5-VL para extraer referencia + monto de la imagen.
@@ -140,7 +140,7 @@ async def verificar_pago_ocr(
         }
 
     # 1. Descargar imagen de Meta API
-    image_data = await _download_whatsapp_image(image_url, meta_token)
+    image_data = await _download_whatsapp_image(image_url, str(meta_token) if meta_token else "")
     if not image_data:
         return {
             "success": False,
@@ -212,7 +212,7 @@ async def _download_whatsapp_image(image_url: str, meta_token: str) -> Optional[
     return None
 
 
-async def _ocr_comprobante(image_data: bytes) -> Optional[dict]:
+async def _ocr_comprobante(image_data: bytes) -> Optional[dict[str, Any]]:
     """
     Usa Qwen2.5-VL (Ollama) para extraer datos del comprobante de pago.
     Returns: dict con 'referencia', 'monto', 'fecha', 'banco'
@@ -246,7 +246,7 @@ async def _ocr_comprobante(image_data: bytes) -> Optional[dict]:
                 import json
                 data = resp.json()
                 texto = data.get("response", "{}")
-                return json.loads(texto)
+                return dict(json.loads(texto))
     except Exception as e:
         logger.error("Error OCR: %s", e)
     return None

@@ -19,7 +19,7 @@ sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
 logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
 logger = logging.getLogger("fs_reporte_cron")
 
-async def main():
+async def main() -> None:
     try:
         from src.agents.financial_agent import get_agent
         agent = get_agent()

@@ -12,7 +12,7 @@ Gestiona:
  """
 
 import logging
-from typing import Optional
+from typing import Any, Optional
 from datetime import datetime, timezone, timedelta
 
 from . import database as db
@@ -46,7 +46,7 @@ def crear_cuenta_cobrar(pedido: PedidoFinanciero, tipo_credito: str) -> int:
     cuenta = CuentaCobrar(
         cliente_telefono=pedido.cliente_telefono,
         cliente_nombre=pedido.cliente_nombre,
-        fs_pedido_id=pedido.id,
+        fs_pedido_id=int(pedido.id) if pedido.id else 0,
         monto_original_eur=pedido.monto_total_eur,
         monto_pagado_eur=0.0,
         tipo_credito=tipo_credito,
@@ -88,7 +88,7 @@ def get_pedidos_para_recordatorio() -> list[PedidoFinanciero]:
     return result
 
 
-def procesar_recordatorio(pedido: PedidoFinanciero) -> dict:
+def procesar_recordatorio(pedido: PedidoFinanciero) -> dict[str, Any]:
     """
     Procesa un recordatorio para un pedido.
     Returns: dict con 'accion' y 'mensaje' para que Valentina envíe.
@@ -97,9 +97,9 @@ def procesar_recordatorio(pedido: PedidoFinanciero) -> dict:
 
     if intento > MAX_RECORDATORIOS:
         # Escalar a humano
-        db.marcar_escalo_humano(pedido.id)
+        db.marcar_escalo_humano(int(pedido.id) if pedido.id else 0)
         db.log_verificacion(
-            pedido.id, intento, "manual",
+            int(pedido.id) if pedido.id else 0, intento, "manual",
             False, "escalo_humano",
             f"3 recordatorios fallidos — escalado a humano"
         )
@@ -117,9 +117,9 @@ def procesar_recordatorio(pedido: PedidoFinanciero) -> dict:
         }
 
     # Enviar recordatorio
-    db.incrementar_recordatorio(pedido.id)
+    db.incrementar_recordatorio(int(pedido.id) if pedido.id else 0)
     db.log_verificacion(
-        pedido.id, intento, "manual",
+        int(pedido.id) if pedido.id else 0, intento, "manual",
         False, "recordatorio_enviado",
         f"Recordatorio #{intento} enviado"
     )
@@ -132,13 +132,13 @@ def procesar_recordatorio(pedido: PedidoFinanciero) -> dict:
 
     return {
         "accion": "recordatorio_enviado",
-        "mensaje": f"Recordatorio #{intenido}/{MAX_RECORDATORIOS} enviado a {pedido.cliente_nombre}",
+        "mensaje": f"Recordatorio #{intento}/{MAX_RECORDATORIOS} enviado a {pedido.cliente_nombre}",
         "mensaje_cliente": mensaje_cliente,
         "intento": intento,
     }
 
 
-def get_resumen_cobranzas() -> dict:
+def get_resumen_cobranzas() -> dict[str, Any]:
     """Resumen de cuentas por cobrar para reporte."""
     activas = db.get_cuentas_cobrar_activas()
     vencidas = db.get_cuentas_vencidas()
