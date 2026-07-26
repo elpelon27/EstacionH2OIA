@@ -12,8 +12,8 @@
 ### B1 — Webhook Meta al named tunnel permanente — HECHO
 Webhook Meta apuntando a `https://valentina.estacionh2o.com/webhook/meta`. Named tunnel cloudflared activo. Quick tunnel efimero eliminado.
 
-### B2 — Reconciliar systemd unit /etc vs repo — PARCIAL
-Systemd unit del repo copiado a /etc y bridge reiniciado el 2026-07-22. **PENDIENTE**: copiar unit nuevo (Type=notify + WatchdogSec=30s del P1-2) a /etc. El /etc actual aun tiene Type=simple. Ver sección PENDIENTE.
+### B2 — Reconciliar systemd unit /etc vs repo — HECHO
+Systemd unit del repo copiado a /etc y bridge reiniciado el 2026-07-22. Unit actualizado a /etc con Type=notify + WatchdogSec=30s (verificado 2026-07-25: diff repo vs /etc vacio, servicio active con Watchdog activo). Ver sección PENDIENTE.
 
 ### B3 — Reiniciar bridge para activar r1-r7 — HECHO
 Bridge reiniciado 2026-07-22 y nuevamente 2026-07-24 17:27. Logs confirman: "SQLite inicializado WAL + foreign_keys ON", "Watchdog systemd activo", tabla `conversation_state` creada.
@@ -108,14 +108,6 @@ bridge.py 66→0 errores, main.py 8→0. Anotaciones return type + params, gener
 
 ## PENDIENTE — Requiere accion
 
-### P1 — Copiar systemd unit nuevo a /etc (Líder)
-El bridge corre el codigo nuevo (P0-1 + P1-2 activos en logs), pero el systemd unit en /etc es el viejo (Type=simple, sin WatchdogSec). El watchdog envia WATCHDOG=1 pero systemd no lo enforcementa.
-```bash
-sudo cp /mnt/ssd_trabajo/hermes-agent/systemd/valentina-bridge.service /etc/systemd/system/valentina-bridge.service
-sudo systemctl daemon-reload
-sudo systemctl restart valentina-bridge.service
-```
-
 ### P3 — mypy en skills/ y src/ (~72 errores, no bloqueantes)
 mypy api/ esta en 0, pero mypy global sigue mostrando errores en:
 - skills/dispatch/route_engine.py (14 errores)
@@ -146,7 +138,7 @@ Tras FASE 1 completa (~99%), iniciar FASE 2 segun `docs/DISPATCHER_ARCHITECTURE.
 ## METRICAS DE PROGRESO (actualizado 2026-07-25)
 
 - Fallas P0 totales: 11 — TODAS RESUELTAS
-- Fallas P1 totales: 13 — TODAS RESUELTAS (FSM, WatchdogSec, PHONE_REGEX, bare except, haversine, StartLimitIntervalSec, TELEGRAM_DISPATCH_CHAT, bugs Dia 15)
+- Fallas P1 totales: 13 — TODAS RESUELTAS (FSM, WatchdogSec, PHONE_REGEX, bare except, haversine, StartLimitIntervalSec, TELEGRAM_DISPATCH_CHAT, bugs Dia 15, systemd unit /etc sincronizado)
 - FASE 1 completitud: ~99%
 - Commits totales repo: 77+
 - Smoke tests: 29/29 PASS (3 suites: FSM + watchdog + PHONE_REGEX)
