@@ -538,45 +538,46 @@ def buscar_pedidos_por_telefono_monto(
 ) -> list[PedidoFinanciero]:
     """
     Busca fs_pedidos que coincidan con teléfono y monto aproximado.
-    
+
     Args:
         telefono_emisor: Teléfono del pagador (se normaliza internamente)
         monto_str: Monto como string (ej: "123.45")
         estados_permitidos: Lista de estados_pago válidos (default: pendiente,verificando,parcial,vencido)
-    
+
     Returns:
         Lista de PedidoFinanciero ordenados por fecha (más reciente primero)
     """
     if estados_permitidos is None:
         estados_permitidos = ["pendiente", "verificando", "parcial", "vencido"]
-    
+
     try:
         monto_objetivo = float(monto_str)
     except (ValueError, TypeError):
         logger.warning("Monto inválido para búsqueda: %s", monto_str)
         return []
-    
+
     # Rango de tolerancia ±1% (mínimo 1 centavo)
     tolerancia = max(0.01, monto_objetivo * 0.01)
     monto_min = monto_objetivo - tolerancia
     monto_max = monto_objetivo + tolerancia
-    
+
     # Normalizar teléfono: solo dígitos, 10 dígitos finales
     import re
+
     digitos = re.sub(r"\D", "", telefono_emisor)
     if digitos.startswith("58"):
         digitos = digitos[2:]
     if digitos.startswith("0"):
         digitos = digitos[1:]
-    
+
     if len(digitos) != 10:
         logger.warning("Teléfono no normalizable a 10 dígitos: %s → %s", telefono_emisor, digitos)
         telefono_norm = telefono_emisor  # fallback
     else:
         telefono_norm = digitos
-    
+
     placeholders = ",".join(["?"] * len(estados_permitidos))
-    
+
     with get_db() as conn:
         query = f"""
             SELECT * FROM fs_pedidos
@@ -586,14 +587,14 @@ def buscar_pedidos_por_telefono_monto(
                 AND estado_pago IN ({",".join(["?"] * len(estados_permitidos))})
             ORDER BY creado_at DESC
         """
-        
+
         # Variaciones de teléfono: +58XXXXXXXXXX, 0XXXXXXXXXX, XXXXXXXXXX
         tel_vars = [
             f"%{telefono_norm}%",
             f"+58{telefono_norm}%",
             f"0{telefono_norm}%",
         ]
-        
+
         params = tel_vars + [monto_min, monto_max] + estados_permitidos
         rows = conn.execute(query, params).fetchall()
         return [PedidoFinanciero(**dict(r)) for r in rows]
@@ -610,17 +611,18 @@ def seleccionar_mejor_match(
     """
     if not pedidos:
         return None
-    
+
     if len(pedidos) == 1:
         return pedidos[0]
-    
+
     import re
+
     telefono_norm = re.sub(r"\D", "", telefono_emisor)
     if telefono_norm.startswith("58"):
         telefono_norm = telefono_norm[2:]
     if telefono_norm.startswith("0"):
         telefono_norm = telefono_norm[1:]
-    
+
     scored = []
     for p in pedidos:
         score = 0
@@ -629,31 +631,33 @@ def seleccionar_mejor_match(
             p_tel_norm = p_tel_norm[2:]
         if p_tel_norm.startswith("0"):
             p_tel_norm = p_tel_norm[1:]
-        
+
         # Teléfono exacto (últimos 10 dígitos)
         if p_tel_norm == telefono_norm:
             score += 100
         elif telefono_norm in p_tel_norm or p_tel_norm in telefono_norm:
             score += 50
-        
+
         # Monto exacto (dentro de centavos)
         if abs(p.monto_total_eur - monto) < 0.01:
             score += 50
         elif abs(p.monto_total_eur - monto) < 1.0:
             score += 20
-        
+
         # Más reciente
         score += 10
-        
+
         scored.append((score, p))
-    
+
     scored.sort(key=lambda x: x[0], reverse=True)
-    
+
     logger.info(
         "Match scoring: top=%s (score=%.0f) vs alternatives=%d",
-        scored[0][1].id, scored[0][0], len(scored) - 1
+        scored[0][1].id,
+        scored[0][0],
+        len(scored) - 1,
     )
-    
+
     return scored[0][1]
 
 

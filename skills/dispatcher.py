@@ -14,19 +14,19 @@ Flujo:
 5. GPS guardado en cada check-in (datos = ORO para mapa de calor)
 
 Filosofía: #FastAndFurious — el operador NO piensa, el sistema le dice dónde ir.
- """
+"""
 
+import logging
 import os
+import sqlite3
 import sys
 import time
-import math
-import sqlite3
-import logging
-from datetime import datetime, timezone, timedelta
-from typing import Optional, List, Any
+from datetime import datetime, timedelta, timezone
 
 # Cargar .env
 from pathlib import Path
+from typing import Any
+
 env_path = Path("/mnt/ssd_trabajo/hermes-agent/config/.env")
 if env_path.exists():
     for line in env_path.read_text().splitlines():
@@ -37,19 +37,17 @@ if env_path.exists():
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardMarkup
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
-    CommandHandler,
     CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
     MessageHandler,
     filters,
-    ContextTypes,
 )
 
-from skills.dispatch.route_engine import (
-    haversine, check_operation_perimeter, DEPOT_LAT, DEPOT_LNG
-)
+from skills.dispatch.route_engine import check_operation_perimeter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -81,6 +79,7 @@ def now_epoch() -> float:
 # Base de datos helpers
 # ============================================================================
 
+
 def get_dispatch_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DISPATCH_DB)
     # r2: foreign_keys ON per-conexion (PRAGMA no persiste)
@@ -100,26 +99,28 @@ def get_conv_db() -> sqlite3.Connection:
 def register_chofer(chat_id: int, empleado_id: int, nombre: str) -> None:
     """Registra o actualiza chofer en vehicles table."""
     conn = get_dispatch_db()
-    conn.execute("""
+    conn.execute(
+        """
         UPDATE vehicles SET telegram_chat_id = ? WHERE id = ?
-    """, (chat_id, empleado_id))
+    """,
+        (chat_id, empleado_id),
+    )
     conn.commit()
     conn.close()
     logger.info("Chofer registrado: %s → chat_id=%d (vehicle_id=%d)", nombre, chat_id, empleado_id)
 
 
-def get_chofer_by_chat_id(chat_id: int) -> Optional[dict[str, Any]]:
+def get_chofer_by_chat_id(chat_id: int) -> dict[str, Any] | None:
     """Obtiene datos del chofer por chat_id."""
     conn = get_dispatch_db()
     row = conn.execute(
-        "SELECT * FROM vehicles WHERE telegram_chat_id = ? AND active = 1",
-        (chat_id,)
+        "SELECT * FROM vehicles WHERE telegram_chat_id = ? AND active = 1", (chat_id,)
     ).fetchone()
     conn.close()
     return dict(row) if row else None
 
 
-def get_all_choferes() -> List[dict[str, Any]]:
+def get_all_choferes() -> list[dict[str, Any]]:
     """Obtiene todos los choferes activos con chat_id."""
     conn = get_dispatch_db()
     rows = conn.execute(
@@ -129,17 +130,20 @@ def get_all_choferes() -> List[dict[str, Any]]:
     return [dict(r) for r in rows]
 
 
-def get_pending_deliveries_for_chofer(vehicle_id: int) -> List[dict[str, Any]]:
+def get_pending_deliveries_for_chofer(vehicle_id: int) -> list[dict[str, Any]]:
     """Obtiene entregas pendientes para un vehículo."""
     conn = get_dispatch_db()
-    rows = conn.execute("""
+    rows = conn.execute(
+        """
         SELECT d.*, c.name as client_name, c.phone, c.address_text,
                c.lat, c.lng, c.priority
         FROM deliveries d
         JOIN clients c ON d.client_id = c.id
         WHERE d.vehicle_id = ? AND d.status = 'pending'
         ORDER BY d.order_sequence ASC
-    """, (vehicle_id,)).fetchall()
+    """,
+        (vehicle_id,),
+    ).fetchall()
     conn.close()
     return [dict(r) for r in rows]
 
@@ -149,38 +153,58 @@ def update_delivery_status(delivery_id: int, status: str, notes: str = "") -> No
     conn = get_dispatch_db()
     now = now_epoch()
     if status == "delivered":
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE deliveries SET status = ?, actual_departure = ?, operator_notes = ?, updated_at = ?
             WHERE id = ?
-        """, (status, now, notes, now, delivery_id))
+        """,
+            (status, now, notes, now, delivery_id),
+        )
     elif status == "arrived":
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE deliveries SET status = ?, actual_arrival = ?, updated_at = ?
             WHERE id = ?
-        """, (status, now, now, delivery_id))
+        """,
+            (status, now, now, delivery_id),
+        )
     else:
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE deliveries SET status = ?, operator_notes = ?, updated_at = ?
             WHERE id = ?
-        """, (status, notes, now, delivery_id))
+        """,
+            (status, notes, now, delivery_id),
+        )
     conn.commit()
     conn.close()
     logger.info("Entrega #%d → %s", delivery_id, status)
 
 
-def save_gps_track(vehicle_id: int, lat: float, lng: float,
-                   accuracy: float | None = None, speed: float | None = None,
-                   source: str = "telegram", delivery_id: int | None = None,
-                   track_type: str = "checkin") -> None:
+def save_gps_track(
+    vehicle_id: int,
+    lat: float,
+    lng: float,
+    accuracy: float | None = None,
+    speed: float | None = None,
+    source: str = "telegram",
+    delivery_id: int | None = None,
+    track_type: str = "checkin",
+) -> None:
     """Guarda punto GPS para mapa de calor futuro. DATOS = ORO."""
     conn = get_dispatch_db()
-    conn.execute("""
+    conn.execute(
+        """
         INSERT INTO gps_tracks (vehicle_id, lat, lng, accuracy, speed_kmh, source, delivery_id, track_type, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (vehicle_id, lat, lng, accuracy, speed, source, delivery_id, track_type, now_epoch()))
+    """,
+        (vehicle_id, lat, lng, accuracy, speed, source, delivery_id, track_type, now_epoch()),
+    )
     conn.commit()
     conn.close()
-    logger.info("📍 GPS guardado: vehicle=%d lat=%f lng=%f type=%s", vehicle_id, lat, lng, track_type)
+    logger.info(
+        "📍 GPS guardado: vehicle=%d lat=%f lng=%f type=%s", vehicle_id, lat, lng, track_type
+    )
 
 
 def check_geofence(vehicle_id: int, lat: float, lng: float) -> bool:
@@ -188,10 +212,13 @@ def check_geofence(vehicle_id: int, lat: float, lng: float) -> bool:
     in_perimeter = check_operation_perimeter(lat, lng)
     if not in_perimeter:
         conn = get_dispatch_db()
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO geofence_events (vehicle_id, event_type, lat, lng, created_at)
             VALUES (?, 'exit', ?, ?, ?)
-        """, (vehicle_id, lat, lng, now_epoch()))
+        """,
+            (vehicle_id, lat, lng, now_epoch()),
+        )
         conn.commit()
         conn.close()
         logger.warning("⚠️ Vehículo %d fuera del perímetro (13km)", vehicle_id)
@@ -206,6 +233,7 @@ def format_gps_url(lat: float, lng: float) -> str:
 # ============================================================================
 # Comandos Telegram
 # ============================================================================
+
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Registro de chofer."""
@@ -240,18 +268,18 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     keyboard: list[list[InlineKeyboardButton]] = []
     for v in vehicles:
-        keyboard.append([
-            InlineKeyboardButton(
-                f"Soy {v['operator_name']} ({v['name']})",
-                callback_data=f"reg_{v['id']}"
-            )
-        ])
+        keyboard.append(
+            [
+                InlineKeyboardButton(
+                    f"Soy {v['operator_name']} ({v['name']})", callback_data=f"reg_{v['id']}"
+                )
+            ]
+        )
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(
-        "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n"
-        "¿Quién eres?",
-        reply_markup=reply_markup
+        "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n" "¿Quién eres?",
+        reply_markup=reply_markup,
     )
 
 
@@ -312,7 +340,7 @@ async def cmd_ruta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return
 
     msg = f"📋 RUTA DE HOY — {chofer['operator_name']}\n"
-    msg += f"━━━━━━━━━━━━━━━━\n"
+    msg += "━━━━━━━━━━━━━━━━\n"
     msg += f"Total paradas: {len(deliveries)}\n\n"
 
     for i, d in enumerate(deliveries, 1):
@@ -323,8 +351,8 @@ async def cmd_ruta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             msg += f"   📍 {format_gps_url(d['lat'], d['lng'])}\n"
         msg += "\n"
 
-    msg += f"━━━━━━━━━━━━━━━━\n"
-    msg += f"💧 Estación H2O"
+    msg += "━━━━━━━━━━━━━━━━\n"
+    msg += "💧 Estación H2O"
 
     await message.reply_text(msg)
 
@@ -350,14 +378,14 @@ async def cmd_siguiente(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
     d = pending[0]  # Primera pendiente
 
-    msg = f"📍 PRÓXIMA PARADA\n"
-    msg += f"━━━━━━━━━━━━━━━━\n"
+    msg = "📍 PRÓXIMA PARADA\n"
+    msg += "━━━━━━━━━━━━━━━━\n"
     msg += f"👤 {d['client_name']}\n"
     msg += f"📱 {d['phone']}\n"
     msg += f"📦 {d['bottles_full']} botellones\n"
     if d["lat"] and d["lng"]:
         msg += f"📍 {format_gps_url(d['lat'], d['lng'])}\n"
-    msg += f"━━━━━━━━━━━━━━━━"
+    msg += "━━━━━━━━━━━━━━━━"
 
     keyboard = [
         [
@@ -366,7 +394,7 @@ async def cmd_siguiente(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         ],
         [
             InlineKeyboardButton("❌ No responde", callback_data=f"no_{d['id']}"),
-        ]
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -391,8 +419,6 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if data.startswith("arr_"):
-
-
         delivery_id = int(data.replace("arr_", ""))
         update_delivery_status(delivery_id, "arrived")
 
@@ -430,7 +456,7 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 ],
                 [
                     InlineKeyboardButton("❌ No responde", callback_data=f"no_{next_d['id']}"),
-                ]
+                ],
             ]
             await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
         else:
@@ -483,13 +509,11 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             # pero dispatcher no ha generado route todavía. Marcar como notificación
             # informativa para que chofer sepa que su ack no generó acción.
             await query.edit_message_text(
-                f"ℹ️ Pedido notificado. La ruta oficial se planifica a las 7:45 AM.\n"
-                f"Si ya lo entregaste/completaste, el sistema lo procesará en la siguiente ruta.\n"
-                f"💧 Estación H2O"
+                "ℹ️ Pedido notificado. La ruta oficial se planifica a las 7:45 AM.\n"
+                "Si ya lo entregaste/completaste, el sistema lo procesará en la siguiente ruta.\n"
+                "💧 Estación H2O"
             )
-            logger.info(
-                "new_%s ack sin delivery asociado (vehicle_id=%d)", action_kind, vehicle_id
-            )
+            logger.info("new_%s ack sin delivery asociado (vehicle_id=%d)", action_kind, vehicle_id)
             return
 
         delivery_id = delivery["id"]
@@ -508,8 +532,7 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         elif action_kind == "no":
             update_delivery_status(delivery_id, "no_answer", "Cliente no responde")
             await query.edit_message_text(
-                "❌ Marcado como 'No responde'.\n\n"
-                "El administrador será notificado."
+                "❌ Marcado como 'No responde'.\n\n" "El administrador será notificado."
             )
 
 
@@ -532,10 +555,11 @@ async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     # Guardar GPS (DATOS = ORO para mapa de calor)
     save_gps_track(
         vehicle_id=chofer["id"],
-        lat=lat, lng=lng,
-        accuracy=location.horizontal_accuracy if hasattr(location, 'horizontal_accuracy') else None,
+        lat=lat,
+        lng=lng,
+        accuracy=location.horizontal_accuracy if hasattr(location, "horizontal_accuracy") else None,
         source="telegram",
-        track_type="checkin_arrive"
+        track_type="checkin_arrive",
     )
 
     # Verificar geofencing
@@ -543,15 +567,15 @@ async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
     if in_perimeter:
         await message.reply_text(
-            f"📍 Ubicación registrada.\n"
-            f"✅ Dentro del perímetro de operación.\n\n"
-            f"Entrega en proceso. Toca ✅ Entregado cuando completes."
+            "📍 Ubicación registrada.\n"
+            "✅ Dentro del perímetro de operación.\n\n"
+            "Entrega en proceso. Toca ✅ Entregado cuando completes."
         )
     else:
         await message.reply_text(
-            f"📍 Ubicación registrada.\n"
-            f"⚠️ Estás fuera del perímetro de operación (13km).\n"
-            f"Verifica que la ubicación sea correcta."
+            "📍 Ubicación registrada.\n"
+            "⚠️ Estás fuera del perímetro de operación (13km).\n"
+            "Verifica que la ubicación sea correcta."
         )
 
 
@@ -605,6 +629,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 # Envío de pedidos a choferes (llamado por bridge)
 # ============================================================================
 
+
 async def send_delivery_to_chofer(
     app: "Application[Any, Any, Any, Any, Any, Any]",
     vehicle_id: int,
@@ -644,8 +669,8 @@ async def send_delivery_to_chofer(
         )
         if gps_url:
             msg += f"📍 {gps_url}\n"
-        msg += f"⚠️ PAGO EN EFECTIVO — Cobrar al entregar\n"
-        msg += f"━━━━━━━━━━━━━━━━"
+        msg += "⚠️ PAGO EN EFECTIVO — Cobrar al entregar\n"
+        msg += "━━━━━━━━━━━━━━━━"
     else:
         msg = (
             f"🚚 NUEVO PEDIDO\n"
@@ -656,7 +681,7 @@ async def send_delivery_to_chofer(
         )
         if gps_url:
             msg += f"📍 {gps_url}\n"
-        msg += f"━━━━━━━━━━━━━━━━"
+        msg += "━━━━━━━━━━━━━━━━"
 
     keyboard = [
         [
@@ -665,7 +690,7 @@ async def send_delivery_to_chofer(
         ],
         [
             InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
-        ]
+        ],
     ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
@@ -685,6 +710,7 @@ async def send_delivery_to_chofer(
 # ============================================================================
 # Check-in 8:00 AM
 # ============================================================================
+
 
 async def enviar_checkin_manana(app: "Application[Any, Any, Any, Any, Any, Any]") -> None:
     """Envía check-in a todos los choferes a las 8am."""
@@ -718,7 +744,9 @@ async def callback_checkin(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
     if data.startswith("checkin_yes_"):
         vehicle_id = int(data.replace("checkin_yes_", ""))
         conn = get_dispatch_db()
-        v = conn.execute("SELECT operator_name FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
+        v = conn.execute(
+            "SELECT operator_name FROM vehicles WHERE id = ?", (vehicle_id,)
+        ).fetchone()
         conn.close()
         nombre = v["operator_name"] if v else "?"
         await query.edit_message_text(f"✅ Check-in confirmado: {nombre}\n¡Buen día! 💧")
@@ -726,16 +754,21 @@ async def callback_checkin(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> No
     elif data.startswith("checkin_no_"):
         vehicle_id = int(data.replace("checkin_no_", ""))
         conn = get_dispatch_db()
-        v = conn.execute("SELECT operator_name FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
+        v = conn.execute(
+            "SELECT operator_name FROM vehicles WHERE id = ?", (vehicle_id,)
+        ).fetchone()
         conn.close()
         nombre = v["operator_name"] if v else "?"
-        await query.edit_message_text(f"❌ {nombre} no puede hoy.\nEl administrador será notificado.")
+        await query.edit_message_text(
+            f"❌ {nombre} no puede hoy.\nEl administrador será notificado."
+        )
         logger.warning("⚠️ Check-in negativo: %s", nombre)
 
 
 # ============================================================================
 # Aplicación principal
 # ============================================================================
+
 
 def main() -> None:
     logger.info("🚚 Dispatcher Bot iniciando...")

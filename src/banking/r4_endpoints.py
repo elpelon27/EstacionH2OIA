@@ -1,5 +1,4 @@
 """R4 Banco - Constantes, endpoints y configuración R4 Conecta V3.0"""
-from typing import Dict, List, Set
 
 
 # ============================================================================
@@ -8,33 +7,28 @@ from typing import Dict, List, Set
 
 BASE_URL_PROD = "https://r4conecta.mibanco.com.ve/"
 
-ENDPOINTS: Dict[str, str] = {
+ENDPOINTS: dict[str, str] = {
     # Consultas
-    "bcv": "MBbcv",                           # Tasa BCV oficial
-    "consulta": "R4consulta",                 # Validar cliente (banco → nosotros)
-    "notifica": "R4notifica",                 # Webhook pago móvil entrante (banco → nosotros)
-    "simf_consulta": "MBconsulta",            # Alternativa vía SIMF
-    
+    "bcv": "MBbcv",  # Tasa BCV oficial
+    "consulta": "R4consulta",  # Validar cliente (banco → nosotros)
+    "notifica": "R4notifica",  # Webhook pago móvil entrante (banco → nosotros)
+    "simf_consulta": "MBconsulta",  # Alternativa vía SIMF
     # Cobros
-    "c2p": "MBc2p",                           # Cobro C2P (nosotros → banco)
-    "anulacion_c2p": "MBanulacionC2P",        # Anular C2P
-    
+    "c2p": "MBc2p",  # Cobro C2P (nosotros → banco)
+    "anulacion_c2p": "MBanulacionC2P",  # Anular C2P
     # Verificación
     "consultar_ops": "ConsultarOperaciones",  # Consultar estado operación (cuando AC00)
-    
     # Créditos / Transferencias
-    "credito_inmediato": "CreditoInmediato",          # Crédito inmediato a teléfono
-    "credito_inmediato_cuenta": "CICuentas",          # Crédito inmediato a cuenta 20 dígitos
-    "domiciliacion_cuenta": "TransferenciaOnline/DomiciliacionCNTA",  # Domiciliación cuenta 20 dígitos
-    "domiciliacion_cel": "TransferenciaOnline/DomiciliacionCELE",     # Domiciliación por teléfono
-    
+    "credito_inmediato": "CreditoInmediato",  # Crédito inmediato a teléfono
+    "credito_inmediato_cuenta": "CICuentas",  # Crédito inmediato a cuenta 20 dígitos
+    "domiciliacion_cuenta": "TransferenciaOnline/DomiciliacionCNTA",  # Domiciliación 20 dígitos
+    "domiciliacion_cel": "TransferenciaOnline/DomiciliacionCELE",  # Domiciliación por teléfono
     # Débito inmediato (requiere OTP previo)
     "generar_otp": "GenerarOtp",
     "debito_inmediato": "DebitoInmediato",
-    
     # Otros
-    "vuelto": "MBvuelto",                     # Vuelto (transferencia a teléfono)
-    "dispersar": "R4pagos",                   # Gestión de pagos / dispersión
+    "vuelto": "MBvuelto",  # Vuelto (transferencia a teléfono)
+    "dispersar": "R4pagos",  # Gestión de pagos / dispersión
 }
 
 
@@ -44,47 +38,34 @@ ENDPOINTS: Dict[str, str] = {
 # La llave es siempre el Commerce Token
 # ============================================================================
 
-SIGN_STRINGS: Dict[str, str] = {
+SIGN_STRINGS: dict[str, str] = {
     # MBbcv: "fechavalor + moneda"
     "bcv": "{Fechavalor}{Moneda}",
-    
     # R4consulta: Authorization creado por comercio, formato UUID
     # No hay string a firmar estándar, el comercio genera su propio auth
     "consulta": "",  # Comercio genera su propio UUID
-    
     # R4notifica: Authorization creado por comercio, formato UUID
     "notifica": "",  # Comercio genera su propio UUID
-    
     # R4pagos (dispersión): "monto + fecha (MM/DD/YYYY)"
     "dispersar": "{monto}{fecha}",
-    
     # MBvuelto: "Telefono_destino + Monto + Banco + Cedula"
     "vuelto": "{TelefonoDestino}{Monto}{Banco}{Cedula}",
-    
     # GenerarOtp: "Banco + Monto + Telefono + Cedula"
     "generar_otp": "{Banco}{Monto}{Telefono}{Cedula}",
-    
     # DebitoInmediato: "Banco + Cedula + Telefono + Monto + OTP"
     "debito_inmediato": "{Banco}{Cedula}{Telefono}{Monto}{OTP}",
-    
     # CreditoInmediato: "Banco + Cedula + Telefono + Monto"
     "credito_inmediato": "{Banco}{Cedula}{Telefono}{Monto}",
-    
     # DomiciliacionCNTA: "cuenta"
     "domiciliacion_cuenta": "{cuenta}",
-    
     # DomiciliacionCELE: "telefono"
     "domiciliacion_cel": "{telefono}",
-    
     # MBc2p (Cobro C2P): "TelefonoDestino + Monto + Banco + Cedula"
     "c2p": "{TelefonoDestino}{Monto}{Banco}{Cedula}",
-    
     # MBanulacionC2P: "Banco"
     "anulacion_c2p": "{Banco}",
-    
     # ConsultarOperaciones: "Id"
     "consultar_ops": "{Id}",
-    
     # MBconsulta (SIMF): Authorization UUID creado por comercio
     "simf_consulta": "",
 }
@@ -94,16 +75,14 @@ SIGN_STRINGS: Dict[str, str] = {
 # CÓDIGOS DE RESPUESTA DEL BANCO (mapeo a significado legible)
 # ============================================================================
 
-RESPONSE_CODES: Dict[str, str] = {
+RESPONSE_CODES: dict[str, str] = {
     # Éxito
     "00": "APROBADO / TRANSACCION EXITOSA",
     "202": "SE HA RECIBIDO EL MENSAJE DE FORMA SATISFACTORIA",
     "ACCP": "OPERACIÓN ACEPTADA",
     "true": "ACEPTADO / STATUS TRUE",
-    
     # En proceso / Espera
     "AC00": "OPERACIÓN EN ESPERA DE RESPUESTA DEL RECEPTOR",
-    
     # Errores comunes
     "01": "REFERIRSE AL CLIENTE",
     "05": "TIEMPO DE RESPUESTA EXCEDIDO",
@@ -128,7 +107,6 @@ RESPONSE_CODES: Dict[str, str] = {
     "91": "INSTITUCIÓN NO DISPONIBLE",
     "92": "BANCO RECEPTOR NO AFILIADO",
     "99": "ERROR EN NOTIFICACIÓN",
-    
     # Códigos extendidos (manual páginas 23-29)
     "AB01": "TIEMPO DE ESPERA AGOTADO",
     "AB07": "AGENTE FUERA DE LÍNEA",
@@ -169,7 +147,7 @@ RESPONSE_CODES: Dict[str, str] = {
 # IPS DEL BANCO (WHITELIST) - Manual página 4
 # ============================================================================
 
-BANK_IPS: Set[str] = {
+BANK_IPS: set[str] = {
     "45.175.213.98",
     "200.74.203.91",
     "204.199.249.3",
@@ -180,6 +158,7 @@ BANK_IPS: Set[str] = {
 # ============================================================================
 # UTILIDADES
 # ============================================================================
+
 
 def is_bank_ip_allowed(ip: str) -> bool:
     """Verifica si una IP está en whitelist del banco"""
@@ -207,7 +186,7 @@ def build_url(endpoint_key: str, base_url: str = BASE_URL_PROD) -> str:
 # El manual no lista todos, estos son los comunes en Venezuela
 # ============================================================================
 
-BANK_CODES: Dict[str, str] = {
+BANK_CODES: dict[str, str] = {
     "0102": "Banco Mercantil",
     "0104": "Banco de Venezuela",
     "0105": "Banco Bicentenario",

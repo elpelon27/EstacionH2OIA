@@ -1,27 +1,24 @@
 """R4 Banco - Cliente HTTP + HMAC-SHA256 para R4 Conecta V3.0"""
-import os
-import sys
-import time
-import hmac
+
+import asyncio
 import hashlib
+import hmac
 import logging
-from typing import Dict, Any, Optional, Tuple
+import os
 from datetime import datetime
+from typing import Any
 
 import httpx
-from pydantic import BaseModel, Field
 
-# Configurar path
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
-
-from src.banking.r4_endpoints import ENDPOINTS, SIGN_STRINGS, BANK_IPS
+from src.banking.r4_endpoints import ENDPOINTS, SIGN_STRINGS
 
 logger = logging.getLogger("r4banco.client")
 
 
 class R4BankError(Exception):
     """Error devuelto por el banco (code, message)"""
-    def __init__(self, code: str, message: str, raw: Dict = None):
+
+    def __init__(self, code: str, message: str, raw: dict = None):
         self.code = code
         self.message = message
         self.raw = raw
@@ -30,11 +27,13 @@ class R4BankError(Exception):
 
 class R4AuthError(Exception):
     """Error de autenticación/firma HMAC"""
+
     pass
 
 
 class R4ValidationError(Exception):
     """Error de validación de request/response"""
+
     pass
 
 
@@ -60,7 +59,7 @@ class R4Client:
             limits=httpx.Limits(max_keepalive_connections=5, max_connections=10),
         )
 
-    def _build_sign_string(self, endpoint_key: str, payload: Dict[str, Any]) -> str:
+    def _build_sign_string(self, endpoint_key: str, payload: dict[str, Any]) -> str:
         """
         Construye el string a firmar según el manual R4 V3.0.
         Cada endpoint tiene su propio formato (ver SIGN_STRINGS en r4_endpoints.py)
@@ -86,7 +85,7 @@ class R4Client:
         signature = hmac.new(self.hmac_key, sign_string.encode(), hashlib.sha256).hexdigest()
         return signature.upper()
 
-    def _build_headers(self, endpoint_key: str, payload: Dict[str, Any]) -> Dict[str, str]:
+    def _build_headers(self, endpoint_key: str, payload: dict[str, Any]) -> dict[str, str]:
         """Construye headers completos para el endpoint"""
         sign_string = self._build_sign_string(endpoint_key, payload)
         auth_token = self._generate_hmac(sign_string)
@@ -101,9 +100,9 @@ class R4Client:
         self,
         method: str,
         endpoint_key: str,
-        payload: Dict[str, Any],
-        extra_headers: Dict[str, str] = None,
-    ) -> Dict[str, Any]:
+        payload: dict[str, Any],
+        extra_headers: dict[str, str] = None,
+    ) -> dict[str, Any]:
         """Ejecuta request con retry exponencial"""
         url = self.base_url + ENDPOINTS[endpoint_key]
         headers = self._build_headers(endpoint_key, payload)
@@ -113,7 +112,9 @@ class R4Client:
         last_error = None
         for attempt in range(self.max_retries):
             try:
-                logger.debug(f"R4 {method} {url} attempt={attempt+1} payload_keys={list(payload.keys())}")
+                logger.debug(
+                    f"R4 {method} {url} attempt={attempt+1} payload_keys={list(payload.keys())}"
+                )
 
                 if method.upper() == "GET":
                     response = await self._client.get(url, headers=headers, params=payload)
@@ -133,7 +134,11 @@ class R4Client:
                             raw=data,
                         )
 
-                logger.info(f"R4 {endpoint_key} OK code={data.get('code') if isinstance(data, dict) else 'N/A'}")
+                logger.info(
+                    "R4 %s OK code=%s",
+                    endpoint_key,
+                    data.get("code") if isinstance(data, dict) else "N/A",
+                )
                 return data
 
             except httpx.HTTPStatusError as e:
@@ -146,7 +151,7 @@ class R4Client:
                 logger.warning(f"R4 {endpoint_key} error attempt {attempt+1}: {last_error}")
 
             if attempt < self.max_retries - 1:
-                wait = 2 ** attempt  # 1s, 2s, 4s...
+                wait = 2**attempt  # 1s, 2s, 4s...
                 logger.info(f"R4 retry in {wait}s...")
                 await asyncio.sleep(wait)
 
@@ -154,14 +159,18 @@ class R4Client:
 
     # ==================== MÉTODOS PÚBLICOS POR ENDPOINT ====================
 
-    async def consultar_tasa_bcv(self, moneda: str = "USD", fecha_valor: str = None) -> Dict[str, Any]:
+    async def consultar_tasa_bcv(
+        self, moneda: str = "USD", fecha_valor: str = None
+    ) -> dict[str, Any]:
         """Consulta tasa BCV oficial. Endpoint: MBbcv"""
         if not fecha_valor:
             fecha_valor = datetime.now().strftime("%Y-%m-%d")
         payload = {"Moneda": moneda, "Fechavalor": fecha_valor}
         return await self._request_with_retry("POST", "bcv", payload)
 
-    async def consultar_cliente(self, id_cliente: str, monto: str = None, telefono_comercio: str = None) -> Dict[str, Any]:
+    async def consultar_cliente(
+        self, id_cliente: str, monto: str = None, telefono_comercio: str = None
+    ) -> dict[str, Any]:
         """Consulta/validación cliente para pago móvil. Endpoint: R4consulta"""
         payload = {"IdCliente": id_cliente}
         if monto:
@@ -170,7 +179,7 @@ class R4Client:
             payload["TelefonoComercio"] = telefono_comercio
         return await self._request_with_retry("POST", "consulta", payload)
 
-    async def notificar_pago_movil(self, payload: Dict[str, Any]) -> Dict[str, Any]:
+    async def notificar_pago_movil(self, payload: dict[str, Any]) -> dict[str, Any]:
         """
         Recibe notificación de pago móvil entrante (P2P/P2C).
         NOTA: Este endpoint lo LLAMA EL BANCO a nuestro webhook.
@@ -187,7 +196,7 @@ class R4Client:
         ip: str,
         monto: str,
         otp: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Cobro C2P (Cobro a Proveedor/Persona). Endpoint: MBc2p"""
         payload = {
             "TelefonoDestino": telefono_destino,
@@ -200,7 +209,9 @@ class R4Client:
         }
         return await self._request_with_retry("POST", "c2p", payload)
 
-    async def anular_c2p(self, referencia: str, monto: str, banco: str, telefono: str) -> Dict[str, Any]:
+    async def anular_c2p(
+        self, referencia: str, monto: str, banco: str, telefono: str
+    ) -> dict[str, Any]:
         """Anulación C2P. Endpoint: MBanulacionC2P"""
         payload = {
             "Referencia": referencia,
@@ -210,7 +221,7 @@ class R4Client:
         }
         return await self._request_with_retry("POST", "anulacion_c2p", payload)
 
-    async def consultar_operacion(self, operacion_id: str) -> Dict[str, Any]:
+    async def consultar_operacion(self, operacion_id: str) -> dict[str, Any]:
         """Consultar estado de operación (cuando devuelve AC00). Endpoint: ConsultarOperaciones"""
         payload = {"Id": operacion_id}
         return await self._request_with_retry("POST", "consultar_ops", payload)
@@ -222,7 +233,7 @@ class R4Client:
         telefono: str,
         monto: str,
         concepto: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Crédito inmediato a teléfono. Endpoint: CreditoInmediato"""
         payload = {
             "Banco": banco,
@@ -239,7 +250,7 @@ class R4Client:
         cuenta: str,
         monto: str,
         concepto: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Crédito inmediato a cuenta 20 dígitos. Endpoint: CICuentas"""
         payload = {
             "Cedula": cedula,
@@ -256,7 +267,7 @@ class R4Client:
         cuenta: str,
         monto: str,
         concepto: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Domiciliación por cuenta 20 dígitos. Endpoint: TransferenciaOnline/DomiciliacionCNTA"""
         payload = {
             "docId": doc_id,
@@ -275,7 +286,7 @@ class R4Client:
         banco: str,
         monto: str,
         concepto: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Domiciliación por teléfono. Endpoint: TransferenciaOnline/DomiciliacionCELE"""
         payload = {
             "docId": doc_id,
@@ -293,7 +304,7 @@ class R4Client:
         monto: str,
         telefono: str,
         cedula: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Generar OTP para débito inmediato. Endpoint: GenerarOtp"""
         payload = {
             "Banco": banco,
@@ -312,7 +323,7 @@ class R4Client:
         nombre: str,
         otp: str,
         concepto: str,
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Débito inmediato (requiere OTP previo). Endpoint: DebitoInmediato"""
         payload = {
             "Banco": banco,
@@ -333,7 +344,7 @@ class R4Client:
         monto: str,
         concepto: str = "PRUEBA",
         ip: str = "0.0.0.0",
-    ) -> Dict[str, Any]:
+    ) -> dict[str, Any]:
         """Vuelto (transferencia a teléfono). Endpoint: MBvuelto"""
         payload = {
             "TelefonoDestino": telefono_destino,
@@ -350,8 +361,8 @@ class R4Client:
         monto_total: str,
         fecha: str,  # MM/DD/YYYY
         referencia: str,
-        personas: list,  # [{"nombres": "...", "documento": "...", "destino": "...", "montoPart": "..."}]
-    ) -> Dict[str, Any]:
+        personas: list,  # lista de dicts con nombres, documento, destino, montoPart
+    ) -> dict[str, Any]:
         """Gestión de pagos (dispersión). Endpoint: R4pagos"""
         payload = {
             "monto": monto_total,
@@ -374,6 +385,7 @@ class R4Client:
 
 # ==================== FACTORY ====================
 
+
 def get_r4_client() -> R4Client:
     """Factory que lee credenciales de variables de entorno"""
     commerce_token = os.getenv("R4_COMMERCE_TOKEN")
@@ -390,7 +402,3 @@ def get_r4_client() -> R4Client:
         base_url=base_url,
         timeout=timeout,
     )
-
-
-# ==================== IMPORT ASYNCIO (al final para evitar circular) ====================
-import asyncio
