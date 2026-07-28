@@ -11,7 +11,7 @@
 - **Decisiones**: Toma decisiones de ingeniería con carta blanca del Líder
 - **Especialidades**: Frontend, APIs, backend logic, DB, auth, hosting, cloud, CI/CD, seguridad, rate limiting, cache/CDN, balanceo, monitoreo, disponibilidad, recuperación
 - **Horario activo**: Cuando el Líder lo convoca
-- **Standby**: Entre sesiones, mantiene celda de memoria actualizada
+- **Standby**: Entre sesiones, mantiene celda de memoria actualizada 
 
 ---
 

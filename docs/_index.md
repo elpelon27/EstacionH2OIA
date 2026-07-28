@@ -17,6 +17,7 @@
 
 ## 🔗 Enlaces clave
 
+- [[02-arquitectura/FINANCIAL_SHIELD_v3_ARQUITECTURA_FUSIONADA|🛡️ Financial Shield v3.0 — Arquitectura Fusionada (2026-07-26)]]
 - [[01-proyecto/SOUL-valentina|Personalidad de Valentina]]
 - [[01-proyecto/AGENTS-catalogo|Catálogo de agentes y skills]]
 - [[01-proyecto/USER-lider|Perfil del Líder (Luis Martinez)]]

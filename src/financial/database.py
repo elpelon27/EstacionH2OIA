@@ -1,12 +1,12 @@
 """
- ============================================================================
- Financial Shield — Base de datos
- Estación H2O · Maracaibo, Venezuela
- ============================================================================
+============================================================================
+Financial Shield — Base de datos v3.0
+Estación H2O · Maracaibo, Venezuela
+============================================================================
 
 Gestiona conexión SQLite, migraciones, y queries del módulo financiero.
 Todas las tablas usan prefijo fs_ para evitar colisiones con Valentina.
- """
+"""
 
 import os
 import sqlite3
@@ -33,11 +33,21 @@ DB_PATH = os.getenv(
 )
 
 # ============================================================================
-# Schema SQL completo (10 tablas fs_*)
+# Schema SQL completo v3.0 (idempotente)
 # ============================================================================
 
-SCHEMA_SQL = """
--- Catálogo de productos
+SCHEMA_V3_SQL = """
+-- ============================================================================
+-- PRAGMAS OBLIGATORIOS (se ejecutan en cada conexión via get_db())
+-- ============================================================================
+-- PRAGMA journal_mode=WAL;
+-- PRAGMA busy_timeout=5000;
+-- PRAGMA foreign_keys=ON;
+-- PRAGMA synchronous=NORMAL;
+
+-- ============================================================================
+-- 1. CATÁLOGO DE PRODUCTOS
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_productos (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre              TEXT NOT NULL,
@@ -49,56 +59,75 @@ CREATE TABLE IF NOT EXISTS fs_productos (
     activo              BOOLEAN DEFAULT 1
 );
 
--- Vista financiera de cada pedido (1:1 con orders de Valentina)
+-- Seed inicial (idempotente)
+INSERT OR IGNORE INTO fs_productos (id, nombre, precio_base_eur, precio_volumen_eur, umbral_volumen, tiene_comision, comision_eur, activo) VALUES
+(1, 'Botellón 19L', 1.00, 0.85, 10, 1, 0.07, 1),
+(2, 'Bolsa Hielo 7.5kg', 1.20, 0.90, 5, 0, 0.00, 1);
+
+-- ============================================================================
+-- 2. VISTA FINANCIERA DE PEDIDOS (1:1 con orders de Valentina)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_pedidos (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
-    pedido_id               INTEGER NOT NULL,
-    cliente_telefono        TEXT,
+    pedido_id               INTEGER NOT NULL UNIQUE,
+    cliente_telefono        TEXT NOT NULL,
     cliente_nombre          TEXT,
     operador_id             INTEGER,
     monto_total_eur         REAL NOT NULL,
-    monto_total_ves         REAL,
-    tasa_eur_ves            REAL NOT NULL,
+    monto_pagado_eur        REAL DEFAULT 0,                   -- v3.0: tracking parciales
+    tasa_eur_ves_deuda      REAL NOT NULL,                   -- v3.0: tasa congelada al crear deuda
     tasa_usd_ves_ref        REAL,
     botellones_cantidad     INTEGER DEFAULT 0,
     hielo_cantidad          INTEGER DEFAULT 0,
-    metodo_pago             TEXT,
-    estado_pago             TEXT DEFAULT 'pendiente',
-    estado_entrega          TEXT DEFAULT 'sin_entregar',
-    tipo_credito            TEXT,
+    metodo_pago             TEXT,                            -- pagomovil|efectivo_eur|efectivo_ves
+    estado_pago             TEXT DEFAULT 'pendiente',        -- pendiente|parcial|pagado|verificando|vencido|moroso
+    estado_entrega          TEXT DEFAULT 'sin_entregar',     -- sin_entregar|entregado|confirmado
+    tipo_credito            TEXT,                            -- NULL=contado | express|semanal|mensual
     fecha_vencimiento_credito TEXT,
-    verificacion_bancaria   TEXT DEFAULT 'pending',
+    verificacion_bancaria   TEXT DEFAULT 'pending',          -- pending|api|ocr|manual
     recordatorios_enviados  INTEGER DEFAULT 0,
-    ultimo_recordatorio_at  TEXT,
+    ultimo_recordatorio_at  TEXT,                            -- ISO8601 UTC
     escalo_humano           BOOLEAN DEFAULT 0,
-    entrega_confirmada_at   TEXT,
-    creado_at               TEXT NOT NULL,
-    actualizado_at          TEXT NOT NULL,
-    UNIQUE(pedido_id)
+    entrega_confirmada_at   TEXT,                            -- ISO8601 UTC
+    creado_at               TEXT NOT NULL,                   -- ISO8601 UTC
+    actualizado_at          TEXT NOT NULL                    -- ISO8601 UTC
 );
 
--- Pagos recibidos
+CREATE INDEX IF NOT EXISTS idx_fs_pedidos_cliente ON fs_pedidos(cliente_telefono);
+CREATE INDEX IF NOT EXISTS idx_fs_pedidos_estado_pago ON fs_pedidos(estado_pago);
+CREATE INDEX IF NOT EXISTS idx_fs_pedidos_estado_entrega ON fs_pedidos(estado_entrega);
+
+-- ============================================================================
+-- 3. PAGOS RECIBIDOS (historial completo, inmutable)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_pagos (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     fs_pedido_id        INTEGER,
-    cuenta_cobrar_id    INTEGER,
     cliente_telefono    TEXT NOT NULL,
     cliente_nombre      TEXT,
     monto_eur           REAL NOT NULL,
     monto_ves           REAL,
-    metodo_pago         TEXT NOT NULL,
-    referencia          TEXT UNIQUE,
-    tasa_eur_ves        REAL NOT NULL,
-    verificacion_metodo TEXT DEFAULT 'pending',
+    tasa_eur_ves_pago   REAL NOT NULL,                       -- v3.0: tasa al segundo del pago
+    metodo_pago         TEXT NOT NULL,                       -- pagomovil|efectivo_eur|efectivo_ves
+    referencia          TEXT,                                -- solo pagomovil
+    comprobante_phash   TEXT,                                -- v3.0: perceptual hash anti-fraude
+    verificacion_metodo TEXT DEFAULT 'pending',              -- pending|api_bancaria|ocr|manual
     verificado          BOOLEAN DEFAULT 0,
     verificado_at       TEXT,
     verificado_por      TEXT,
     comprobante_url     TEXT,
-    creado_at           TEXT NOT NULL,
+    creado_at           TEXT NOT NULL,                       -- ISO8601 UTC
     FOREIGN KEY (fs_pedido_id) REFERENCES fs_pedidos(id)
 );
 
--- Cuentas por cobrar (créditos activos)
+-- v3.0: Anti-fraude real — misma referencia + mismo método = duplicado
+CREATE UNIQUE INDEX IF NOT EXISTS ux_fs_pagos_ref_metodo ON fs_pagos(referencia, metodo_pago);
+CREATE INDEX IF NOT EXISTS idx_fs_pagos_cliente ON fs_pagos(cliente_telefono);
+CREATE INDEX IF NOT EXISTS idx_fs_pagos_pedido ON fs_pagos(fs_pedido_id);
+
+-- ============================================================================
+-- 4. CUENTAS POR COBRAR (créditos activos)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_cuentas_cobrar (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     cliente_telefono        TEXT NOT NULL,
@@ -106,9 +135,9 @@ CREATE TABLE IF NOT EXISTS fs_cuentas_cobrar (
     fs_pedido_id            INTEGER NOT NULL,
     monto_original_eur      REAL NOT NULL,
     monto_pagado_eur        REAL DEFAULT 0,
-    tipo_credito            TEXT NOT NULL,
-    fecha_vencimiento       TEXT NOT NULL,
-    estado                  TEXT DEFAULT 'pendiente',
+    tipo_credito            TEXT NOT NULL,                   -- express|semanal|mensual
+    fecha_vencimiento       TEXT NOT NULL,                   -- ISO8601 date
+    estado                  TEXT DEFAULT 'pendiente',        -- pendiente|parcial|pagado|vencido|moroso
     recordatorios_enviados  INTEGER DEFAULT 0,
     ultimo_recordatorio_at  TEXT,
     escalo_humano           BOOLEAN DEFAULT 0,
@@ -118,20 +147,29 @@ CREATE TABLE IF NOT EXISTS fs_cuentas_cobrar (
     FOREIGN KEY (fs_pedido_id) REFERENCES fs_pedidos(id)
 );
 
--- Log de verificaciones (auditoría)
+CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_estado ON fs_cuentas_cobrar(estado);
+CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_vencimiento ON fs_cuentas_cobrar(fecha_vencimiento);
+
+-- ============================================================================
+-- 5. LOG DE VERIFICACIÓN (auditoría operativa del loop)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_verificacion_log (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     fs_pedido_id        INTEGER NOT NULL,
     intento             INTEGER NOT NULL,
-    metodo_verificacion TEXT,
+    metodo_verificacion TEXT,                                -- api_bancaria|ocr|manual
     pago_encontrado     BOOLEAN DEFAULT 0,
-    accion              TEXT,
+    accion              TEXT,                                -- recordatorio_enviado|escalo_humano|pagado
     resultado_detalle   TEXT,
-    timestamp           TEXT NOT NULL,
+    timestamp           TEXT NOT NULL,                       -- ISO8601 UTC
     FOREIGN KEY (fs_pedido_id) REFERENCES fs_pedidos(id)
 );
 
--- Pagos a proveedores (solo contado)
+CREATE INDEX IF NOT EXISTS idx_fs_verificacion_log_pedido ON fs_verificacion_log(fs_pedido_id);
+
+-- ============================================================================
+-- 6. PAGOS A PROVEEDORES (solo contado)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_proveedor_pagos (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     proveedor_id        INTEGER NOT NULL,
@@ -147,7 +185,9 @@ CREATE TABLE IF NOT EXISTS fs_proveedor_pagos (
     creado_por          TEXT
 );
 
--- Empleados
+-- ============================================================================
+-- 7. EMPLEADOS Y NÓMINA
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_empleados (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     nombre                  TEXT NOT NULL,
@@ -160,7 +200,6 @@ CREATE TABLE IF NOT EXISTS fs_empleados (
     creado_at               TEXT NOT NULL
 );
 
--- Nómina
 CREATE TABLE IF NOT EXISTS fs_nomina (
     id                      INTEGER PRIMARY KEY AUTOINCREMENT,
     empleado_id             INTEGER NOT NULL,
@@ -173,26 +212,34 @@ CREATE TABLE IF NOT EXISTS fs_nomina (
     total_eur               REAL NOT NULL,
     total_ves               REAL,
     tasa_eur_ves            REAL,
-    estado                  TEXT DEFAULT 'pending',
+    estado                  TEXT DEFAULT 'pending',            -- pending|calculada|pagada
     pagado_at               TEXT,
     creado_at               TEXT NOT NULL,
     FOREIGN KEY (empleado_id) REFERENCES fs_empleados(id)
 );
 
--- Histórico de tasas (inmutable)
+CREATE INDEX IF NOT EXISTS idx_fs_nomina_empleado ON fs_nomina(empleado_id);
+
+-- ============================================================================
+-- 8. HISTÓRICO DE TASAS (inmutable, solo INSERT)
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_tasas_cambio (
     id              INTEGER PRIMARY KEY AUTOINCREMENT,
-    par             TEXT NOT NULL,
+    par             TEXT NOT NULL,                           -- EUR/VES | USD/VES
     tasa            REAL NOT NULL,
-    fuente          TEXT NOT NULL,
+    fuente          TEXT NOT NULL,                           -- open_er_api|frankfurter|manual|bcv
     notas           TEXT,
-    registrado_at   TEXT NOT NULL
+    registrado_at   TEXT NOT NULL                            -- ISO8601 UTC
 );
 
--- Reportes diarios
+CREATE INDEX IF NOT EXISTS idx_fs_tasas_cambio_par ON fs_tasas_cambio(par);
+
+-- ============================================================================
+-- 9. REPORTES DIARIOS
+-- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_reportes_diarios (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    fecha               TEXT NOT NULL,
+    fecha               TEXT NOT NULL,                       -- YYYY-MM-DD
     ventas_total_eur    REAL DEFAULT 0,
     cobros_total_eur    REAL DEFAULT 0,
     por_cobrar_eur      REAL DEFAULT 0,
@@ -209,24 +256,88 @@ CREATE TABLE IF NOT EXISTS fs_reportes_diarios (
     telegram_msg_id     TEXT
 );
 
--- Índices
-CREATE INDEX IF NOT EXISTS idx_fs_pedidos_cliente ON fs_pedidos(cliente_telefono);
-CREATE INDEX IF NOT EXISTS idx_fs_pedidos_estado_pago ON fs_pedidos(estado_pago);
-CREATE INDEX IF NOT EXISTS idx_fs_pedidos_estado_entrega ON fs_pedidos(estado_entrega);
-CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_estado ON fs_cuentas_cobrar(estado);
-CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_vencimiento ON fs_cuentas_cobrar(fecha_vencimiento);
-CREATE INDEX IF NOT EXISTS idx_fs_pagos_referencia ON fs_pagos(referencia);
-CREATE INDEX IF NOT EXISTS idx_fs_pagos_cliente ON fs_pagos(cliente_telefono);
-CREATE INDEX IF NOT EXISTS idx_fs_verificacion_log_pedido ON fs_verificacion_log(fs_pedido_id);
-CREATE INDEX IF NOT EXISTS idx_fs_tasas_cambio_par ON fs_tasas_cambio(par);
-CREATE INDEX IF NOT EXISTS idx_fs_nomina_empleado ON fs_nomina(empleado_id);
-"""
+-- ============================================================================
+-- 10. v3.0 AUDITORÍA FORENSE (triggers automáticos)
+-- ============================================================================
+CREATE TABLE IF NOT EXISTS fs_audit_log (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    tabla               TEXT NOT NULL,                       -- fs_pedidos|fs_pagos|fs_cuentas_cobrar
+    registro_id         INTEGER NOT NULL,
+    accion              TEXT NOT NULL,                       -- INSERT|UPDATE|DELETE
+    estado_anterior     TEXT,                                -- JSON
+    estado_nuevo        TEXT,                                -- JSON
+    modificado_por      TEXT,                                -- 'sistema'|'valentina'|'lider'|'dispatcher'
+    timestamp           TEXT NOT NULL                        -- ISO8601 UTC
+);
 
-# Seed inicial de productos
-SEED_PRODUCTOS_SQL = """
-INSERT OR IGNORE INTO fs_productos (id, nombre, precio_base_eur, precio_volumen_eur, umbral_volumen, tiene_comision, comision_eur, activo) VALUES
-(1, 'Botellón 19L', 1.00, 0.85, 10, 1, 0.07, 1),
-(2, 'Bolsa Hielo 7.5kg', 1.20, 0.90, 5, 0, 0.00, 1);
+CREATE INDEX IF NOT EXISTS idx_fs_audit_log_tabla_reg ON fs_audit_log(tabla, registro_id);
+CREATE INDEX IF NOT EXISTS idx_fs_audit_log_timestamp ON fs_audit_log(timestamp);
+
+-- Triggers — se ejecutan AUTOMÁTICAMENTE en cada WRITE
+CREATE TRIGGER IF NOT EXISTS trg_audit_fs_pedidos_insert
+AFTER INSERT ON fs_pedidos
+FOR EACH ROW
+BEGIN
+    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES ('fs_pedidos', NEW.id, 'INSERT', NULL,
+            json_object(
+                'estado_pago', NEW.estado_pago,
+                'monto_total_eur', NEW.monto_total_eur,
+                'monto_pagado_eur', NEW.monto_pagado_eur,
+                'estado_entrega', NEW.estado_entrega
+            ),
+            'sistema', datetime('now'));
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_audit_fs_pedidos_update
+AFTER UPDATE ON fs_pedidos
+FOR EACH ROW
+BEGIN
+    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES ('fs_pedidos', NEW.id, 'UPDATE',
+            json_object(
+                'estado_pago', OLD.estado_pago,
+                'monto_pagado_eur', OLD.monto_pagado_eur,
+                'estado_entrega', OLD.estado_entrega,
+                'recordatorios_enviados', OLD.recordatorios_enviados,
+                'escalo_humano', OLD.escalo_humano
+            ),
+            json_object(
+                'estado_pago', NEW.estado_pago,
+                'monto_pagado_eur', NEW.monto_pagado_eur,
+                'estado_entrega', NEW.estado_entrega,
+                'recordatorios_enviados', NEW.recordatorios_enviados,
+                'escalo_humano', NEW.escalo_humano
+            ),
+            'sistema', datetime('now'));
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_audit_fs_pagos_insert
+AFTER INSERT ON fs_pagos
+FOR EACH ROW
+BEGIN
+    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES ('fs_pagos', NEW.id, 'INSERT', NULL,
+            json_object(
+                'fs_pedido_id', NEW.fs_pedido_id,
+                'monto_eur', NEW.monto_eur,
+                'metodo_pago', NEW.metodo_pago,
+                'referencia', NEW.referencia,
+                'verificado', NEW.verificado
+            ),
+            'sistema', datetime('now'));
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_audit_fs_cuentas_cobrar_update
+AFTER UPDATE ON fs_cuentas_cobrar
+FOR EACH ROW
+BEGIN
+    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES ('fs_cuentas_cobrar', NEW.id, 'UPDATE',
+            json_object('estado', OLD.estado, 'monto_pagado_eur', OLD.monto_pagado_eur),
+            json_object('estado', NEW.estado, 'monto_pagado_eur', NEW.monto_pagado_eur),
+            'sistema', datetime('now'));
+END;
 """
 
 
@@ -236,10 +347,13 @@ INSERT OR IGNORE INTO fs_productos (id, nombre, precio_base_eur, precio_volumen_
 
 @contextmanager
 def get_db() -> Iterator[sqlite3.Connection]:
-    """Context manager para conexión SQLite (thread-safe)."""
+    """Context manager para conexión SQLite (thread-safe, WAL, FK, busy_timeout)."""
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
-    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA foreign_keys=ON")
+    conn.execute("PRAGMA synchronous=NORMAL")
     try:
         yield conn
         conn.commit()
@@ -251,17 +365,74 @@ def get_db() -> Iterator[sqlite3.Connection]:
         conn.close()
 
 
-def init_database() -> None:
-    """Inicializa tablas fs_* y carga seed de productos."""
+def init_database_v3() -> None:
+    """
+    Migración idempotente a v3.0:
+    - Ejecuta schema base (CREATE IF NOT EXISTS)
+    - Añade columnas nuevas vía ALTER TABLE (seguro si ya existen)
+    - Backfill: tasa_eur_ves_deuda = tasa_eur_ves legado
+    - Backfill: monto_pagado_eur = suma pagos verificados
+    - Sincroniza estado_pago según monto_pagado_eur
+    """
     with get_db() as conn:
-        conn.executescript(SCHEMA_SQL)
-        conn.executescript(SEED_PRODUCTOS_SQL)
-    logger.info("BD Financial Shield inicializada — 10 tablas fs_* creadas")
+        # 1. Schema base (idempotente)
+        conn.executescript(SCHEMA_V3_SQL)
+        
+        # 2. Migraciones ALTER TABLE (ignorar si columna ya existe)
+        migraciones = [
+            # fs_pedidos
+            "ALTER TABLE fs_pedidos ADD COLUMN monto_pagado_eur REAL DEFAULT 0",
+            "ALTER TABLE fs_pedidos ADD COLUMN tasa_eur_ves_deuda REAL DEFAULT 0",
+            
+            # fs_pagos
+            "ALTER TABLE fs_pagos ADD COLUMN comprobante_phash TEXT",
+            # Nota: UNIQUE(referencia, metodo_pago) se crea en schema; si existe, ignora
+        ]
+        
+        for sql in migraciones:
+            try:
+                conn.execute(sql)
+                logger.info("Migración aplicada: %s", sql[:60])
+            except sqlite3.OperationalError as e:
+                if "duplicate column" in str(e).lower() or "already exists" in str(e).lower():
+                    pass  # Ya existe, ok
+                else:
+                    raise
+        
+        # 3. Backfill: tasa_eur_ves_deuda = tasa_eur_ves donde sea 0/NULL
+        conn.execute("""
+            UPDATE fs_pedidos 
+            SET tasa_eur_ves_deuda = tasa_eur_ves 
+            WHERE tasa_eur_ves_deuda = 0 OR tasa_eur_ves_deuda IS NULL
+        """)
+        
+        # 4. Backfill: monto_pagado_eur = suma de pagos verificados por pedido
+        conn.execute("""
+            UPDATE fs_pedidos
+            SET monto_pagado_eur = COALESCE((
+                SELECT SUM(monto_eur) FROM fs_pagos 
+                WHERE fs_pagos.fs_pedido_id = fs_pedidos.id AND verificado = 1
+            ), 0)
+            WHERE monto_pagado_eur = 0
+        """)
+        
+        # 5. Sincronizar estado_pago según monto_pagado_eur
+        conn.execute("""
+            UPDATE fs_pedidos
+            SET estado_pago = CASE
+                WHEN monto_pagado_eur >= monto_total_eur - 0.01 THEN 'pagado'
+                WHEN monto_pagado_eur > 0 THEN 'parcial'
+                ELSE estado_pago
+            END
+            WHERE estado_pago IN ('pendiente', 'verificando')
+        """)
+        
+    logger.info("Financial Shield v3.0 DB inicializada/migrada — 10 tablas fs_* + audit_log + triggers")
 
 
 def now_iso() -> str:
-    """Timestamp ISO 8601 America/Caracas."""
-    return datetime.now(CARACAS_TZ).isoformat()
+    """Timestamp ISO 8601 UTC (no Caracas) para consistencia global."""
+    return datetime.now(timezone.utc).isoformat()
 
 
 # ============================================================================
@@ -304,20 +475,20 @@ def create_pedido_financiero(pedido: PedidoFinanciero) -> int:
         cursor = conn.execute("""
             INSERT INTO fs_pedidos (
                 pedido_id, cliente_telefono, cliente_nombre, operador_id,
-                monto_total_eur, monto_total_ves, tasa_eur_ves, tasa_usd_ves_ref,
-                botellones_cantidad, hielo_cantidad, metodo_pago,
+                monto_total_eur, monto_total_ves, tasa_eur_ves, tasa_eur_ves_deuda,
+                tasa_usd_ves_ref, botellones_cantidad, hielo_cantidad, metodo_pago,
                 estado_pago, estado_entrega, tipo_credito,
                 fecha_vencimiento_credito, verificacion_bancaria,
                 creado_at, actualizado_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             pedido.pedido_id, pedido.cliente_telefono, pedido.cliente_nombre,
             pedido.operador_id, pedido.monto_total_eur, pedido.monto_total_ves,
-            pedido.tasa_eur_ves, pedido.tasa_usd_ves_ref,
-            pedido.botellones_cantidad, pedido.hielo_cantidad, pedido.metodo_pago,
-            pedido.estado_pago, pedido.estado_entrega, pedido.tipo_credito,
-            pedido.fecha_vencimiento_credito, pedido.verificacion_bancaria,
-            now, now
+            pedido.tasa_eur_ves, pedido.tasa_eur_ves_deuda,  # v3.0: ambos
+            pedido.tasa_usd_ves_ref, pedido.botellones_cantidad, pedido.hielo_cantidad,
+            pedido.metodo_pago, pedido.estado_pago, pedido.estado_entrega,
+            pedido.tipo_credito, pedido.fecha_vencimiento_credito,
+            pedido.verificacion_bancaria, now, now
         ))
         return cursor.lastrowid
 
@@ -404,12 +575,68 @@ def confirmar_entrega(fs_pedido_id: int, operador_id: int = None):
         """, (now, operador_id, now, fs_pedido_id))
 
 
+# v3.0: Actualización atómica de monto pagado + estado
+def add_pago_and_update_pedido(
+    fs_pedido_id: int,
+    monto_eur: float,
+    monto_ves: float,
+    tasa_eur_ves_pago: float,
+    metodo_pago: str,
+    referencia: str = None,
+    comprobante_phash: str = None,
+    verificacion_metodo: str = "manual",
+    verificado_por: str = "sistema"
+) -> tuple[int, str]:
+    """
+    Transacción atómica: INSERT en fs_pagos + UPDATE fs_pedidos (monto_pagado_eur, estado_pago).
+    Retorna (pago_id, nuevo_estado_pago).
+    """
+    now = now_iso()
+    with get_db() as conn:
+        # 1. Insertar pago (incluye tasa_eur_ves legacy para compatibilidad)
+        cursor = conn.execute("""
+            INSERT INTO fs_pagos (
+                fs_pedido_id, cliente_telefono, cliente_nombre,
+                monto_eur, monto_ves, tasa_eur_ves, tasa_eur_ves_pago, metodo_pago,
+                referencia, comprobante_phash, verificacion_metodo,
+                verificado, verificado_at, verificado_por, creado_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+        """, (
+            fs_pedido_id, "", "",  # cliente_telefono/nombre se llenan desde el pedido si hace falta
+            monto_eur, monto_ves, tasa_eur_ves_pago, tasa_eur_ves_pago, metodo_pago,
+            referencia, comprobante_phash, verificacion_metodo,
+            now, verificado_por, now
+        ))
+        pago_id = cursor.lastrowid
+        
+        # 2. Actualizar pedido: sumar monto_pagado_eur + recalcular estado
+        conn.execute("""
+            UPDATE fs_pedidos
+            SET monto_pagado_eur = monto_pagado_eur + ?,
+                estado_pago = CASE
+                    WHEN monto_pagado_eur + ? >= monto_total_eur - 0.01 THEN 'pagado'
+                    WHEN monto_pagado_eur + ? > 0 THEN 'parcial'
+                    ELSE estado_pago
+                END,
+                actualizado_at = ?
+            WHERE id = ?
+        """, (monto_eur, monto_eur, monto_eur, now, fs_pedido_id))
+        
+        # 3. Obtener nuevo estado
+        row = conn.execute(
+            "SELECT estado_pago FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
+        ).fetchone()
+        nuevo_estado = row["estado_pago"] if row else "desconocido"
+        
+    return pago_id, nuevo_estado
+
+
 # ============================================================================
 # Queries — Pagos
 # ============================================================================
 
 def create_pago(pago: Pago) -> int:
-    """Registra un pago recibido."""
+    """Registra un pago recibido (legacy, usar add_pago_and_update_pedido para v3.0)."""
     now = now_iso()
     with get_db() as conn:
         cursor = conn.execute("""
@@ -533,7 +760,7 @@ def get_last_tasa(par: str = "EUR/VES") -> Optional[TasaCambio]:
 
 
 # ============================================================================
-# Queries — Verificación log (auditoría)
+# Queries — Verificación log (auditoría operativa)
 # ============================================================================
 
 def log_verificacion(fs_pedido_id: int, intento: int, metodo: str,
