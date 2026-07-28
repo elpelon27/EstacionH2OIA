@@ -57,3 +57,4 @@
 
 ## 📅 Última actualización
 2026-07-21 — Reorganización vault por Prometeo (16 archivos migrados via `git mv`).
+Cache-bust trigger: mar 28 jul 2026 17:14:11 -04

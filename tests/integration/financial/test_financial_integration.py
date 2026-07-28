@@ -2,19 +2,18 @@
 Tests de integración para Financial Shield v3.0
 Requieren BD real (sqlite) y conexiones externas mockeadas
 """
+
+from datetime import UTC, datetime
+from unittest.mock import patch
+
 import pytest
-import asyncio
-from datetime import datetime, timezone
-from unittest.mock import patch, AsyncMock, MagicMock
 
 from src.financial import database as db
-from src.financial.models import PedidoFinanciero, Pago
+from src.financial.models import PedidoFinanciero
 from src.financial.verificacion import (
-    verificar_pago_manual,
-    run_reminder_cycle,
     recovery_scan_stuck_payments,
+    verificar_pago_manual,
 )
-from src.financial.currency import get_eur_ves_rate
 
 
 class TestAtomicPaymentFlow:
@@ -24,14 +23,22 @@ class TestAtomicPaymentFlow:
     def setup_db(self):
         """Limpiar tablas de test antes y después"""
         with db.get_db() as conn:
-            conn.execute("DELETE FROM fs_pagos WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)")
+            conn.execute(
+                "DELETE FROM fs_pagos WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
+            )
             conn.execute("DELETE FROM fs_pedidos WHERE pedido_id >= 90000")
-            conn.execute("DELETE FROM fs_verificacion_log WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)")
+            conn.execute(
+                "DELETE FROM fs_verificacion_log WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
+            )
         yield
         with db.get_db() as conn:
-            conn.execute("DELETE FROM fs_pagos WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)")
+            conn.execute(
+                "DELETE FROM fs_pagos WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
+            )
             conn.execute("DELETE FROM fs_pedidos WHERE pedido_id >= 90000")
-            conn.execute("DELETE FROM fs_verificacion_log WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)")
+            conn.execute(
+                "DELETE FROM fs_verificacion_log WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
+            )
 
     @pytest.mark.asyncio
     async def test_pago_total_directo(self):
@@ -49,8 +56,8 @@ class TestAtomicPaymentFlow:
             metodo_pago="pagomovil",
             estado_pago="pendiente",
             estado_entrega="confirmado",
-            creado_at=datetime.now(timezone.utc).isoformat(),
-            actualizado_at=datetime.now(timezone.utc).isoformat(),
+            creado_at=datetime.now(UTC).isoformat(),
+            actualizado_at=datetime.now(UTC).isoformat(),
         )
         fs_pedido_id = db.create_pedido_financiero(pedido)
         assert fs_pedido_id > 0
@@ -75,7 +82,9 @@ class TestAtomicPaymentFlow:
             assert row["monto_pagado_eur"] == 10.00
             assert row["tasa_eur_ves_deuda"] == 100.0  # Congelada
 
-            pago_row = conn.execute("SELECT * FROM fs_pagos WHERE fs_pedido_id = ?", (fs_pedido_id,)).fetchone()
+            pago_row = conn.execute(
+                "SELECT * FROM fs_pagos WHERE fs_pedido_id = ?", (fs_pedido_id,)
+            ).fetchone()
             assert pago_row["monto_eur"] == 10.00
             assert pago_row["tasa_eur_ves_pago"] == 101.0  # Tasa al momento del pago
             assert pago_row["verificado"] == 1
@@ -96,8 +105,8 @@ class TestAtomicPaymentFlow:
             metodo_pago="pagomovil",
             estado_pago="pendiente",
             estado_entrega="confirmado",
-            creado_at=datetime.now(timezone.utc).isoformat(),
-            actualizado_at=datetime.now(timezone.utc).isoformat(),
+            creado_at=datetime.now(UTC).isoformat(),
+            actualizado_at=datetime.now(UTC).isoformat(),
         )
         fs_pedido_id = db.create_pedido_financiero(pedido)
 
@@ -115,7 +124,9 @@ class TestAtomicPaymentFlow:
         assert result1["nuevo_estado"] == "parcial"
 
         with db.get_db() as conn:
-            row = conn.execute("SELECT monto_pagado_eur, estado_pago FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)).fetchone()
+            row = conn.execute(
+                "SELECT monto_pagado_eur, estado_pago FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
+            ).fetchone()
             assert row["monto_pagado_eur"] == 4.00
             assert row["estado_pago"] == "parcial"
 
@@ -133,12 +144,16 @@ class TestAtomicPaymentFlow:
         assert result2["nuevo_estado"] == "pagado"
 
         with db.get_db() as conn:
-            row = conn.execute("SELECT monto_pagado_eur, estado_pago FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)).fetchone()
+            row = conn.execute(
+                "SELECT monto_pagado_eur, estado_pago FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
+            ).fetchone()
             assert row["monto_pagado_eur"] == 10.00
             assert row["estado_pago"] == "pagado"
 
             # Verificar dos pagos en fs_pagos
-            pagos = conn.execute("SELECT * FROM fs_pagos WHERE fs_pedido_id = ? ORDER BY id", (fs_pedido_id,)).fetchall()
+            pagos = conn.execute(
+                "SELECT * FROM fs_pagos WHERE fs_pedido_id = ? ORDER BY id", (fs_pedido_id,)
+            ).fetchall()
             assert len(pagos) == 2
             assert pagos[0]["monto_eur"] == 4.00
             assert pagos[0]["tasa_eur_ves_pago"] == 101.0
@@ -159,8 +174,8 @@ class TestAtomicPaymentFlow:
             metodo_pago="pagomovil",
             estado_pago="pendiente",
             estado_entrega="confirmado",
-            creado_at=datetime.now(timezone.utc).isoformat(),
-            actualizado_at=datetime.now(timezone.utc).isoformat(),
+            creado_at=datetime.now(UTC).isoformat(),
+            actualizado_at=datetime.now(UTC).isoformat(),
         )
         fs_pedido_id = db.create_pedido_financiero(pedido)
 
@@ -202,8 +217,8 @@ class TestAtomicPaymentFlow:
             metodo_pago="pagomovil",
             estado_pago="pendiente",
             estado_entrega="confirmado",
-            creado_at=datetime.now(timezone.utc).isoformat(),
-            actualizado_at=datetime.now(timezone.utc).isoformat(),
+            creado_at=datetime.now(UTC).isoformat(),
+            actualizado_at=datetime.now(UTC).isoformat(),
         )
         fs_pedido_id = db.create_pedido_financiero(pedido)
 
@@ -247,8 +262,8 @@ class TestAuditLog:
             metodo_pago="pagomovil",
             estado_pago="pendiente",
             estado_entrega="confirmado",
-            creado_at=datetime.now(timezone.utc).isoformat(),
-            actualizado_at=datetime.now(timezone.utc).isoformat(),
+            creado_at=datetime.now(UTC).isoformat(),
+            actualizado_at=datetime.now(UTC).isoformat(),
         )
         fs_pedido_id = db.create_pedido_financiero(pedido)
 
@@ -266,7 +281,7 @@ class TestAuditLog:
         with db.get_db() as conn:
             audit_rows = conn.execute(
                 "SELECT * FROM fs_audit_log WHERE tabla = 'fs_pedidos' AND registro_id = ? ORDER BY id",
-                (fs_pedido_id,)
+                (fs_pedido_id,),
             ).fetchall()
 
             # Debe haber INSERT inicial + UPDATE tras pago
@@ -280,6 +295,7 @@ class TestAuditLog:
             update_row = audit_rows[1]
             assert update_row["accion"] == "UPDATE"
             import json
+
             estado_nuevo = json.loads(update_row["estado_nuevo"])
             assert "monto_pagado_eur" in estado_nuevo
             assert estado_nuevo["estado_pago"] == "pagado"
@@ -298,8 +314,8 @@ class TestAuditLog:
             metodo_pago="pagomovil",
             estado_pago="pendiente",
             estado_entrega="confirmado",
-            creado_at=datetime.now(timezone.utc).isoformat(),
-            actualizado_at=datetime.now(timezone.utc).isoformat(),
+            creado_at=datetime.now(UTC).isoformat(),
+            actualizado_at=datetime.now(UTC).isoformat(),
         )
         fs_pedido_id = db.create_pedido_financiero(pedido)
 
@@ -317,13 +333,14 @@ class TestAuditLog:
             # Buscar específicamente el audit log para este pago
             audit_rows = conn.execute(
                 "SELECT * FROM fs_audit_log WHERE tabla = 'fs_pagos' AND registro_id = ? ORDER BY id DESC LIMIT 1",
-                (pago_id,)
+                (pago_id,),
             ).fetchall()
 
             assert len(audit_rows) >= 1
             insert_row = audit_rows[0]
             assert insert_row["accion"] == "INSERT"
             import json
+
             estado_nuevo = json.loads(insert_row["estado_nuevo"])
             assert estado_nuevo["monto_eur"] == 10.00
             assert estado_nuevo["metodo_pago"] == "pagomovil"
@@ -344,7 +361,8 @@ class TestRecoveryScan:
         async def test_recovery_scan_reanuda(self):
             """Recovery scan reanuda pedidos en 'verificando' sin recordatorio reciente"""
             # Crear pedido atascado
-            from datetime import datetime, timezone
+            from datetime import datetime
+
             pedido = PedidoFinanciero(
                 pedido_id=90020,
                 cliente_telefono="+584121112299",
@@ -359,8 +377,8 @@ class TestRecoveryScan:
                 recordatorios_enviados=1,
                 ultimo_recordatorio_at=None,  # Sin recordatorio previo → debe reanudar
                 escalo_humano=False,
-                creado_at=datetime.now(timezone.utc).isoformat(),
-                actualizado_at=datetime.now(timezone.utc).isoformat(),
+                creado_at=datetime.now(UTC).isoformat(),
+                actualizado_at=datetime.now(UTC).isoformat(),
             )
             fs_pedido_id = db.create_pedido_financiero(pedido)
 
@@ -370,7 +388,8 @@ class TestRecoveryScan:
 
             # Verificar que el pedido sería detectado por el recovery scan
             with db.get_db() as conn:
-                rows = conn.execute("""
+                rows = conn.execute(
+                    """
                     SELECT * FROM fs_pedidos
                     WHERE estado_pago IN ('verificando', 'parcial')
                     AND escalo_humano = 0
@@ -379,7 +398,9 @@ class TestRecoveryScan:
                         ultimo_recordatorio_at IS NULL
                         OR datetime(ultimo_recordatorio_at) <= datetime(?, '-' || ? || ' minutes')
                     )
-                """, (3, dt_module.datetime.now(dt_module.timezone.utc).isoformat(), 60)).fetchall()
+                """,
+                    (3, dt_module.datetime.now(dt_module.UTC).isoformat(), 60),
+                ).fetchall()
 
             assert len(rows) == 1
             assert rows[0]["id"] == fs_pedido_id

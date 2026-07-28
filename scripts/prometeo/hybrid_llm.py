@@ -4,7 +4,7 @@
  Plan Híbrido LLM — 3 capas con fallback automático
  Estación H2O · Prometeo
  ============================================================================
- 
+
 Estrategia:
 1. Nemotron 3 Ultra (primario) — mejor modelo, free credits
 2. GLM 5.2 (backup 1) — excelente en español venezolano
@@ -16,16 +16,16 @@ Comportamiento:
 - Cooldown 5 min tras fallo de cada provider
 """
 
+import logging
 import os
 import time
-import logging
-from typing import Optional
+
 from openai import OpenAI
 
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S"
+    datefmt="%Y-%m-%d %H:%M:%S",
 )
 logger = logging.getLogger("hybrid_llm")
 
@@ -40,20 +40,23 @@ PROVIDERS = [
         "name": "Nemotron",
         "api_key": "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",
         "model": "nvidia/nemotron-3-ultra-550b-a55b",
-        "display": "Nemotron 3 Ultra"
+        "display": "Nemotron 3 Ultra",
     },
     {
         "name": "GLM",
-        "api_key": os.getenv("NVIDIA_API_KEY", "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"),
+        "api_key": os.getenv(
+            "NVIDIA_API_KEY",
+            "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",
+        ),
         "model": "z-ai/glm-5.2",
-        "display": "GLM 5.2"
+        "display": "GLM 5.2",
     },
     {
         "name": "DeepSeek",
         "api_key": "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",
         "model": "deepseek-ai/deepseek-v4-pro",
-        "display": "DeepSeek V4 Pro"
-    }
+        "display": "DeepSeek V4 Pro",
+    },
 ]
 
 COOLDOWN_SECONDS = 300  # 5 min
@@ -61,7 +64,7 @@ COOLDOWN_SECONDS = 300  # 5 min
 
 class HybridLLM:
     """Cliente LLM con fallback automático de 3 capas."""
-    
+
     def __init__(self):
         self.current_provider_idx = 0  # arrancamos con Nemotron (índice 0)
         self.failures = {p["name"]: 0 for p in PROVIDERS}
@@ -69,38 +72,33 @@ class HybridLLM:
         self.clients = {}
         for p in PROVIDERS:
             if p["api_key"]:
-                self.clients[p["name"]] = OpenAI(
-                    base_url=NIM_BASE_URL,
-                    api_key=p["api_key"]
-                )
-        
+                self.clients[p["name"]] = OpenAI(base_url=NIM_BASE_URL, api_key=p["api_key"])
+
         if not self.clients:
             raise RuntimeError("No hay API keys configuradas")
-        
+
         logger.info(f"Hibrido inicializado: {len(self.clients)} providers")
         for i, p in enumerate(PROVIDERS):
             status = "✅" if p["name"] in self.clients else "❌"
             logger.info(f"  {i+1}. {status} {p['display']} ({p['model']})")
-    
-    def _try_provider(self, idx: int, messages: list, **kwargs) -> Optional[str]:
+
+    def _try_provider(self, idx: int, messages: list, **kwargs) -> str | None:
         """Intenta un provider específico. Retorna respuesta o None."""
         if idx >= len(PROVIDERS):
             return None
-        
+
         p = PROVIDERS[idx]
         client = self.clients.get(p["name"])
         if not client:
             return None
-        
+
         # Verificar cooldown
         if time.time() - self.last_failure_time[p["name"]] < COOLDOWN_SECONDS:
             return None
-        
+
         try:
             completion = client.chat.completions.create(
-                model=p["model"],
-                messages=messages,
-                **kwargs
+                model=p["model"], messages=messages, **kwargs
             )
             return completion.choices[0].message.content
         except Exception as e:
@@ -108,7 +106,7 @@ class HybridLLM:
             self.failures[p["name"]] += 1
             self.last_failure_time[p["name"]] = time.time()
             return None
-    
+
     def _ping_provider(self, idx: int) -> bool:
         """Ping rápido a un provider."""
         p = PROVIDERS[idx]
@@ -117,27 +115,25 @@ class HybridLLM:
             return False
         try:
             client.chat.completions.create(
-                model=p["model"],
-                messages=[{"role": "user", "content": "ping"}],
-                max_tokens=5
+                model=p["model"], messages=[{"role": "user", "content": "ping"}], max_tokens=5
             )
             return True
         except Exception:
             return False
-    
+
     def chat(self, prompt: str, system: str = None, **kwargs) -> str:
         """Chat con fallback automático de 3 capas."""
         messages = []
         if system:
             messages.append({"role": "system", "content": system})
         messages.append({"role": "user", "content": prompt})
-        
+
         # Intentar provider actual
         response = self._try_provider(self.current_provider_idx, messages, **kwargs)
         if response:
             logger.info(f"OK: {PROVIDERS[self.current_provider_idx]['display']}")
             return response
-        
+
         # Fallback: probar los otros 2 en orden
         logger.warning(f"Fallback: {PROVIDERS[self.current_provider_idx]['display']} fallo")
         for i in range(len(PROVIDERS)):
@@ -148,17 +144,17 @@ class HybridLLM:
                 logger.info(f"OK fallback: {PROVIDERS[i]['display']}")
                 old_idx = self.current_provider_idx
                 self.current_provider_idx = i
-                
+
                 # Post-trabajo: ping al primario original
                 if i != 0 and self._ping_provider(0):
                     logger.info(f"Primario ({PROVIDERS[0]['display']}) volvio")
                     self.current_provider_idx = 0
                     self.last_failure_time[PROVIDERS[0]["name"]] = 0
-                
+
                 return response
-        
+
         raise RuntimeError("Todos los providers fallaron")
-    
+
     def status(self) -> dict:
         """Estado actual del cliente híbrido."""
         current = PROVIDERS[self.current_provider_idx]
@@ -168,9 +164,10 @@ class HybridLLM:
             "providers_available": list(self.clients.keys()),
             "failures": dict(self.failures),
             "in_cooldown": [
-                p["name"] for p in PROVIDERS
+                p["name"]
+                for p in PROVIDERS
                 if time.time() - self.last_failure_time[p["name"]] < COOLDOWN_SECONDS
-            ]
+            ],
         }
 
 
@@ -180,6 +177,7 @@ class HybridLLM:
 
 if __name__ == "__main__":
     from pathlib import Path
+
     env_path = Path.home() / ".hermes" / ".env"
     if env_path.exists():
         for line in env_path.read_text().splitlines():
@@ -187,28 +185,28 @@ if __name__ == "__main__":
             if line and not line.startswith("#") and "=" in line:
                 key, _, val = line.partition("=")
                 os.environ.setdefault(key.strip(), val.strip())
-    
+
     print(f"\n{'='*60}")
-    print(f"TEST SISTEMA HÍBRIDO 3 CAPAS")
+    print("TEST SISTEMA HÍBRIDO 3 CAPAS")
     print(f"{'='*60}\n")
-    
+
     llm = HybridLLM()
-    print(f"\nEstado inicial:")
+    print("\nEstado inicial:")
     print(llm.status())
-    
+
     print(f"\n{'='*60}")
-    print(f"Test chat:")
+    print("Test chat:")
     print(f"{'='*60}\n")
-    
+
     response = llm.chat(
         "Confirma que recibes el mensaje. Eres Prometeo, asistente de Luis Martinez. Saluda brevemente.",
         system="Eres Prometeo, ingeniero senior. Tono venezolano, firma 💧.",
         max_tokens=200,
-        temperature=0.7
+        temperature=0.7,
     )
     print(f"\nRespuesta:\n{response}")
-    
+
     print(f"\n{'='*60}")
-    print(f"Estado final:")
+    print("Estado final:")
     print(llm.status())
     print(f"{'='*60}")

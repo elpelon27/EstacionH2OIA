@@ -8,17 +8,23 @@ Gestiona conexión SQLite, migraciones, y queries del módulo financiero.
 Todas las tablas usan prefijo fs_ para evitar colisiones con Valentina.
 """
 
+import logging
 import os
 import sqlite3
-import logging
-from datetime import datetime, timezone, timedelta
-from typing import Optional, Iterator, cast
+from collections.abc import Iterator
 from contextlib import contextmanager
+from datetime import UTC, datetime, timedelta, timezone
 
 from .models import (
-    Producto, PedidoFinanciero, Pago, CuentaCobrar,
-    Empleado, Nomina, ProveedorPago, TasaCambio,
-    ReporteDiario, VerificacionLog
+    CuentaCobrar,
+    Empleado,
+    Nomina,
+    Pago,
+    PedidoFinanciero,
+    Producto,
+    ProveedorPago,
+    ReporteDiario,
+    TasaCambio,
 )
 
 logger = logging.getLogger("financial_shield.database")
@@ -27,10 +33,7 @@ logger = logging.getLogger("financial_shield.database")
 CARACAS_TZ = timezone(timedelta(hours=-4))
 
 # Path de la BD (misma que Valentina)
-DB_PATH = os.getenv(
-    "SQLITE_PATH",
-    "/mnt/ssd_trabajo/hermes-agent/data/conversations.db"
-)
+DB_PATH = os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
 
 # ============================================================================
 # Schema SQL completo v3.0 (idempotente)
@@ -345,6 +348,7 @@ END;
 # Conexión y migraciones
 # ============================================================================
 
+
 @contextmanager
 def get_db() -> Iterator[sqlite3.Connection]:
     """Context manager para conexión SQLite (thread-safe, WAL, FK, busy_timeout)."""
@@ -377,18 +381,17 @@ def init_database_v3() -> None:
     with get_db() as conn:
         # 1. Schema base (idempotente)
         conn.executescript(SCHEMA_V3_SQL)
-        
+
         # 2. Migraciones ALTER TABLE (ignorar si columna ya existe)
         migraciones = [
             # fs_pedidos
             "ALTER TABLE fs_pedidos ADD COLUMN monto_pagado_eur REAL DEFAULT 0",
             "ALTER TABLE fs_pedidos ADD COLUMN tasa_eur_ves_deuda REAL DEFAULT 0",
-            
             # fs_pagos
             "ALTER TABLE fs_pagos ADD COLUMN comprobante_phash TEXT",
             # Nota: UNIQUE(referencia, metodo_pago) se crea en schema; si existe, ignora
         ]
-        
+
         for sql in migraciones:
             try:
                 conn.execute(sql)
@@ -398,14 +401,14 @@ def init_database_v3() -> None:
                     pass  # Ya existe, ok
                 else:
                     raise
-        
+
         # 3. Backfill: tasa_eur_ves_deuda = tasa_eur_ves donde sea 0/NULL
         conn.execute("""
             UPDATE fs_pedidos 
             SET tasa_eur_ves_deuda = tasa_eur_ves 
             WHERE tasa_eur_ves_deuda = 0 OR tasa_eur_ves_deuda IS NULL
         """)
-        
+
         # 4. Backfill: monto_pagado_eur = suma de pagos verificados por pedido
         conn.execute("""
             UPDATE fs_pedidos
@@ -415,7 +418,7 @@ def init_database_v3() -> None:
             ), 0)
             WHERE monto_pagado_eur = 0
         """)
-        
+
         # 5. Sincronizar estado_pago según monto_pagado_eur
         conn.execute("""
             UPDATE fs_pedidos
@@ -426,20 +429,23 @@ def init_database_v3() -> None:
             END
             WHERE estado_pago IN ('pendiente', 'verificando')
         """)
-        
-    logger.info("Financial Shield v3.0 DB inicializada/migrada — 10 tablas fs_* + audit_log + triggers")
+
+    logger.info(
+        "Financial Shield v3.0 DB inicializada/migrada — 10 tablas fs_* + audit_log + triggers"
+    )
 
 
 def now_iso() -> str:
     """Timestamp ISO 8601 UTC (no Caracas) para consistencia global."""
-    return datetime.now(timezone.utc).isoformat()
+    return datetime.now(UTC).isoformat()
 
 
 # ============================================================================
 # Queries — Productos
 # ============================================================================
 
-def get_producto_by_id(producto_id: int) -> Optional[Producto]:
+
+def get_producto_by_id(producto_id: int) -> Producto | None:
     with get_db() as conn:
         row = conn.execute("SELECT * FROM fs_productos WHERE id = ?", (producto_id,)).fetchone()
         if row:
@@ -447,11 +453,10 @@ def get_producto_by_id(producto_id: int) -> Optional[Producto]:
     return None
 
 
-def get_producto_by_nombre(nombre: str) -> Optional[Producto]:
+def get_producto_by_nombre(nombre: str) -> Producto | None:
     with get_db() as conn:
         row = conn.execute(
-            "SELECT * FROM fs_productos WHERE nombre LIKE ? AND activo = 1",
-            (f"%{nombre}%",)
+            "SELECT * FROM fs_productos WHERE nombre LIKE ? AND activo = 1", (f"%{nombre}%",)
         ).fetchone()
         if row:
             return Producto(**dict(row))
@@ -468,11 +473,13 @@ def get_all_productos() -> list[Producto]:
 # Queries — Pedidos financieros
 # ============================================================================
 
+
 def create_pedido_financiero(pedido: PedidoFinanciero) -> int:
     """Crea un nuevo pedido financiero. Retorna ID."""
     now = now_iso()
     with get_db() as conn:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_pedidos (
                 pedido_id, cliente_telefono, cliente_nombre, operador_id,
                 monto_total_eur, monto_total_ves, tasa_eur_ves, tasa_eur_ves_deuda,
@@ -481,23 +488,35 @@ def create_pedido_financiero(pedido: PedidoFinanciero) -> int:
                 fecha_vencimiento_credito, verificacion_bancaria,
                 creado_at, actualizado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            pedido.pedido_id, pedido.cliente_telefono, pedido.cliente_nombre,
-            pedido.operador_id, pedido.monto_total_eur, pedido.monto_total_ves,
-            pedido.tasa_eur_ves, pedido.tasa_eur_ves_deuda,  # v3.0: ambos
-            pedido.tasa_usd_ves_ref, pedido.botellones_cantidad, pedido.hielo_cantidad,
-            pedido.metodo_pago, pedido.estado_pago, pedido.estado_entrega,
-            pedido.tipo_credito, pedido.fecha_vencimiento_credito,
-            pedido.verificacion_bancaria, now, now
-        ))
+        """,
+            (
+                pedido.pedido_id,
+                pedido.cliente_telefono,
+                pedido.cliente_nombre,
+                pedido.operador_id,
+                pedido.monto_total_eur,
+                pedido.monto_total_ves,
+                pedido.tasa_eur_ves,
+                pedido.tasa_eur_ves_deuda,  # v3.0: ambos
+                pedido.tasa_usd_ves_ref,
+                pedido.botellones_cantidad,
+                pedido.hielo_cantidad,
+                pedido.metodo_pago,
+                pedido.estado_pago,
+                pedido.estado_entrega,
+                pedido.tipo_credito,
+                pedido.fecha_vencimiento_credito,
+                pedido.verificacion_bancaria,
+                now,
+                now,
+            ),
+        )
         return cursor.lastrowid
 
 
-def get_pedido_financiero_by_pedido_id(pedido_id: int) -> Optional[PedidoFinanciero]:
+def get_pedido_financiero_by_pedido_id(pedido_id: int) -> PedidoFinanciero | None:
     with get_db() as conn:
-        row = conn.execute(
-            "SELECT * FROM fs_pedidos WHERE pedido_id = ?", (pedido_id,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM fs_pedidos WHERE pedido_id = ?", (pedido_id,)).fetchone()
         if row:
             return PedidoFinanciero(**dict(row))
     return None
@@ -507,9 +526,135 @@ def get_pedidos_by_cliente(cliente_telefono: str) -> list[PedidoFinanciero]:
     with get_db() as conn:
         rows = conn.execute(
             "SELECT * FROM fs_pedidos WHERE cliente_telefono = ? ORDER BY creado_at DESC",
-            (cliente_telefono,)
+            (cliente_telefono,),
         ).fetchall()
         return [PedidoFinanciero(**dict(r)) for r in rows]
+
+
+def buscar_pedidos_por_telefono_monto(
+    telefono_emisor: str,
+    monto_str: str,
+    estados_permitidos: list[str] | None = None,
+) -> list[PedidoFinanciero]:
+    """
+    Busca fs_pedidos que coincidan con teléfono y monto aproximado.
+    
+    Args:
+        telefono_emisor: Teléfono del pagador (se normaliza internamente)
+        monto_str: Monto como string (ej: "123.45")
+        estados_permitidos: Lista de estados_pago válidos (default: pendiente,verificando,parcial,vencido)
+    
+    Returns:
+        Lista de PedidoFinanciero ordenados por fecha (más reciente primero)
+    """
+    if estados_permitidos is None:
+        estados_permitidos = ["pendiente", "verificando", "parcial", "vencido"]
+    
+    try:
+        monto_objetivo = float(monto_str)
+    except (ValueError, TypeError):
+        logger.warning("Monto inválido para búsqueda: %s", monto_str)
+        return []
+    
+    # Rango de tolerancia ±1% (mínimo 1 centavo)
+    tolerancia = max(0.01, monto_objetivo * 0.01)
+    monto_min = monto_objetivo - tolerancia
+    monto_max = monto_objetivo + tolerancia
+    
+    # Normalizar teléfono: solo dígitos, 10 dígitos finales
+    import re
+    digitos = re.sub(r"\D", "", telefono_emisor)
+    if digitos.startswith("58"):
+        digitos = digitos[2:]
+    if digitos.startswith("0"):
+        digitos = digitos[1:]
+    
+    if len(digitos) != 10:
+        logger.warning("Teléfono no normalizable a 10 dígitos: %s → %s", telefono_emisor, digitos)
+        telefono_norm = telefono_emisor  # fallback
+    else:
+        telefono_norm = digitos
+    
+    placeholders = ",".join(["?"] * len(estados_permitidos))
+    
+    with get_db() as conn:
+        query = f"""
+            SELECT * FROM fs_pedidos
+            WHERE 
+                (cliente_telefono LIKE ? OR cliente_telefono LIKE ? OR cliente_telefono LIKE ?)
+                AND monto_total_eur BETWEEN ? AND ?
+                AND estado_pago IN ({",".join(["?"] * len(estados_permitidos))})
+            ORDER BY creado_at DESC
+        """
+        
+        # Variaciones de teléfono: +58XXXXXXXXXX, 0XXXXXXXXXX, XXXXXXXXXX
+        tel_vars = [
+            f"%{telefono_norm}%",
+            f"+58{telefono_norm}%",
+            f"0{telefono_norm}%",
+        ]
+        
+        params = tel_vars + [monto_min, monto_max] + estados_permitidos
+        rows = conn.execute(query, params).fetchall()
+        return [PedidoFinanciero(**dict(r)) for r in rows]
+
+
+def seleccionar_mejor_match(
+    pedidos: list[PedidoFinanciero],
+    telefono_emisor: str,
+    monto: float,
+) -> PedidoFinanciero | None:
+    """
+    Selecciona el mejor match entre candidatos.
+    Criterios: 1) teléfono exacto, 2) monto exacto, 3) más reciente.
+    """
+    if not pedidos:
+        return None
+    
+    if len(pedidos) == 1:
+        return pedidos[0]
+    
+    import re
+    telefono_norm = re.sub(r"\D", "", telefono_emisor)
+    if telefono_norm.startswith("58"):
+        telefono_norm = telefono_norm[2:]
+    if telefono_norm.startswith("0"):
+        telefono_norm = telefono_norm[1:]
+    
+    scored = []
+    for p in pedidos:
+        score = 0
+        p_tel_norm = re.sub(r"\D", "", p.cliente_telefono or "")
+        if p_tel_norm.startswith("58"):
+            p_tel_norm = p_tel_norm[2:]
+        if p_tel_norm.startswith("0"):
+            p_tel_norm = p_tel_norm[1:]
+        
+        # Teléfono exacto (últimos 10 dígitos)
+        if p_tel_norm == telefono_norm:
+            score += 100
+        elif telefono_norm in p_tel_norm or p_tel_norm in telefono_norm:
+            score += 50
+        
+        # Monto exacto (dentro de centavos)
+        if abs(p.monto_total_eur - monto) < 0.01:
+            score += 50
+        elif abs(p.monto_total_eur - monto) < 1.0:
+            score += 20
+        
+        # Más reciente
+        score += 10
+        
+        scored.append((score, p))
+    
+    scored.sort(key=lambda x: x[0], reverse=True)
+    
+    logger.info(
+        "Match scoring: top=%s (score=%.0f) vs alternatives=%d",
+        scored[0][1].id, scored[0][0], len(scored) - 1
+    )
+    
+    return scored[0][1]
 
 
 def get_pedidos_pendientes_pago() -> list[PedidoFinanciero]:
@@ -530,41 +675,51 @@ def update_estado_pago(fs_pedido_id: int, nuevo_estado: str, verificacion_metodo
     """Actualiza estado de pago de un pedido financiero."""
     now = now_iso()
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE fs_pedidos
             SET estado_pago = ?, verificacion_bancaria = ?, actualizado_at = ?
             WHERE id = ?
-        """, (nuevo_estado, verificacion_metodo, now, fs_pedido_id))
+        """,
+            (nuevo_estado, verificacion_metodo, now, fs_pedido_id),
+        )
 
 
 def incrementar_recordatorio(fs_pedido_id: int):
     """Incrementa contador de recordatorios enviados."""
     now = now_iso()
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE fs_pedidos
             SET recordatorios_enviados = recordatorios_enviados + 1,
                 ultimo_recordatorio_at = ?, actualizado_at = ?
             WHERE id = ?
-        """, (now, now, fs_pedido_id))
+        """,
+            (now, now, fs_pedido_id),
+        )
 
 
 def marcar_escalo_humano(fs_pedido_id: int):
     """Marca pedido como escalado a humano (3 recordatorios fallidos)."""
     now = now_iso()
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE fs_pedidos
             SET escalo_humano = 1, actualizado_at = ?
             WHERE id = ?
-        """, (now, fs_pedido_id))
+        """,
+            (now, fs_pedido_id),
+        )
 
 
 def confirmar_entrega(fs_pedido_id: int, operador_id: int = None):
     """Confirma entrega de pedido (trigger para loop de verificación)."""
     now = now_iso()
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE fs_pedidos
             SET estado_entrega = 'confirmado',
                 entrega_confirmada_at = ?,
@@ -572,7 +727,9 @@ def confirmar_entrega(fs_pedido_id: int, operador_id: int = None):
                 operador_id = ?,
                 actualizado_at = ?
             WHERE id = ?
-        """, (now, operador_id, now, fs_pedido_id))
+        """,
+            (now, operador_id, now, fs_pedido_id),
+        )
 
 
 # v3.0: Actualización atómica de monto pagado + estado
@@ -585,7 +742,7 @@ def add_pago_and_update_pedido(
     referencia: str = None,
     comprobante_phash: str = None,
     verificacion_metodo: str = "manual",
-    verificado_por: str = "sistema"
+    verificado_por: str = "sistema",
 ) -> tuple[int, str]:
     """
     Transacción atómica: INSERT en fs_pagos + UPDATE fs_pedidos (monto_pagado_eur, estado_pago).
@@ -594,23 +751,37 @@ def add_pago_and_update_pedido(
     now = now_iso()
     with get_db() as conn:
         # 1. Insertar pago (incluye tasa_eur_ves legacy para compatibilidad)
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_pagos (
                 fs_pedido_id, cliente_telefono, cliente_nombre,
                 monto_eur, monto_ves, tasa_eur_ves, tasa_eur_ves_pago, metodo_pago,
                 referencia, comprobante_phash, verificacion_metodo,
                 verificado, verificado_at, verificado_por, creado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
-        """, (
-            fs_pedido_id, "", "",  # cliente_telefono/nombre se llenan desde el pedido si hace falta
-            monto_eur, monto_ves, tasa_eur_ves_pago, tasa_eur_ves_pago, metodo_pago,
-            referencia, comprobante_phash, verificacion_metodo,
-            now, verificado_por, now
-        ))
+        """,
+            (
+                fs_pedido_id,
+                "",
+                "",  # cliente_telefono/nombre se llenan desde el pedido si hace falta
+                monto_eur,
+                monto_ves,
+                tasa_eur_ves_pago,
+                tasa_eur_ves_pago,
+                metodo_pago,
+                referencia,
+                comprobante_phash,
+                verificacion_metodo,
+                now,
+                verificado_por,
+                now,
+            ),
+        )
         pago_id = cursor.lastrowid
-        
+
         # 2. Actualizar pedido: sumar monto_pagado_eur + recalcular estado
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE fs_pedidos
             SET monto_pagado_eur = monto_pagado_eur + ?,
                 estado_pago = CASE
@@ -620,14 +791,16 @@ def add_pago_and_update_pedido(
                 END,
                 actualizado_at = ?
             WHERE id = ?
-        """, (monto_eur, monto_eur, monto_eur, now, fs_pedido_id))
-        
+        """,
+            (monto_eur, monto_eur, monto_eur, now, fs_pedido_id),
+        )
+
         # 3. Obtener nuevo estado
         row = conn.execute(
             "SELECT estado_pago FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
         ).fetchone()
         nuevo_estado = row["estado_pago"] if row else "desconocido"
-        
+
     return pago_id, nuevo_estado
 
 
@@ -635,24 +808,38 @@ def add_pago_and_update_pedido(
 # Queries — Pagos
 # ============================================================================
 
+
 def create_pago(pago: Pago) -> int:
     """Registra un pago recibido (legacy, usar add_pago_and_update_pedido para v3.0)."""
     now = now_iso()
     with get_db() as conn:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_pagos (
                 fs_pedido_id, cuenta_cobrar_id, cliente_telefono, cliente_nombre,
                 monto_eur, monto_ves, metodo_pago, referencia, tasa_eur_ves,
                 verificacion_metodo, verificado, verificado_at, verificado_por,
                 comprobante_url, creado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            pago.fs_pedido_id, pago.cuenta_cobrar_id, pago.cliente_telefono,
-            pago.cliente_nombre, pago.monto_eur, pago.monto_ves, pago.metodo_pago,
-            pago.referencia, pago.tasa_eur_ves, pago.verificacion_metodo,
-            pago.verificado, pago.verificado_at, pago.verificado_por,
-            pago.comprobante_url, now
-        ))
+        """,
+            (
+                pago.fs_pedido_id,
+                pago.cuenta_cobrar_id,
+                pago.cliente_telefono,
+                pago.cliente_nombre,
+                pago.monto_eur,
+                pago.monto_ves,
+                pago.metodo_pago,
+                pago.referencia,
+                pago.tasa_eur_ves,
+                pago.verificacion_metodo,
+                pago.verificado,
+                pago.verificado_at,
+                pago.verificado_por,
+                pago.comprobante_url,
+                now,
+            ),
+        )
         return cursor.lastrowid
 
 
@@ -660,29 +847,30 @@ def verificar_pago_manual(pago_id: int, verificado_por: str = "manual"):
     """Marca un pago como verificado manualmente."""
     now = now_iso()
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE fs_pagos
             SET verificado = 1, verificado_at = ?, verificado_por = ?,
                 verificacion_metodo = 'manual'
             WHERE id = ?
-        """, (now, verificado_por, pago_id))
+        """,
+            (now, verificado_por, pago_id),
+        )
 
 
 def get_pagos_by_cliente(cliente_telefono: str) -> list[Pago]:
     with get_db() as conn:
         rows = conn.execute(
             "SELECT * FROM fs_pagos WHERE cliente_telefono = ? ORDER BY creado_at DESC",
-            (cliente_telefono,)
+            (cliente_telefono,),
         ).fetchall()
         return [Pago(**dict(r)) for r in rows]
 
 
-def get_pago_by_referencia(referencia: str) -> Optional[Pago]:
+def get_pago_by_referencia(referencia: str) -> Pago | None:
     """Busca pago por referencia (anti-fraude)."""
     with get_db() as conn:
-        row = conn.execute(
-            "SELECT * FROM fs_pagos WHERE referencia = ?", (referencia,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM fs_pagos WHERE referencia = ?", (referencia,)).fetchone()
         if row:
             return Pago(**dict(row))
     return None
@@ -692,20 +880,31 @@ def get_pago_by_referencia(referencia: str) -> Optional[Pago]:
 # Queries — Cuentas por cobrar
 # ============================================================================
 
+
 def create_cuenta_cobrar(cuenta: CuentaCobrar) -> int:
     now = now_iso()
     with get_db() as conn:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_cuentas_cobrar (
                 cliente_telefono, cliente_nombre, fs_pedido_id,
                 monto_original_eur, monto_pagado_eur, tipo_credito,
                 fecha_vencimiento, estado, creado_at, actualizado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            cuenta.cliente_telefono, cuenta.cliente_nombre, cuenta.fs_pedido_id,
-            cuenta.monto_original_eur, cuenta.monto_pagado_eur, cuenta.tipo_credito,
-            cuenta.fecha_vencimiento, cuenta.estado, now, now
-        ))
+        """,
+            (
+                cuenta.cliente_telefono,
+                cuenta.cliente_nombre,
+                cuenta.fs_pedido_id,
+                cuenta.monto_original_eur,
+                cuenta.monto_pagado_eur,
+                cuenta.tipo_credito,
+                cuenta.fecha_vencimiento,
+                cuenta.estado,
+                now,
+                now,
+            ),
+        )
         return cursor.lastrowid
 
 
@@ -724,12 +923,15 @@ def get_cuentas_vencidas() -> list[CuentaCobrar]:
     """Cuentas vencidas (fecha < hoy)."""
     today = datetime.now(CARACAS_TZ).strftime("%Y-%m-%d")
     with get_db() as conn:
-        rows = conn.execute("""
+        rows = conn.execute(
+            """
             SELECT * FROM fs_cuentas_cobrar
             WHERE estado IN ('pendiente', 'parcial')
             AND fecha_vencimiento < ?
             ORDER BY fecha_vencimiento ASC
-        """, (today,)).fetchall()
+        """,
+            (today,),
+        ).fetchall()
         return [CuentaCobrar(**dict(r)) for r in rows]
 
 
@@ -737,22 +939,26 @@ def get_cuentas_vencidas() -> list[CuentaCobrar]:
 # Queries — Tasas de cambio
 # ============================================================================
 
+
 def save_tasa(par: str, tasa: float, fuente: str, notas: str = None):
     """Guarda tasa de cambio (inmutable, siempre INSERT)."""
     now = now_iso()
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO fs_tasas_cambio (par, tasa, fuente, notas, registrado_at)
             VALUES (?, ?, ?, ?, ?)
-        """, (par, tasa, fuente, notas, now))
+        """,
+            (par, tasa, fuente, notas, now),
+        )
 
 
-def get_last_tasa(par: str = "EUR/VES") -> Optional[TasaCambio]:
+def get_last_tasa(par: str = "EUR/VES") -> TasaCambio | None:
     """Obtiene la última tasa registrada para un par."""
     with get_db() as conn:
         row = conn.execute(
             "SELECT * FROM fs_tasas_cambio WHERE par = ? ORDER BY registrado_at DESC LIMIT 1",
-            (par,)
+            (par,),
         ).fetchone()
         if row:
             return TasaCambio(**dict(row))
@@ -763,35 +969,55 @@ def get_last_tasa(par: str = "EUR/VES") -> Optional[TasaCambio]:
 # Queries — Verificación log (auditoría operativa)
 # ============================================================================
 
-def log_verificacion(fs_pedido_id: int, intento: int, metodo: str,
-                     pago_encontrado: bool, accion: str, detalle: str = ""):
+
+def log_verificacion(
+    fs_pedido_id: int,
+    intento: int,
+    metodo: str,
+    pago_encontrado: bool,
+    accion: str,
+    detalle: str = "",
+):
     """Registra un intento de verificación en el log de auditoría."""
     now = now_iso()
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO fs_verificacion_log (
                 fs_pedido_id, intento, metodo_verificacion,
                 pago_encontrado, accion, resultado_detalle, timestamp
             ) VALUES (?, ?, ?, ?, ?, ?, ?)
-        """, (fs_pedido_id, intento, metodo, pago_encontrado, accion, detalle, now))
+        """,
+            (fs_pedido_id, intento, metodo, pago_encontrado, accion, detalle, now),
+        )
 
 
 # ============================================================================
 # Queries — Empleados y Nómina
 # ============================================================================
 
+
 def create_empleado(emp: Empleado) -> int:
     now = now_iso()
     with get_db() as conn:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_empleados (
                 nombre, rol, telefono, sueldo_fijo_eur,
                 comision_botellon_eur, telegram_id, activo, creado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            emp.nombre, emp.rol, emp.telefono, emp.sueldo_fijo_eur,
-            emp.comision_botellon_eur, emp.telegram_id, emp.activo, now
-        ))
+        """,
+            (
+                emp.nombre,
+                emp.rol,
+                emp.telefono,
+                emp.sueldo_fijo_eur,
+                emp.comision_botellon_eur,
+                emp.telegram_id,
+                emp.activo,
+                now,
+            ),
+        )
         return cursor.lastrowid
 
 
@@ -804,17 +1030,29 @@ def get_all_empleados() -> list[Empleado]:
 def create_nomina(nom: Nomina) -> int:
     now = now_iso()
     with get_db() as conn:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_nomina (
                 empleado_id, empleado_nombre, fecha_inicio, fecha_fin,
                 botellones_repartidos, sueldo_fijo_eur, comision_total_eur,
                 total_eur, total_ves, tasa_eur_ves, estado, creado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            nom.empleado_id, nom.empleado_nombre, nom.fecha_inicio, nom.fecha_fin,
-            nom.botellones_repartidos, nom.sueldo_fijo_eur, nom.comision_total_eur,
-            nom.total_eur, nom.total_ves, nom.tasa_eur_ves, nom.estado, now
-        ))
+        """,
+            (
+                nom.empleado_id,
+                nom.empleado_nombre,
+                nom.fecha_inicio,
+                nom.fecha_fin,
+                nom.botellones_repartidos,
+                nom.sueldo_fijo_eur,
+                nom.comision_total_eur,
+                nom.total_eur,
+                nom.total_ves,
+                nom.tasa_eur_ves,
+                nom.estado,
+                now,
+            ),
+        )
         return cursor.lastrowid
 
 
@@ -822,20 +1060,32 @@ def create_nomina(nom: Nomina) -> int:
 # Queries — Proveedores
 # ============================================================================
 
+
 def create_proveedor_pago(pago: ProveedorPago) -> int:
     now = now_iso()
     with get_db() as conn:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_proveedor_pagos (
                 proveedor_id, proveedor_nombre, concepto,
                 monto_eur, monto_ves, metodo_pago, referencia,
                 tasa_eur_ves, comprobante_url, creado_at, creado_por
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            pago.proveedor_id, pago.proveedor_nombre, pago.concepto,
-            pago.monto_eur, pago.monto_ves, pago.metodo_pago, pago.referencia,
-            pago.tasa_eur_ves, pago.comprobante_url, now, pago.creado_por
-        ))
+        """,
+            (
+                pago.proveedor_id,
+                pago.proveedor_nombre,
+                pago.concepto,
+                pago.monto_eur,
+                pago.monto_ves,
+                pago.metodo_pago,
+                pago.referencia,
+                pago.tasa_eur_ves,
+                pago.comprobante_url,
+                now,
+                pago.creado_por,
+            ),
+        )
         return cursor.lastrowid
 
 
@@ -843,30 +1093,46 @@ def create_proveedor_pago(pago: ProveedorPago) -> int:
 # Queries — Reportes diarios
 # ============================================================================
 
+
 def save_reporte_diario(reporte: ReporteDiario) -> int:
     now = now_iso()
     with get_db() as conn:
-        cursor = conn.execute("""
+        cursor = conn.execute(
+            """
             INSERT INTO fs_reportes_diarios (
                 fecha, ventas_total_eur, cobros_total_eur, por_cobrar_eur,
                 ventas_total_ves, cobros_total_ves, por_cobrar_ves,
                 num_pedidos, num_pagados, num_pendientes, num_morosos,
                 nomina_eur, generado_at, enviado_telegram
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            reporte.fecha, reporte.ventas_total_eur, reporte.cobros_total_eur,
-            reporte.por_cobrar_eur, reporte.ventas_total_ves, reporte.cobros_total_ves,
-            reporte.por_cobrar_ves, reporte.num_pedidos, reporte.num_pagados,
-            reporte.num_pendientes, reporte.num_morosos, reporte.nomina_eur,
-            now, reporte.enviado_telegram
-        ))
+        """,
+            (
+                reporte.fecha,
+                reporte.ventas_total_eur,
+                reporte.cobros_total_eur,
+                reporte.por_cobrar_eur,
+                reporte.ventas_total_ves,
+                reporte.cobros_total_ves,
+                reporte.por_cobrar_ves,
+                reporte.num_pedidos,
+                reporte.num_pagados,
+                reporte.num_pendientes,
+                reporte.num_morosos,
+                reporte.nomina_eur,
+                now,
+                reporte.enviado_telegram,
+            ),
+        )
         return cursor.lastrowid
 
 
 def mark_reporte_enviado(reporte_id: int, telegram_msg_id: str):
     with get_db() as conn:
-        conn.execute("""
+        conn.execute(
+            """
             UPDATE fs_reportes_diarios
             SET enviado_telegram = 1, telegram_msg_id = ?
             WHERE id = ?
-        """, (telegram_msg_id, reporte_id))
+        """,
+            (telegram_msg_id, reporte_id),
+        )

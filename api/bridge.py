@@ -1355,8 +1355,7 @@ def _handle_deterministic(
             _set_state(ph_hash, {"state": "menu_sent"})
             return {
                 "answer": (
-                    "¡Buen día! 👋 Soy Valentina de Estación H2O. "
-                    "¿En qué puedo servirle hoy?"
+                    "¡Buen día! 👋 Soy Valentina de Estación H2O. " "¿En qué puedo servirle hoy?"
                 ),
                 "interactive": {
                     "type": "list",
@@ -2292,6 +2291,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     # v3.0: Recovery scan de pagos atascados (Financial Shield)
     try:
         from src.financial.verificacion import recovery_scan_stuck_payments
+
         recovered = await recovery_scan_stuck_payments()
         if recovered:
             logger.warning("Financial Shield recovery: %d pedidos reanudados", recovered)
