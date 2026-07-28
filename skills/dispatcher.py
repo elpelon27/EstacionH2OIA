@@ -258,14 +258,18 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 async def callback_registro(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Maneja registro de chofer."""
     query = update.callback_query
+    assert query is not None
     await query.answer()
 
     data = query.data
+    assert data is not None
     if not data.startswith("reg_"):
         return
 
     vehicle_id = int(data.replace("reg_", ""))
-    chat_id = query.message.chat_id
+    message = query.message
+    assert message is not None
+    chat_id = message.chat_id  # type: ignore[attr-defined]
 
     conn = get_dispatch_db()
     vehicle = conn.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
@@ -291,17 +295,20 @@ async def callback_registro(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> N
 
 async def cmd_ruta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Muestra la ruta completa del día."""
-    chat_id = update.effective_chat.id
+    chat = update.effective_chat
+    message = update.message
+    assert chat is not None and message is not None
+    chat_id = chat.id
     chofer = get_chofer_by_chat_id(chat_id)
 
     if not chofer:
-        await update.message.reply_text("❌ No estás registrado. Envía /start")
+        await message.reply_text("❌ No estás registrado. Envía /start")
         return
 
     deliveries = get_pending_deliveries_for_chofer(chofer["id"])
 
     if not deliveries:
-        await update.message.reply_text("📭 No tienes entregas pendientes hoy.")
+        await message.reply_text("📭 No tienes entregas pendientes hoy.")
         return
 
     msg = f"📋 RUTA DE HOY — {chofer['operator_name']}\n"
@@ -319,23 +326,26 @@ async def cmd_ruta(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     msg += f"━━━━━━━━━━━━━━━━\n"
     msg += f"💧 Estación H2O"
 
-    await update.message.reply_text(msg)
+    await message.reply_text(msg)
 
 
 async def cmd_siguiente(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Muestra la próxima parada con botones de acción."""
-    chat_id = update.effective_chat.id
+    chat = update.effective_chat
+    message = update.message
+    assert chat is not None and message is not None
+    chat_id = chat.id
     chofer = get_chofer_by_chat_id(chat_id)
 
     if not chofer:
-        await update.message.reply_text("❌ No estás registrado. Envía /start")
+        await message.reply_text("❌ No estás registrado. Envía /start")
         return
 
     deliveries = get_pending_deliveries_for_chofer(chofer["id"])
     pending = [d for d in deliveries if d["status"] == "pending"]
 
     if not pending:
-        await update.message.reply_text("✅ No tienes entregas pendientes. ¡Día completado!")
+        await message.reply_text("✅ No tienes entregas pendientes. ¡Día completado!")
         return
 
     d = pending[0]  # Primera pendiente
@@ -349,24 +359,31 @@ async def cmd_siguiente(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         msg += f"📍 {format_gps_url(d['lat'], d['lng'])}\n"
     msg += f"━━━━━━━━━━━━━━━━"
 
-    keyboard = [[
-        InlineKeyboardButton("📍 Llegué", callback_data=f"arr_{d['id']}"),
-        InlineKeyboardButton("✅ Entregado", callback_data=f"del_{d['id']}"),
-    ], [
-        InlineKeyboardButton("❌ No responde", callback_data=f"no_{d['id']}"),
-    ]]
+    keyboard = [
+        [
+            InlineKeyboardButton("📍 Llegué", callback_data=f"arr_{d['id']}"),
+            InlineKeyboardButton("✅ Entregado", callback_data=f"del_{d['id']}"),
+        ],
+        [
+            InlineKeyboardButton("❌ No responde", callback_data=f"no_{d['id']}"),
+        ]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
-    await update.message.reply_text(msg, reply_markup=reply_markup)
+    await message.reply_text(msg, reply_markup=reply_markup)
 
 
 async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Maneja botones de acción del chofer."""
     query = update.callback_query
+    assert query is not None
     await query.answer()
 
     data = query.data
-    chat_id = query.message.chat_id
+    assert data is not None
+    message = query.message
+    assert message is not None
+    chat_id = message.chat_id  # type: ignore[attr-defined]
     chofer = get_chofer_by_chat_id(chat_id)
 
     if not chofer:
@@ -374,6 +391,8 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     if data.startswith("arr_"):
+
+
         delivery_id = int(data.replace("arr_", ""))
         update_delivery_status(delivery_id, "arrived")
 
@@ -404,12 +423,15 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             if next_d["lat"] and next_d["lng"]:
                 msg += f"📍 {format_gps_url(next_d['lat'], next_d['lng'])}\n"
 
-            keyboard = [[
-                InlineKeyboardButton("📍 Llegué", callback_data=f"arr_{next_d['id']}"),
-                InlineKeyboardButton("✅ Entregado", callback_data=f"del_{next_d['id']}"),
-            ], [
-                InlineKeyboardButton("❌ No responde", callback_data=f"no_{next_d['id']}"),
-            ]]
+            keyboard = [
+                [
+                    InlineKeyboardButton("📍 Llegué", callback_data=f"arr_{next_d['id']}"),
+                    InlineKeyboardButton("✅ Entregado", callback_data=f"del_{next_d['id']}"),
+                ],
+                [
+                    InlineKeyboardButton("❌ No responde", callback_data=f"no_{next_d['id']}"),
+                ]
+            ]
             await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
         else:
             await query.edit_message_text(
@@ -493,13 +515,17 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Recibe ubicación GPS del chofer vía Telegram."""
-    chat_id = update.effective_chat.id
+    chat = update.effective_chat
+    message = update.message
+    assert chat is not None and message is not None
+    chat_id = chat.id
     chofer = get_chofer_by_chat_id(chat_id)
 
     if not chofer:
         return
 
-    location = update.message.location
+    location = message.location
+    assert location is not None
     lat = location.latitude
     lng = location.longitude
 
@@ -516,13 +542,13 @@ async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     in_perimeter = check_geofence(chofer["id"], lat, lng)
 
     if in_perimeter:
-        await update.message.reply_text(
+        await message.reply_text(
             f"📍 Ubicación registrada.\n"
             f"✅ Dentro del perímetro de operación.\n\n"
             f"Entrega en proceso. Toca ✅ Entregado cuando completes."
         )
     else:
-        await update.message.reply_text(
+        await message.reply_text(
             f"📍 Ubicación registrada.\n"
             f"⚠️ Estás fuera del perímetro de operación (13km).\n"
             f"Verifica que la ubicación sea correcta."
@@ -531,11 +557,14 @@ async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
 
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Estado del chofer."""
-    chat_id = update.effective_chat.id
+    chat = update.effective_chat
+    message = update.message
+    assert chat is not None and message is not None
+    chat_id = chat.id
     chofer = get_chofer_by_chat_id(chat_id)
 
     if not chofer:
-        await update.message.reply_text("❌ No estás registrado. Envía /start")
+        await message.reply_text("❌ No estás registrado. Envía /start")
         return
 
     deliveries = get_pending_deliveries_for_chofer(chofer["id"])
@@ -543,7 +572,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     delivered = len([d for d in deliveries if d["status"] == "delivered"])
     pending = total - delivered
 
-    await update.message.reply_text(
+    await message.reply_text(
         f"📊 ESTADO — {chofer['operator_name']}\n"
         f"━━━━━━━━━━━━━━━━\n"
         f"🚚 {chofer['name']}\n"
@@ -556,7 +585,9 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text(
+    message = update.message
+    assert message is not None
+    await message.reply_text(
         "🚚 Sistema de Despacho — Estación H2O\n"
         "━━━━━━━━━━━━━━━━\n"
         "Comandos:\n"
@@ -627,12 +658,15 @@ async def send_delivery_to_chofer(
             msg += f"📍 {gps_url}\n"
         msg += f"━━━━━━━━━━━━━━━━"
 
-    keyboard = [[
-        InlineKeyboardButton("📍 Llegué", callback_data=f"new_arr_{vehicle_id}"),
-        InlineKeyboardButton("✅ Entregado", callback_data=f"new_del_{vehicle_id}"),
-    ], [
-        InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
-    ]]
+    keyboard = [
+        [
+            InlineKeyboardButton("📍 Llegué", callback_data=f"new_arr_{vehicle_id}"),
+            InlineKeyboardButton("✅ Entregado", callback_data=f"new_del_{vehicle_id}"),
+        ],
+        [
+            InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
+        ]
+    ]
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     try:
@@ -657,10 +691,12 @@ async def enviar_checkin_manana(app: "Application[Any, Any, Any, Any, Any, Any]"
     choferes = get_all_choferes()
 
     for chofer in choferes:
-        keyboard = [[
-            InlineKeyboardButton("✅ Sí, llegué", callback_data=f"checkin_yes_{chofer['id']}"),
-            InlineKeyboardButton("❌ No puedo hoy", callback_data=f"checkin_no_{chofer['id']}"),
-        ]]
+        keyboard = [
+            [
+                InlineKeyboardButton("✅ Sí, llegué", callback_data=f"checkin_yes_{chofer['id']}"),
+                InlineKeyboardButton("❌ No puedo hoy", callback_data=f"checkin_no_{chofer['id']}"),
+            ]
+        ]
         try:
             await app.bot.send_message(
                 chat_id=chofer["telegram_chat_id"],
@@ -674,9 +710,11 @@ async def enviar_checkin_manana(app: "Application[Any, Any, Any, Any, Any, Any]"
 
 async def callback_checkin(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     query = update.callback_query
+    assert query is not None
     await query.answer()
 
     data = query.data
+    assert data is not None
     if data.startswith("checkin_yes_"):
         vehicle_id = int(data.replace("checkin_yes_", ""))
         conn = get_dispatch_db()
