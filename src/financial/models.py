@@ -1,11 +1,11 @@
 """
- ============================================================================
- Financial Shield — Modelos de datos (dataclasses)
- Estación H2O · Maracaibo, Venezuela
- ============================================================================
+============================================================================
+Financial Shield — Modelos de datos v3.0 (dataclasses)
+Estación H2O · Maracaibo, Venezuela
+============================================================================
 
 Clases tipadas para todas las entidades financieras.
- """
+"""
 
 from dataclasses import dataclass, field
 from typing import Optional
@@ -61,6 +61,9 @@ class PedidoFinanciero:
     entrega_confirmada_at: Optional[str] = None
     creado_at: str = ""
     actualizado_at: str = ""
+    # v3.0 campos nuevos
+    monto_pagado_eur: float = 0.0
+    tasa_eur_ves_deuda: float = 0.0
 
 
 @dataclass
@@ -82,6 +85,9 @@ class Pago:
     verificado_por: Optional[str] = None  # 'api_bancaria'|'ocr'|'manual'|'sistema'
     comprobante_url: Optional[str] = None
     creado_at: str = ""
+    # v3.0 campos nuevos
+    tasa_eur_ves_pago: float = 0.0  # Tasa al segundo del pago (renombra tasa_eur_ves)
+    comprobante_phash: Optional[str] = None  # Perceptual hash anti-fraude
 
 
 @dataclass
@@ -160,7 +166,7 @@ class TasaCambio:
     id: Optional[int] = None
     par: str = ""  # EUR/VES | USD/VES
     tasa: float = 0.0
-    fuente: str = ""  # bcv|api_eur_ves|calculada|manual
+    fuente: str = ""  # bcv|api_eur_ves|calculada|manual|open_er_api|frankfurter
     notas: Optional[str] = None
     registrado_at: str = ""
 

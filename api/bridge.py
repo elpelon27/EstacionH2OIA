@@ -2289,6 +2289,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         os.remove(KILL_SWITCH_FILE)
         logger.info("Kill switch limpiado al arranque")
 
+    # v3.0: Recovery scan de pagos atascados (Financial Shield)
+    try:
+        from src.financial.verificacion import recovery_scan_stuck_payments
+        recovered = await recovery_scan_stuck_payments()
+        if recovered:
+            logger.warning("Financial Shield recovery: %d pedidos reanudados", recovered)
+    except Exception as e:
+        logger.warning("Financial Shield recovery scan falló: %s", e)
+
     logger.info("Valentina Bridge iniciado en puerto %d", BRIDGE_PORT)
     logger.info("Dify API: %s", DIFY_API_URL)
     logger.info("Meta API version: %s", META_API_VERSION)
