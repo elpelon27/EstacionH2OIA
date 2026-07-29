@@ -84,6 +84,45 @@ class Settings(BaseSettings):
     working_hours_start: str = "08:30"
     working_hours_end: str = "17:00"
 
+    # === Dispatcher / Swap ===
+    dispatch_bot_token: str = ""
+    dispatch_db_path: str = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
+    dispatch_operation_center_lat: float = 10.6447
+    dispatch_operation_center_lon: float = -71.6101
+    dispatch_operation_radius_km: float = 13.0
+
+    # Ruteo
+    dispatch_max_full_bottles: int = 30
+    dispatch_max_empty_bottles: int = 70
+    dispatch_avg_speed_kmh: float = 20.0
+    dispatch_time_per_delivery_min: int = 8
+    dispatch_max_insertion_deviation_min: int = 10
+    dispatch_max_insertion_distance_km: float = 2.0
+
+    # Swap
+    dispatch_bottle_return_hours_residential: int = 36
+    dispatch_bottle_return_hours_enterprise: int = 24
+    dispatch_total_loaner_bottles: int = 165
+    dispatch_bottle_code_prefix: str = "H2O-"
+
+    # GPS / Tasker
+    dispatch_gps_interval_seconds: int = 300
+    dispatch_geofence_alert_cooldown_seconds: int = 300
+    dispatch_tasker_battery_threshold: int = 20
+
+    # Ruteo
+    dispatch_route_compute_minutes_before_shift: int = 15
+    dispatch_max_insertion_deviation_min: int = 10
+    dispatch_max_insertion_distance_km: float = 2.0
+
+    # OSRM (Fase 2)
+    dispatch_osrm_enabled: bool = False
+    dispatch_osrm_url: str = "http://localhost:5000"
+
+    # Fleetbase (Fase 3 eval)
+    dispatch_fleetbase_enabled: bool = False
+    dispatch_fleetbase_url: str = ""
+
     # === Fusion ===
     fusion_min_score: float = 7.0
     fusion_timeout_sec: int = 30
