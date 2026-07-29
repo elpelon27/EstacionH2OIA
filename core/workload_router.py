@@ -27,6 +27,7 @@ class Route(str, Enum):
     PAYMENT_SKILL = "skill:payment"
     INVENTORY_SKILL = "skill:inventory"
     SELF_IMPROVE_SKILL = "skill:self_improve"
+    DISPATCH_SKILL = "skill:dispatcher"
 
 
 # Mapeo de triggers → ruta (tabla determinista)
@@ -35,7 +36,11 @@ ROUTE_TABLE: dict[str, Route] = {
     "whatsapp_message": Route.QWEN_LOCAL,
     "payment_received": Route.PAYMENT_SKILL,
     "inventory_check": Route.INVENTORY_SKILL,
-    "dispatch_request": Route.QWEN_LOCAL,  # Dispatcher futuro
+    "dispatch_request": Route.DISPATCH_SKILL,
+    "dispatch_route_compute": Route.DISPATCH_SKILL,
+    "dispatch_delivery_update": Route.DISPATCH_SKILL,
+    "dispatch_gps_track": Route.DISPATCH_SKILL,
+    "dispatch_bottle_inventory": Route.DISPATCH_SKILL,
     
     # Auto-mejora (6:00pm - 7:40am)
     "self_improve_request": Route.SELF_IMPROVE_SKILL,
@@ -111,6 +116,11 @@ class WorkloadRouter:
             from skills.self_improve_skill import SelfImproveSkill
             self_improve_skill = SelfImproveSkill()
             return await self_improve_skill.execute(**kwargs)
+
+        if route == Route.DISPATCH_SKILL:
+            from skills.dispatcher_skill import get_dispatcher_skill
+            dispatcher_skill = get_dispatcher_skill()
+            return await dispatcher_skill.execute(**kwargs)
 
         # === LLM ROUTING ===
         if route == Route.QWEN_LOCAL:
