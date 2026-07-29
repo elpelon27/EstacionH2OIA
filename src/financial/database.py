@@ -511,6 +511,8 @@ def create_pedido_financiero(pedido: PedidoFinanciero) -> int:
                 now,
             ),
         )
+        assert cursor.lastrowid is not None
+        assert cursor.lastrowid is not None
         return cursor.lastrowid
 
 
@@ -675,7 +677,7 @@ def get_pedidos_pendientes_pago() -> list[PedidoFinanciero]:
         return [PedidoFinanciero(**dict(r)) for r in rows]
 
 
-def update_estado_pago(fs_pedido_id: int, nuevo_estado: str, verificacion_metodo: str = None):
+def update_estado_pago(fs_pedido_id: int, nuevo_estado: str, verificacion_metodo: str | None = None) -> None:
     """Actualiza estado de pago de un pedido financiero."""
     now = now_iso()
     with get_db() as conn:
@@ -689,7 +691,7 @@ def update_estado_pago(fs_pedido_id: int, nuevo_estado: str, verificacion_metodo
         )
 
 
-def incrementar_recordatorio(fs_pedido_id: int):
+def incrementar_recordatorio(fs_pedido_id: int) -> None:
     """Incrementa contador de recordatorios enviados."""
     now = now_iso()
     with get_db() as conn:
@@ -704,7 +706,7 @@ def incrementar_recordatorio(fs_pedido_id: int):
         )
 
 
-def marcar_escalo_humano(fs_pedido_id: int):
+def marcar_escalo_humano(fs_pedido_id: int) -> None:
     """Marca pedido como escalado a humano (3 recordatorios fallidos)."""
     now = now_iso()
     with get_db() as conn:
@@ -718,7 +720,7 @@ def marcar_escalo_humano(fs_pedido_id: int):
         )
 
 
-def confirmar_entrega(fs_pedido_id: int, operador_id: int = None):
+def confirmar_entrega(fs_pedido_id: int, operador_id: int | None = None) -> None:
     """Confirma entrega de pedido (trigger para loop de verificación)."""
     now = now_iso()
     with get_db() as conn:
@@ -743,8 +745,8 @@ def add_pago_and_update_pedido(
     monto_ves: float,
     tasa_eur_ves_pago: float,
     metodo_pago: str,
-    referencia: str = None,
-    comprobante_phash: str = None,
+    referencia: str | None = None,
+    comprobante_phash: str | None = None,
     verificacion_metodo: str = "manual",
     verificado_por: str = "sistema",
 ) -> tuple[int, str]:
@@ -763,7 +765,7 @@ def add_pago_and_update_pedido(
                 referencia, comprobante_phash, verificacion_metodo,
                 verificado, verificado_at, verificado_por, creado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
-        """,
+            """,
             (
                 fs_pedido_id,
                 "",
@@ -805,7 +807,9 @@ def add_pago_and_update_pedido(
         ).fetchone()
         nuevo_estado = row["estado_pago"] if row else "desconocido"
 
-    return pago_id, nuevo_estado
+    # cursor.lastrowid is guaranteed to be int after successful INSERT
+    assert cursor.lastrowid is not None
+    return cursor.lastrowid, nuevo_estado
 
 
 # ============================================================================
@@ -844,10 +848,12 @@ def create_pago(pago: Pago) -> int:
                 now,
             ),
         )
+        assert cursor.lastrowid is not None
+        assert cursor.lastrowid is not None
         return cursor.lastrowid
 
 
-def verificar_pago_manual(pago_id: int, verificado_por: str = "manual"):
+def verificar_pago_manual(pago_id: int, verificado_por: str = "manual") -> None:
     """Marca un pago como verificado manualmente."""
     now = now_iso()
     with get_db() as conn:
@@ -909,6 +915,8 @@ def create_cuenta_cobrar(cuenta: CuentaCobrar) -> int:
                 now,
             ),
         )
+        assert cursor.lastrowid is not None
+        assert cursor.lastrowid is not None
         return cursor.lastrowid
 
 
@@ -944,7 +952,7 @@ def get_cuentas_vencidas() -> list[CuentaCobrar]:
 # ============================================================================
 
 
-def save_tasa(par: str, tasa: float, fuente: str, notas: str = None):
+def save_tasa(par: str, tasa: float, fuente: str, notas: str | None = None) -> None:
     """Guarda tasa de cambio (inmutable, siempre INSERT)."""
     now = now_iso()
     with get_db() as conn:
@@ -981,7 +989,7 @@ def log_verificacion(
     pago_encontrado: bool,
     accion: str,
     detalle: str = "",
-):
+) -> None:
     """Registra un intento de verificación en el log de auditoría."""
     now = now_iso()
     with get_db() as conn:
@@ -1022,6 +1030,7 @@ def create_empleado(emp: Empleado) -> int:
                 now,
             ),
         )
+        assert cursor.lastrowid is not None
         return cursor.lastrowid
 
 
@@ -1057,6 +1066,7 @@ def create_nomina(nom: Nomina) -> int:
                 now,
             ),
         )
+        assert cursor.lastrowid is not None
         return cursor.lastrowid
 
 
@@ -1090,6 +1100,7 @@ def create_proveedor_pago(pago: ProveedorPago) -> int:
                 pago.creado_por,
             ),
         )
+        assert cursor.lastrowid is not None
         return cursor.lastrowid
 
 
@@ -1127,10 +1138,11 @@ def save_reporte_diario(reporte: ReporteDiario) -> int:
                 reporte.enviado_telegram,
             ),
         )
+        assert cursor.lastrowid is not None
         return cursor.lastrowid
 
 
-def mark_reporte_enviado(reporte_id: int, telegram_msg_id: str):
+def mark_reporte_enviado(reporte_id: int, telegram_msg_id: str) -> None:
     with get_db() as conn:
         conn.execute(
             """
