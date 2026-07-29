@@ -14,6 +14,8 @@ Exporta:
 
 # Orquestador principal
 # Motor de rutas
+# GPS Tracker (se implementa en SPRINT 2.3)
+from skills.dispatch.gps_tracker import GPSTracker, get_gps_tracker
 from skills.dispatch.route_engine import (
     ClientOrder,
     RouteResult,
@@ -29,9 +31,6 @@ from skills.dispatch.route_engine import (
 # Bot de Telegram para operadores
 from skills.dispatch.telegram_bot import DispatcherTelegramBot, get_dispatcher_bot
 from skills.dispatcher_skill import DispatcherSkill, get_dispatcher_skill
-
-# GPS Tracker (se implementa en SPRINT 2.3)
-from skills.dispatch.gps_tracker import GPSTracker, get_gps_tracker
 
 # Bottle Tracker SWAP (se implementa en SPRINT 3.1)
 # from skills.dispatch.bottle_tracker import BottleTracker
