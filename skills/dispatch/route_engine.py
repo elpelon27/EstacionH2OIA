@@ -315,7 +315,7 @@ def _fallback_nearest_neighbor(
     operators: List[str],
 ) -> VRPResult:
     """
-    Fallback simple: asigna clientes al vehículo más cercano.
+    Fallback simple: asigna clientes al vehículo con menos carga.
     No es óptimo pero garantiza que todos los pedidos se despachan.
     """
     # Ordenar por prioridad (1=crítico primero)
@@ -324,24 +324,24 @@ def _fallback_nearest_neighbor(
     # Distribuir entre vehículos
     vehicle_orders: List[List[ClientOrder]] = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
+    unassigned: List[ClientOrder] = []
 
     for order in sorted_orders:
         # Encontrar vehículo con menos carga que pueda llevar el pedido
-        best_vehicle = 0
-        best_load = vehicle_loads[0]
+        best_vehicle = -1
+        best_load = MAX_FULL_BOTTLES + 1
 
-        for v in range(1, num_vehicles):
-            if vehicle_loads[v] < best_load:
+        for v in range(num_vehicles):
+            if vehicle_loads[v] < best_load and vehicle_loads[v] + order.bottles_full <= MAX_FULL_BOTTLES:
                 best_vehicle = v
                 best_load = vehicle_loads[v]
 
-        if best_load + order.bottles_full <= MAX_FULL_BOTTLES:
+        if best_vehicle >= 0:
             vehicle_orders[best_vehicle].append(order)
             vehicle_loads[best_vehicle] += order.bottles_full
         else:
-            # Si no cabe en ningún vehículo, asignar al primero
-            vehicle_orders[0].append(order)
-            vehicle_loads[0] += order.bottles_full
+            # No cabe en ningún vehículo → unassigned
+            unassigned.append(order)
 
     # Calcular distancias
     routes: List[RouteResult] = []
@@ -378,14 +378,14 @@ def _fallback_nearest_neighbor(
         total_distance += route_distance_km
         total_duration += route_duration_min
 
-    logger.info("Fallback nearest neighbor: %d rutas, %.2f km total", len(routes), total_distance)
+    logger.info("Fallback nearest neighbor: %d rutas, %.2f km total, %d unassigned", len(routes), total_distance, len(unassigned))
 
     return VRPResult(
         routes=routes,
         total_distance_km=round(total_distance, 2),
         total_duration_min=total_duration,
         algorithm="nearest_neighbor_fallback",
-        unassigned=[],
+        unassigned=unassigned,
     )
 
 

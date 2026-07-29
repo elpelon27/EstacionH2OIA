@@ -18,10 +18,9 @@ import logging
 import sqlite3
 import time
 from dataclasses import dataclass
-from typing import Any, Optional
+from typing import Any
 
 from skills.dispatch.route_engine import (
-    check_operation_perimeter,
     check_zone_membership,
     find_nearest_zone,
     haversine,
@@ -51,21 +50,23 @@ def now_epoch() -> float:
 @dataclass
 class GPSPoint:
     """Punto GPS normalizado para procesamiento."""
+
     vehicle_id: int
     lat: float
     lng: float
-    accuracy: Optional[float] = None
-    speed_kmh: Optional[float] = None
+    accuracy: float | None = None
+    speed_kmh: float | None = None
     source: str = "tasker"  # "tasker" | "telegram" | "manual"
-    delivery_id: Optional[int] = None
+    delivery_id: int | None = None
     track_type: str = "periodic"  # "periodic" | "checkin_arrive" | "checkin_depart"
 
 
 @dataclass
 class GeofenceResult:
     """Resultado de verificación de geofencing."""
+
     inside_perimeter: bool
-    nearest_zone_id: Optional[int]
+    nearest_zone_id: int | None
     zone_ids: list[int]
     distance_to_depot_km: float
     alert_triggered: bool
@@ -101,7 +102,10 @@ class GPSTracker:
             self._save_geofence_event(point.vehicle_id, "exit", point.lat, point.lng)
             logger.warning(
                 "🚨 GEOFENCE ALERT: vehicle=%d lat=%.6f lng=%.6f dist=%.2fkm",
-                point.vehicle_id, point.lat, point.lng, result.distance_to_depot_km
+                point.vehicle_id,
+                point.lat,
+                point.lng,
+                result.distance_to_depot_km,
             )
 
         return result
@@ -116,7 +120,7 @@ class GPSTracker:
     def get_heatmap_data(
         self,
         hours_back: int = 24,
-        vehicle_id: Optional[int] = None,
+        vehicle_id: int | None = None,
         min_points: int = 1,
     ) -> list[dict[str, Any]]:
         """
@@ -154,14 +158,16 @@ class GPSTracker:
         enriched = []
         for r in rows:
             zone_id = find_nearest_zone(r["lat"], r["lng"], self._get_zones())
-            enriched.append({
-                "vehicle_id": r["vehicle_id"],
-                "lat": r["lat"],
-                "lng": r["lng"],
-                "passes": r["passes"],
-                "last_seen": r["last_seen"],
-                "zone_id": zone_id,
-            })
+            enriched.append(
+                {
+                    "vehicle_id": r["vehicle_id"],
+                    "lat": r["lat"],
+                    "lng": r["lng"],
+                    "passes": r["passes"],
+                    "last_seen": r["last_seen"],
+                    "zone_id": zone_id,
+                }
+            )
         return enriched
 
     def get_vehicle_timeline(
@@ -187,7 +193,7 @@ class GPSTracker:
     def get_geofence_events(
         self,
         hours_back: int = 24,
-        vehicle_id: Optional[int] = None,
+        vehicle_id: int | None = None,
     ) -> list[dict[str, Any]]:
         """Eventos de salida de perímetro."""
         conn = get_db()
@@ -249,8 +255,7 @@ class GPSTracker:
         # Cooldown de alerta
         last_alert = self._last_geofence_alert.get(point.vehicle_id, 0)
         alert_triggered = (
-            not inside_perimeter
-            and (now_epoch() - last_alert) >= GEOFENCE_ALERT_COOLDOWN_SECONDS
+            not inside_perimeter and (now_epoch() - last_alert) >= GEOFENCE_ALERT_COOLDOWN_SECONDS
         )
         if alert_triggered:
             self._last_geofence_alert[point.vehicle_id] = now_epoch()
@@ -274,7 +279,7 @@ class GPSTracker:
         event_type: str,
         lat: float,
         lng: float,
-        zone_id: Optional[int] = None,
+        zone_id: int | None = None,
     ) -> None:
         conn = get_db()
         conn.execute(
@@ -309,7 +314,7 @@ class GPSTracker:
 # Factory / Singleton
 # ============================================================================
 
-_gps_tracker_instance: Optional[GPSTracker] = None
+_gps_tracker_instance: GPSTracker | None = None
 
 
 def get_gps_tracker() -> GPSTracker:
@@ -333,12 +338,16 @@ if __name__ == "__main__":
         # Punto dentro (Bella Vista)
         p1 = GPSPoint(vehicle_id=1, lat=10.6500, lng=-71.6200, source="tasker")
         r1 = await tracker.process_gps_point(p1)
-        print(f"Bella Vista: inside={r1.inside_perimeter}, zone={r1.nearest_zone_id}, dist={r1.distance_to_depot_km}km")
+        print(
+            f"Bella Vista: inside={r1.inside_perimeter}, zone={r1.nearest_zone_id}, dist={r1.distance_to_depot_km}km"
+        )
 
         # Punto fuera (Caracas ~400km)
         p2 = GPSPoint(vehicle_id=1, lat=10.5000, lng=-66.9000, source="tasker")
         r2 = await tracker.process_gps_point(p2)
-        print(f"Caracas: inside={r2.inside_perimeter}, alert={r2.alert_triggered}, dist={r2.distance_to_depot_km}km")
+        print(
+            f"Caracas: inside={r2.inside_perimeter}, alert={r2.alert_triggered}, dist={r2.distance_to_depot_km}km"
+        )
 
         # Heatmap
         hm = tracker.get_heatmap_data(hours_back=168)  # 7 días
