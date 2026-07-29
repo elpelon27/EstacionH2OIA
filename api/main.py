@@ -14,6 +14,7 @@ from fastapi.responses import JSONResponse, PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, Counter, Histogram, generate_latest
 
 from agents.valentina import get_valentina
+from api.routes.dispatch import router as dispatch_router
 from core.config import get_settings
 from core.cost_guard import get_cost_guard
 from core.logger import get_logger, setup_logging
@@ -28,6 +29,8 @@ app = FastAPI(
     description="Gateway entre WhatsApp Cloud API y Valentina",
     version="0.2.0",
 )
+
+app.include_router(dispatch_router)
 
 # Métricas Prometheus
 MESSAGES_RECEIVED = Counter("hermes_messages_received_total", "Mensajes recibidos")

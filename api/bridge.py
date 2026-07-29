@@ -1183,6 +1183,8 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
     NO encolar en abortos ('volver'/'menú' desde awaiting_payment)."""
     import sqlite3 as _sq3
 
+    import httpx
+
     try:
         qty_bot = state.get("qty_botellones", 0)
         qty_hielo = state.get("qty_hielo", 0)
@@ -1233,6 +1235,30 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         # FASE 1 paso 2: sincronizar cliente en dispatch.db (clients table)
         # para que el dispatcher tenga un cliente real al planear rutas.
         _sync_client_to_dispatch_db(ph_hash, from_phone, state)
+
+        # FASE 1.5: Notificar al chofer via endpoint /dispatch/notify-driver
+        # Llamada síncrona para no romper el flujo del bridge
+        try:
+            dispatch_url = "http://localhost:8000/dispatch/notify-driver"
+            payload = {
+                "vehicle_id": 1,  # TODO: determinar vehículo según capacidad/zona
+                "client_name": contact_name,
+                "client_phone": from_phone,
+                "bottles_full": state.get("qty_botellones", 0),
+                "lat": lat or 0.0,
+                "lng": lng or 0.0,
+                "address": address,
+                "total_eur": total,
+                "total_bs": total_bs,
+                "metodo_pago": metodo,
+            }
+            import httpx
+
+            with httpx.Client(timeout=10.0) as client:
+                client.post(dispatch_url, json=payload)
+            logger.info("📦 Pedido notificado a chofer via /dispatch/notify-driver")
+        except Exception as e:
+            logger.warning("No se pudo notificar a chofer (endpoint interno): %s", e)
     except Exception as e:
         logger.error("Error enviando a dispatch_queue: %s", e)
 
