@@ -88,6 +88,7 @@ class DispatcherSkill:
             "assign_bottle_to_client": self._assign_bottle_to_client,
             "return_bottle_from_client": self._return_bottle_from_client,
             "send_bottle_to_wash": self._send_bottle_to_wash,
+            "confirm_delivery": self._confirm_delivery,
             "get_driver_status": self._get_driver_status,
             "delivery_delivered": self._delivery_delivered,
         }
@@ -315,6 +316,18 @@ class DispatcherSkill:
         """Envía botellón vacío a lavado en planta."""
         result = await self.bottle_tracker.send_to_wash(bottle_code)
         return {"success": True, "message": "Botellón enviado a lavado", "data": result}
+
+    async def _confirm_delivery(
+        self,
+        bottle_code: str,
+        client_id: int,
+    ) -> Dict[str, Any]:
+        """Confirma entrega al cliente (with_client)."""
+        result = await self.bottle_tracker.confirm_delivery(
+            bottle_code=bottle_code,
+            client_id=client_id,
+        )
+        return {"success": True, "message": "Entrega confirmada", "data": result}
 
     # ----------------------------------------------------------------------
     # Action: get_driver_status

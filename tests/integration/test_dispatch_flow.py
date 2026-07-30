@@ -281,6 +281,17 @@ def patch_db(monkeypatch, test_db):
             monkeypatch.setattr(mod, 'DISPATCH_DB', test_db)
         if hasattr(mod, 'DISPATCH_DB_PATH'):
             monkeypatch.setattr(mod, 'DISPATCH_DB_PATH', test_db)
+    
+    # Reset singletons to pick up new DB path
+    import skills.dispatch.bottle_tracker as bt_module
+    import skills.dispatch.gps_tracker as gt_module
+    import skills.dispatch.telegram_bot as tbot_module
+    import skills.dispatcher_skill as ds_module
+    
+    bt_module._bottle_tracker_instance = None
+    gt_module._gps_tracker_instance = None
+    tbot_module._dispatcher_bot_instance = None
+    ds_module._dispatcher_skill_instance = None
 
 
 class TestDispatchFlowE2E:
@@ -327,6 +338,15 @@ class TestDispatchFlowE2E:
         )
         assert result["success"] is True
         assert result["data"]["bottle"]["bottle_code"] == "H2O-001"
+        
+        # 4.5. Chofer confirma entrega en la app (with_client)
+        confirm_result = await dispatcher.execute(
+            action="confirm_delivery",
+            bottle_code=result["data"]["bottle"]["bottle_code"],
+            client_id=1,
+        )
+        assert confirm_result["success"] is True
+        assert confirm_result["data"]["bottle"]["status"] == "with_client"
         
         # 5. Chofer recoge vacío
         bottle_tracker = get_bottle_tracker()
