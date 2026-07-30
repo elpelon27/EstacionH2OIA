@@ -8,16 +8,17 @@ Tests unitarios puros (sin BD, sin red) para el motor de rutas.
 """
 
 import pytest
+
 from skills.dispatch.route_engine import (
-    haversine,
-    build_distance_matrix,
-    compute_vrp_route,
-    check_operation_perimeter,
-    find_nearest_zone,
-    check_zone_membership,
     ClientOrder,
     RouteResult,
     VRPResult,
+    build_distance_matrix,
+    check_operation_perimeter,
+    check_zone_membership,
+    compute_vrp_route,
+    find_nearest_zone,
+    haversine,
 )
 
 
@@ -91,11 +92,41 @@ class TestComputeVRPRoute:
     def sample_orders(self):
         """Pedidos de prueba en Maracaibo."""
         return [
-            ClientOrder(client_id=1, name="Restaurante El Portal", lat=10.6500, lng=-71.6200, bottles_full=6, priority=1),
-            ClientOrder(client_id=2, name="Sra. González", lat=10.6400, lng=-71.6150, bottles_full=3, priority=5),
-            ClientOrder(client_id=3, name="Restaurante La Buena Mesa", lat=10.6550, lng=-71.6100, bottles_full=6, priority=1),
-            ClientOrder(client_id=4, name="Sr. Pérez", lat=10.6420, lng=-71.6050, bottles_full=3, priority=5),
-            ClientOrder(client_id=5, name="Farmacia Central", lat=10.6600, lng=-71.6000, bottles_full=4, priority=3),
+            ClientOrder(
+                client_id=1,
+                name="Restaurante El Portal",
+                lat=10.6500,
+                lng=-71.6200,
+                bottles_full=6,
+                priority=1,
+            ),
+            ClientOrder(
+                client_id=2,
+                name="Sra. González",
+                lat=10.6400,
+                lng=-71.6150,
+                bottles_full=3,
+                priority=5,
+            ),
+            ClientOrder(
+                client_id=3,
+                name="Restaurante La Buena Mesa",
+                lat=10.6550,
+                lng=-71.6100,
+                bottles_full=6,
+                priority=1,
+            ),
+            ClientOrder(
+                client_id=4, name="Sr. Pérez", lat=10.6420, lng=-71.6050, bottles_full=3, priority=5
+            ),
+            ClientOrder(
+                client_id=5,
+                name="Farmacia Central",
+                lat=10.6600,
+                lng=-71.6000,
+                bottles_full=4,
+                priority=3,
+            ),
         ]
 
     def test_empty_orders_returns_empty_result(self):
@@ -132,7 +163,14 @@ class TestComputeVRPRoute:
     def test_capacity_forces_more_vehicles(self):
         """Si capacidad baja, pedidos se distribuyen en más vehículos."""
         orders = [
-            ClientOrder(client_id=i, name=f"Cliente {i}", lat=10.64 + i*0.01, lng=-71.61, bottles_full=20, priority=5)
+            ClientOrder(
+                client_id=i,
+                name=f"Cliente {i}",
+                lat=10.64 + i * 0.01,
+                lng=-71.61,
+                bottles_full=20,
+                priority=5,
+            )
             for i in range(1, 4)  # 3 x 20 = 60 botellones
         ]
         # Capacidad 30 → necesita al menos 2 vehículos
@@ -152,7 +190,9 @@ class TestComputeVRPRoute:
     def test_unassigned_orders_returned(self):
         """Pedidos que no caben → lista unassigned."""
         orders = [
-            ClientOrder(client_id=i, name=f"C{i}", lat=10.64, lng=-71.61, bottles_full=20, priority=5)
+            ClientOrder(
+                client_id=i, name=f"C{i}", lat=10.64, lng=-71.61, bottles_full=20, priority=5
+            )
             for i in range(1, 4)  # 60 botellones
         ]
         result = compute_vrp_route(orders, num_vehicles=1, vehicle_capacity=30)
@@ -198,8 +238,20 @@ class TestGeofencing:
     def test_zone_membership_bella_vista(self):
         """Bella Vista pertenece a zona 1 (Bella Vista). Usar zonas NO superpuestas."""
         zones = [
-            {"id": 1, "name": "Bella Vista", "center_lat": 10.6500, "center_lng": -71.6200, "radius_km": 1.0},
-            {"id": 2, "name": "Las Delicias", "center_lat": 10.6000, "center_lng": -71.6500, "radius_km": 2.5},
+            {
+                "id": 1,
+                "name": "Bella Vista",
+                "center_lat": 10.6500,
+                "center_lng": -71.6200,
+                "radius_km": 1.0,
+            },
+            {
+                "id": 2,
+                "name": "Las Delicias",
+                "center_lat": 10.6000,
+                "center_lng": -71.6500,
+                "radius_km": 2.5,
+            },
         ]
         matching = check_zone_membership(10.6500, -71.6200, zones)
         assert 1 in matching
@@ -229,9 +281,15 @@ class TestDataClasses:
 
     def test_client_order_creation(self):
         order = ClientOrder(
-            client_id=1, name="Test", lat=10.0, lng=-71.0,
-            bottles_full=5, bottles_empty_pickup=2, priority=3,
-            address="Calle 1", phone="+584121234567"
+            client_id=1,
+            name="Test",
+            lat=10.0,
+            lng=-71.0,
+            bottles_full=5,
+            bottles_empty_pickup=2,
+            priority=3,
+            address="Calle 1",
+            phone="+584121234567",
         )
         assert order.client_id == 1
         assert order.bottles_full == 5
@@ -239,16 +297,23 @@ class TestDataClasses:
 
     def test_route_result_fields(self):
         route = RouteResult(
-            vehicle_id=1, operator_name="YORDANIS",
-            stops=[], total_distance_km=15.5, total_duration_min=60, total_bottles=10
+            vehicle_id=1,
+            operator_name="YORDANIS",
+            stops=[],
+            total_distance_km=15.5,
+            total_duration_min=60,
+            total_bottles=10,
         )
         assert route.vehicle_id == 1
         assert route.operator_name == "YORDANIS"
 
     def test_vrp_result_fields(self):
         vrp = VRPResult(
-            routes=[], total_distance_km=0, total_duration_min=0,
-            algorithm="ortools_vrp", unassigned=[]
+            routes=[],
+            total_distance_km=0,
+            total_duration_min=0,
+            algorithm="ortools_vrp",
+            unassigned=[],
         )
         assert vrp.algorithm == "ortools_vrp"
 

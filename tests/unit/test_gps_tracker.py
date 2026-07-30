@@ -5,10 +5,11 @@ Estación H2O · Maracaibo, Venezuela
 ============================================================================
 """
 
-import pytest
-import sqlite3
 import os
+import sqlite3
 import sys
+
+import pytest
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
@@ -69,14 +70,20 @@ def test_db():
             created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
         )
     """)
-    conn.execute("INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)")
-    conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)")
-    conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)")
+    conn.execute(
+        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)"
+    )
+    conn.execute(
+        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)"
+    )
+    conn.execute(
+        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)"
+    )
     conn.commit()
     conn.close()
-    
+
     yield TEST_DB
-    
+
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
 
@@ -85,6 +92,7 @@ def test_db():
 def patch_gps_db(test_db):
     """Parchea DISPATCH_DB en el módulo gps_tracker."""
     import skills.dispatch.gps_tracker as gps_module
+
     gps_module.DISPATCH_DB = test_db
     gps_module._gps_tracker_instance = None
     yield
@@ -92,7 +100,9 @@ def patch_gps_db(test_db):
 
 
 from skills.dispatch.gps_tracker import (
-    GPSTracker, get_gps_tracker, GPSPoint, GeofenceResult,
+    GeofenceResult,
+    GPSPoint,
+    get_gps_tracker,
 )
 
 
@@ -197,8 +207,15 @@ class TestGPSTracker:
     @pytest.mark.asyncio
     async def test_gps_saved_to_db(self):
         tracker = get_gps_tracker()
-        point = GPSPoint(vehicle_id=1, lat=10.6500, lng=-71.6200,
-                         accuracy=5.0, speed_kmh=20.0, source="tasker", track_type="periodic")
+        point = GPSPoint(
+            vehicle_id=1,
+            lat=10.6500,
+            lng=-71.6200,
+            accuracy=5.0,
+            speed_kmh=20.0,
+            source="tasker",
+            track_type="periodic",
+        )
         await tracker.process_gps_point(point)
 
         conn = sqlite3.connect(TEST_DB)
@@ -224,9 +241,14 @@ class TestGPSPointDataclass:
 
     def test_gps_point_all_fields(self):
         p = GPSPoint(
-            vehicle_id=2, lat=10.5, lng=-71.5,
-            accuracy=3.0, speed_kmh=15.0,
-            source="telegram", delivery_id=5, track_type="checkin_arrive"
+            vehicle_id=2,
+            lat=10.5,
+            lng=-71.5,
+            accuracy=3.0,
+            speed_kmh=15.0,
+            source="telegram",
+            delivery_id=5,
+            track_type="checkin_arrive",
         )
         assert p.vehicle_id == 2
         assert p.track_type == "checkin_arrive"
@@ -240,7 +262,7 @@ class TestGeofenceResult:
             zone_ids=[1, 2],
             distance_to_depot_km=2.5,
             alert_triggered=False,
-            alert_message=""
+            alert_message="",
         )
         assert r.inside_perimeter is True
         assert r.nearest_zone_id == 1

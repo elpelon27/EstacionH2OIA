@@ -20,15 +20,17 @@ Salida:
   - vehicle_1: [cliente_A, cliente_B, cliente_C]
   - vehicle_2: [cliente_D, cliente_E]
   - Métricas: distancia total, tiempo estimado
- """
+"""
 
-import math
 import logging
-from typing import List, Dict, Tuple, Optional, Any
+import math
 from dataclasses import dataclass
+from typing import Any
 
-from ortools.constraint_solver import routing_enums_pb2  # type: ignore[import-untyped]
-from ortools.constraint_solver import pywrapcp
+from ortools.constraint_solver import (
+    pywrapcp,
+    routing_enums_pb2,  # type: ignore[import-untyped]
+)
 
 logger = logging.getLogger("dispatcher.route_engine")
 
@@ -52,6 +54,7 @@ TIME_PER_DELIVERY_MIN = 8
 # Haversine — Cálculo de distancias
 # ============================================================================
 
+
 def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     """
     Calcula distancia en km entre dos puntos GPS.
@@ -62,15 +65,13 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     dlon = math.radians(lon2 - lon1)
     a = (
         math.sin(dlat / 2) ** 2
-        + math.cos(math.radians(lat1))
-        * math.cos(math.radians(lat2))
-        * math.sin(dlon / 2) ** 2
+        + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
     )
     c = 2 * math.asin(math.sqrt(a))
     return round(R * c, 3)
 
 
-def build_distance_matrix(locations: List[Tuple[float, float]]) -> List[List[int]]:
+def build_distance_matrix(locations: list[tuple[float, float]]) -> list[list[int]]:
     """
     Construye matriz de distancias en metros entre todos los puntos.
     locations[0] = depot (base)
@@ -82,8 +83,7 @@ def build_distance_matrix(locations: List[Tuple[float, float]]) -> List[List[int
         for j in range(n):
             if i != j:
                 dist_km = haversine(
-                    locations[i][0], locations[i][1],
-                    locations[j][0], locations[j][1]
+                    locations[i][0], locations[i][1], locations[j][0], locations[j][1]
                 )
                 matrix[i][j] = int(dist_km * 1000)  # metros (int para OR-Tools)
     return matrix
@@ -93,9 +93,11 @@ def build_distance_matrix(locations: List[Tuple[float, float]]) -> List[List[int
 # Modelos de datos
 # ============================================================================
 
+
 @dataclass
 class ClientOrder:
     """Pedido de un cliente para el route engine."""
+
     client_id: int
     name: str
     lat: float
@@ -110,9 +112,10 @@ class ClientOrder:
 @dataclass
 class RouteResult:
     """Resultado de una ruta calculada."""
+
     vehicle_id: int
     operator_name: str
-    stops: List[ClientOrder]
+    stops: list[ClientOrder]
     total_distance_km: float
     total_duration_min: int
     total_bottles: int
@@ -121,24 +124,26 @@ class RouteResult:
 @dataclass
 class VRPResult:
     """Resultado completo del VRP solver."""
-    routes: List[RouteResult]
+
+    routes: list[RouteResult]
     total_distance_km: float
     total_duration_min: int
     algorithm: str
-    unassigned: List[ClientOrder]
+    unassigned: list[ClientOrder]
 
 
 # ============================================================================
 # VRP Solver — Google OR-Tools
 # ============================================================================
 
+
 def compute_vrp_route(
-    orders: List[ClientOrder],
+    orders: list[ClientOrder],
     num_vehicles: int = 2,
     vehicle_capacity: int = MAX_FULL_BOTTLES,
     depot_lat: float = DEPOT_LAT,
     depot_lng: float = DEPOT_LNG,
-    operators: Optional[List[str]] = None,
+    operators: list[str] | None = None,
 ) -> VRPResult:
     """
     Calcula rutas optimizadas usando OR-Tools CVRP.
@@ -175,7 +180,7 @@ def compute_vrp_route(
     distance_matrix = build_distance_matrix(locations)
 
     # Crear modelo de datos para OR-Tools
-    data: Dict[str, Any] = {}
+    data: dict[str, Any] = {}
     data["distance_matrix"] = distance_matrix
     data["num_vehicles"] = num_vehicles
     data["depot"] = 0  # Índice del depot en la matriz
@@ -226,7 +231,9 @@ def compute_vrp_route(
     search_parameters.time_limit.seconds = 10  # 10 segundos máximo
 
     # Resolver
-    logger.info("Resolviendo VRP con OR-Tools — %d clientes, %d vehículos", len(orders), num_vehicles)
+    logger.info(
+        "Resolviendo VRP con OR-Tools — %d clientes, %d vehículos", len(orders), num_vehicles
+    )
     solution = routing.SolveWithParameters(search_parameters)
 
     if not solution:
@@ -234,10 +241,10 @@ def compute_vrp_route(
         return _fallback_nearest_neighbor(orders, num_vehicles, depot_lat, depot_lng, operators)
 
     # Extraer rutas
-    routes: List[RouteResult] = []
+    routes: list[RouteResult] = []
     total_distance = 0.0
     total_duration = 0
-    unassigned: List[ClientOrder] = []
+    unassigned: list[ClientOrder] = []
 
     for vehicle_id in range(num_vehicles):
         index = routing.Start(vehicle_id)
@@ -254,23 +261,25 @@ def compute_vrp_route(
 
             prev_index = index
             index = solution.Value(routing.NextVar(index))
-            route_distance += routing.GetArcCostForVehicle(
-                prev_index, index, vehicle_id
-            )
+            route_distance += routing.GetArcCostForVehicle(prev_index, index, vehicle_id)
 
         route_distance_km = round(route_distance / 1000, 2)
         route_duration_min = int(
             (route_distance_km / AVG_SPEED_KMH * 60) + (len(route_stops) * TIME_PER_DELIVERY_MIN)
         )
 
-        routes.append(RouteResult(
-            vehicle_id=vehicle_id + 1,
-            operator_name=operators[vehicle_id] if vehicle_id < len(operators) else f"Operador {vehicle_id + 1}",
-            stops=route_stops,
-            total_distance_km=route_distance_km,
-            total_duration_min=route_duration_min,
-            total_bottles=route_bottles,
-        ))
+        routes.append(
+            RouteResult(
+                vehicle_id=vehicle_id + 1,
+                operator_name=operators[vehicle_id]
+                if vehicle_id < len(operators)
+                else f"Operador {vehicle_id + 1}",
+                stops=route_stops,
+                total_distance_km=route_distance_km,
+                total_duration_min=route_duration_min,
+                total_bottles=route_bottles,
+            )
+        )
 
         total_distance += route_distance_km
         total_duration += route_duration_min
@@ -307,12 +316,13 @@ def compute_vrp_route(
 # Fallback — Nearest Neighbor (si OR-Tools falla)
 # ============================================================================
 
+
 def _fallback_nearest_neighbor(
-    orders: List[ClientOrder],
+    orders: list[ClientOrder],
     num_vehicles: int,
     depot_lat: float,
     depot_lng: float,
-    operators: List[str],
+    operators: list[str],
 ) -> VRPResult:
     """
     Fallback simple: asigna clientes al vehículo con menos carga.
@@ -322,9 +332,9 @@ def _fallback_nearest_neighbor(
     sorted_orders = sorted(orders, key=lambda o: o.priority)
 
     # Distribuir entre vehículos
-    vehicle_orders: List[List[ClientOrder]] = [[] for _ in range(num_vehicles)]
+    vehicle_orders: list[list[ClientOrder]] = [[] for _ in range(num_vehicles)]
     vehicle_loads = [0] * num_vehicles
-    unassigned: List[ClientOrder] = []
+    unassigned: list[ClientOrder] = []
 
     for order in sorted_orders:
         # Encontrar vehículo con menos carga que pueda llevar el pedido
@@ -332,7 +342,10 @@ def _fallback_nearest_neighbor(
         best_load = MAX_FULL_BOTTLES + 1
 
         for v in range(num_vehicles):
-            if vehicle_loads[v] < best_load and vehicle_loads[v] + order.bottles_full <= MAX_FULL_BOTTLES:
+            if (
+                vehicle_loads[v] < best_load
+                and vehicle_loads[v] + order.bottles_full <= MAX_FULL_BOTTLES
+            ):
                 best_vehicle = v
                 best_load = vehicle_loads[v]
 
@@ -344,7 +357,7 @@ def _fallback_nearest_neighbor(
             unassigned.append(order)
 
     # Calcular distancias
-    routes: List[RouteResult] = []
+    routes: list[RouteResult] = []
     total_distance = 0.0
     total_duration = 0
 
@@ -366,19 +379,26 @@ def _fallback_nearest_neighbor(
             (route_distance_km / AVG_SPEED_KMH * 60) + (len(route_stops) * TIME_PER_DELIVERY_MIN)
         )
 
-        routes.append(RouteResult(
-            vehicle_id=v + 1,
-            operator_name=operators[v] if v < len(operators) else f"Operador {v + 1}",
-            stops=route_stops,
-            total_distance_km=route_distance_km,
-            total_duration_min=route_duration_min,
-            total_bottles=vehicle_loads[v],
-        ))
+        routes.append(
+            RouteResult(
+                vehicle_id=v + 1,
+                operator_name=operators[v] if v < len(operators) else f"Operador {v + 1}",
+                stops=route_stops,
+                total_distance_km=route_distance_km,
+                total_duration_min=route_duration_min,
+                total_bottles=vehicle_loads[v],
+            )
+        )
 
         total_distance += route_distance_km
         total_duration += route_duration_min
 
-    logger.info("Fallback nearest neighbor: %d rutas, %.2f km total, %d unassigned", len(routes), total_distance, len(unassigned))
+    logger.info(
+        "Fallback nearest neighbor: %d rutas, %.2f km total, %d unassigned",
+        len(routes),
+        total_distance,
+        len(unassigned),
+    )
 
     return VRPResult(
         routes=routes,
@@ -393,13 +413,14 @@ def _fallback_nearest_neighbor(
 # Geofencing
 # ============================================================================
 
+
 def check_operation_perimeter(lat: float, lng: float) -> bool:
     """Verifica si el punto está dentro del radio de operación (13km)."""
     distance = haversine(DEPOT_LAT, DEPOT_LNG, lat, lng)
     return distance <= OPERATION_RADIUS_KM
 
 
-def find_nearest_zone(lat: float, lng: float, zones: List[Dict[str, Any]]) -> Optional[int]:
+def find_nearest_zone(lat: float, lng: float, zones: list[dict[str, Any]]) -> int | None:
     """
     Encuentra la zona más cercana a un punto.
     zones: lista de dicts con id, center_lat, center_lng, radius_km
@@ -416,9 +437,9 @@ def find_nearest_zone(lat: float, lng: float, zones: List[Dict[str, Any]]) -> Op
     return nearest
 
 
-def check_zone_membership(lat: float, lng: float, zones: List[Dict[str, Any]]) -> List[int]:
+def check_zone_membership(lat: float, lng: float, zones: list[dict[str, Any]]) -> list[int]:
     """Retorna IDs de zonas a las que pertenece el punto."""
-    matching: List[int] = []
+    matching: list[int] = []
     for zone in zones:
         dist = haversine(lat, lng, zone["center_lat"], zone["center_lng"])
         if dist <= zone["radius_km"]:
@@ -433,11 +454,36 @@ def check_zone_membership(lat: float, lng: float, zones: List[Dict[str, Any]]) -
 if __name__ == "__main__":
     # Test con clientes simulados en Maracaibo
     test_orders = [
-        ClientOrder(client_id=1, name="Restaurante El Portal", lat=10.6500, lng=-71.6200, bottles_full=6, priority=1),
-        ClientOrder(client_id=2, name="Sra. González", lat=10.6400, lng=-71.6150, bottles_full=3, priority=5),
-        ClientOrder(client_id=3, name="Restaurante La Buena Mesa", lat=10.6550, lng=-71.6100, bottles_full=6, priority=1),
-        ClientOrder(client_id=4, name="Sr. Pérez", lat=10.6420, lng=-71.6050, bottles_full=3, priority=5),
-        ClientOrder(client_id=5, name="Farmacia Central", lat=10.6600, lng=-71.6000, bottles_full=4, priority=3),
+        ClientOrder(
+            client_id=1,
+            name="Restaurante El Portal",
+            lat=10.6500,
+            lng=-71.6200,
+            bottles_full=6,
+            priority=1,
+        ),
+        ClientOrder(
+            client_id=2, name="Sra. González", lat=10.6400, lng=-71.6150, bottles_full=3, priority=5
+        ),
+        ClientOrder(
+            client_id=3,
+            name="Restaurante La Buena Mesa",
+            lat=10.6550,
+            lng=-71.6100,
+            bottles_full=6,
+            priority=1,
+        ),
+        ClientOrder(
+            client_id=4, name="Sr. Pérez", lat=10.6420, lng=-71.6050, bottles_full=3, priority=5
+        ),
+        ClientOrder(
+            client_id=5,
+            name="Farmacia Central",
+            lat=10.6600,
+            lng=-71.6000,
+            bottles_full=4,
+            priority=3,
+        ),
     ]
 
     result = compute_vrp_route(test_orders)
@@ -456,4 +502,6 @@ if __name__ == "__main__":
         print(f"   Duración: {route.total_duration_min} min")
         print(f"   Botellones: {route.total_bottles}")
         for i, stop in enumerate(route.stops, 1):
-            print(f"   {i}. {stop.name} — {stop.bottles_full} botellones (prioridad {stop.priority})")
+            print(
+                f"   {i}. {stop.name} — {stop.bottles_full} botellones (prioridad {stop.priority})"
+            )
