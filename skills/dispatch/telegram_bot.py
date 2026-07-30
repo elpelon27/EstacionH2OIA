@@ -591,9 +591,52 @@ class DispatcherTelegramBot:
                 )
             elif action_kind == "del":
                 update_delivery_status(delivery_id, "delivered")
-                await query.edit_message_text(
-                    "✅ Entrega completada.\n\n🏁 ¡Buen trabajo!\n💧 Estación H2O"
-                )
+                
+                # SWAP: Notificar al WorkloadRouter para tracking de botellón (available -> in_transit_full -> with_client)
+                try:
+                    from core.workload_router import get_router
+                    router = get_router()
+                    await router.execute(
+                        trigger="delivery_delivered",
+                        action="assign_bottle_to_client",
+                        # El WorkloadRouter obtendrá delivery_id y client_id de la BD
+                        delivery_id=delivery_id,
+                    )
+                except Exception as e:
+                    logger.warning("No se pudo notificar a WorkloadRouter delivery_delivered: %s", e)
+                
+                # Verificar si hay más entregas
+                deliveries = get_pending_deliveries_for_chofer(chofer["id"])
+                pending = [d for d in deliveries if d["status"] == "pending"]
+
+                if pending:
+                    next_d = pending[0]
+                    msg = (
+                        f"✅ Entrega completada.\n\n"
+                        f"📍 PRÓXIMA PARADA:\n"
+                        f"👤 {next_d['client_name']}\n"
+                        f"📱 {next_d['phone']}\n"
+                        f"📦 {next_d['bottles_full']} botellones\n"
+                    )
+                    if next_d["lat"] and next_d["lng"]:
+                        msg += f"📍 {format_gps_url(next_d['lat'], next_d['lng'])}\n"
+
+                    keyboard = [
+                        [
+                            InlineKeyboardButton("📍 Llegué", callback_data=f"arr_{next_d['id']}"),
+                            InlineKeyboardButton("✅ Entregado", callback_data=f"del_{next_d['id']}"),
+                        ],
+                        [
+                            InlineKeyboardButton("❌ No responde", callback_data=f"no_{next_d['id']}"),
+                        ],
+                    ]
+                    await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+                else:
+                    await query.edit_message_text(
+                        "✅ Entrega completada.\n\n"
+                        "🏁 No tienes más entregas pendientes. ¡Buen trabajo!\n"
+                        "💧 Estación H2O"
+                    )
             elif action_kind == "no":
                 update_delivery_status(delivery_id, "no_answer", "Cliente no responde")
                 await query.edit_message_text(
