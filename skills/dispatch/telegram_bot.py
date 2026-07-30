@@ -498,6 +498,24 @@ class DispatcherTelegramBot:
             delivery_id = int(data.replace("del_", ""))
             update_delivery_status(delivery_id, "delivered")
 
+            # SWAP: Notificar WorkloadRouter para asignar botellón loaner (available -> in_transit_full)
+            try:
+                from core.workload_router import get_router
+                router = get_router()
+                # Obtener client_id de la entrega
+                conn = sqlite3.connect(DISPATCH_DB)
+                row = conn.execute("SELECT client_id FROM deliveries WHERE id = ?", (delivery_id,)).fetchone()
+                conn.close()
+                if row:
+                    client_id = row["client_id"]
+                    await router.execute(
+                        trigger="delivery_delivered",
+                        client_id=client_id,
+                        delivery_id=delivery_id,
+                    )
+            except Exception as e:
+                logger.error("Error notificando WorkloadRouter delivery_delivered: %s", e)
+
             # Verificar si hay más entregas
             deliveries = get_pending_deliveries_for_chofer(chofer["id"])
             pending = [d for d in deliveries if d["status"] == "pending"]
