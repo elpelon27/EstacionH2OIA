@@ -41,6 +41,7 @@ ROUTE_TABLE: dict[str, Route] = {
     "dispatch_delivery_update": Route.DISPATCH_SKILL,
     "dispatch_gps_track": Route.DISPATCH_SKILL,
     "dispatch_bottle_inventory": Route.DISPATCH_SKILL,
+    "delivery_delivered": Route.DISPATCH_SKILL,  # SWAP: entrega confirmada → bottle_tracker
     
     # Auto-mejora (6:00pm - 7:40am)
     "self_improve_request": Route.SELF_IMPROVE_SKILL,

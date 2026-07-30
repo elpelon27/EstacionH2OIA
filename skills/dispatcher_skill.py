@@ -89,6 +89,7 @@ class DispatcherSkill:
             "return_bottle_from_client": self._return_bottle_from_client,
             "send_bottle_to_wash": self._send_bottle_to_wash,
             "get_driver_status": self._get_driver_status,
+            "delivery_delivered": self._delivery_delivered,
         }
 
         handler = action_map.get(action)
@@ -322,6 +323,30 @@ class DispatcherSkill:
         """Estado actual del chofer/vehículo."""
         # TODO: implementar lookup por vehicle_id
         return {"success": True, "message": "Estado chofer", "data": {"vehicle_id": vehicle_id}}
+
+    # ----------------------------------------------------------------------
+    # Action: delivery_delivered
+    # ----------------------------------------------------------------------
+    async def _delivery_delivered(
+        self,
+        client_id: int,
+        delivery_id: int,
+    ) -> Dict[str, Any]:
+        """Confirma entrega y asigna botellón disponible al cliente (SWAP flow)."""
+        # Buscar un botellón disponible para asignar
+        available_bottle = await self.bottle_tracker.get_available_bottle()
+        if not available_bottle:
+            return {"success": False, "message": "No hay botellones disponibles para asignar", "data": None}
+        
+        bottle_code = available_bottle["bottle_code"]
+        
+        # Asignar botellón al cliente (in_transit_full -> with_client)
+        result = await self.bottle_tracker.assign_to_client(
+            bottle_code=bottle_code,
+            client_id=client_id,
+            delivery_id=delivery_id,
+        )
+        return {"success": True, "message": "Entrega confirmada y botellón asignado a cliente", "data": result}
 
     # ----------------------------------------------------------------------
     # Helpers

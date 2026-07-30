@@ -528,6 +528,15 @@ class BottleTracker:
         conn.close()
         return [dict(r) for r in rows]
 
+    async def get_available_bottle(self) -> Optional[dict[str, Any]]:
+        """Obtiene un botellón disponible para asignar (status = 'available')."""
+        conn = get_db()
+        row = conn.execute(
+            "SELECT * FROM bottles WHERE status = 'available' ORDER BY bottle_code LIMIT 1"
+        ).fetchone()
+        conn.close()
+        return dict(row) if row else None
+
     async def get_overdue_bottles(self) -> list[dict[str, Any]]:
         """Botellones con devolución vencida."""
         conn = get_db()
