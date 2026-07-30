@@ -7,11 +7,12 @@ Estación H2O · Maracaibo, Venezuela
 Tests unitarios mockando BD y Telegram API.
 """
 
-import pytest
-import sqlite3
 import os
+import sqlite3
 import sys
 from unittest.mock import AsyncMock, MagicMock
+
+import pytest
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
@@ -137,21 +138,37 @@ def test_db():
         )
     """)
     conn.commit()
-    
+
     # Datos semilla
-    conn.execute("INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)")
-    conn.execute("INSERT INTO vehicles (id, name, operator_name, active) VALUES (2, 'Triciclo 2', 'EVERT', 1)")
-    conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)")
-    conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)")
-    conn.execute("INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type, priority, zone_id) VALUES (1, '+584121234567', 'hash1', 'Restaurante El Portal', 10.6500, -71.6200, 'b2b', 1, 1)")
-    conn.execute("INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type, priority, zone_id) VALUES (2, '+584122345678', 'hash2', 'Sra. González', 10.6400, -71.6150, 'residential', 5, 2)")
-    conn.execute("INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full) VALUES (1, 1, 1, 1, 1, 'pending', 6)")
-    conn.execute("INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full) VALUES (2, 1, 2, 1, 2, 'pending', 3)")
+    conn.execute(
+        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)"
+    )
+    conn.execute(
+        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (2, 'Triciclo 2', 'EVERT', 1)"
+    )
+    conn.execute(
+        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)"
+    )
+    conn.execute(
+        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)"
+    )
+    conn.execute(
+        "INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type, priority, zone_id) VALUES (1, '+584121234567', 'hash1', 'Restaurante El Portal', 10.6500, -71.6200, 'b2b', 1, 1)"
+    )
+    conn.execute(
+        "INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type, priority, zone_id) VALUES (2, '+584122345678', 'hash2', 'Sra. González', 10.6400, -71.6150, 'residential', 5, 2)"
+    )
+    conn.execute(
+        "INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full) VALUES (1, 1, 1, 1, 1, 'pending', 6)"
+    )
+    conn.execute(
+        "INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full) VALUES (2, 1, 2, 1, 2, 'pending', 3)"
+    )
     conn.commit()
     conn.close()
-    
+
     yield TEST_DB
-    
+
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
 
@@ -160,6 +177,7 @@ def test_db():
 def patch_bot_db(test_db):
     """Parchea las constantes del módulo telegram_bot."""
     import skills.dispatch.telegram_bot as tbot_module
+
     tbot_module.DISPATCH_DB = test_db
     tbot_module.CONV_DB = "/tmp/test_conv.db"
     tbot_module._dispatcher_bot_instance = None
@@ -169,18 +187,17 @@ def patch_bot_db(test_db):
 
 # Importar después de los fixtures
 from skills.dispatch.telegram_bot import (
-    get_dispatch_db,
-    get_conv_db,
-    register_chofer,
-    get_chofer_by_chat_id,
-    get_all_choferes,
-    get_pending_deliveries_for_chofer,
-    update_delivery_status,
-    save_gps_track,
+    DispatcherTelegramBot,
     check_geofence,
     format_gps_url,
+    get_all_choferes,
+    get_chofer_by_chat_id,
+    get_dispatch_db,
+    get_pending_deliveries_for_chofer,
     get_vehicle_by_id,
-    DispatcherTelegramBot,
+    register_chofer,
+    save_gps_track,
+    update_delivery_status,
 )
 
 
@@ -239,7 +256,9 @@ class TestDatabaseHelpers:
         assert row[1] is not None
 
     def test_save_gps_track_inserts_row(self):
-        save_gps_track(1, 10.6500, -71.6200, accuracy=5.0, source="telegram", track_type="checkin_arrive")
+        save_gps_track(
+            1, 10.6500, -71.6200, accuracy=5.0, source="telegram", track_type="checkin_arrive"
+        )
         conn = get_dispatch_db()
         row = conn.execute("SELECT * FROM gps_tracks WHERE vehicle_id = 1").fetchone()
         conn.close()
@@ -247,7 +266,9 @@ class TestDatabaseHelpers:
         assert row[2] == 10.6500  # lat
         assert row[3] == -71.6200  # lng
         assert row[4] == 5.0  # accuracy
-        assert row[6] == "telegram"  # source (index 6 after: id, vehicle_id, lat, lng, accuracy, speed_kmh, source)
+        assert (
+            row[6] == "telegram"
+        )  # source (index 6 after: id, vehicle_id, lat, lng, accuracy, speed_kmh, source)
 
     def test_check_geofence_inside(self):
         inside = check_geofence(1, 10.6447, -71.6101)  # depot
@@ -286,10 +307,15 @@ class TestDispatcherTelegramBot:
         """Vehículo sin chat_id → False."""
         bot.app = MagicMock()
         bot.app.bot = AsyncMock()
-        
+
         result = await bot.send_delivery_to_chofer(
-            vehicle_id=999, client_name="Test", client_phone="+584121112233",
-            bottles_full=3, lat=10.65, lng=-71.62, address="Test"
+            vehicle_id=999,
+            client_name="Test",
+            client_phone="+584121112233",
+            bottles_full=3,
+            lat=10.65,
+            lng=-71.62,
+            address="Test",
         )
         assert result is False
 
@@ -297,16 +323,21 @@ class TestDispatcherTelegramBot:
     async def test_send_delivery_to_chofer_success(self, bot):
         """Envío exitoso a chofer registrado."""
         register_chofer(555555, 1, "YORDANIS")
-        
+
         bot.app = MagicMock()
         mock_bot = AsyncMock()
         bot.app.bot = mock_bot
-        
+
         result = await bot.send_delivery_to_chofer(
-            vehicle_id=1, client_name="Test", client_phone="+584121112233",
-            bottles_full=3, lat=10.65, lng=-71.62, address="Test"
+            vehicle_id=1,
+            client_name="Test",
+            client_phone="+584121112233",
+            bottles_full=3,
+            lat=10.65,
+            lng=-71.62,
+            address="Test",
         )
-        
+
         assert result is True
         mock_bot.send_message.assert_called_once()
         call_args = mock_bot.send_message.call_args
@@ -318,13 +349,13 @@ class TestDispatcherTelegramBot:
         """Check-in matutino envía mensaje a todos los choferes."""
         register_chofer(111111, 1, "YORDANIS")
         register_chofer(222222, 2, "EVERT")
-        
+
         bot.app = MagicMock()
         mock_bot = AsyncMock()
         bot.app.bot = mock_bot
-        
+
         await bot.enviar_checkin_manana()
-        
+
         assert mock_bot.send_message.call_count == 2
         calls = mock_bot.send_message.call_args_list
         assert calls[0].kwargs["chat_id"] == 111111

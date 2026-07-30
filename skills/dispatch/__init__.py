@@ -32,8 +32,8 @@ from skills.dispatch.route_engine import (
 from skills.dispatch.telegram_bot import DispatcherTelegramBot, get_dispatcher_bot
 from skills.dispatcher_skill import DispatcherSkill, get_dispatcher_skill
 
-# Bottle Tracker SWAP (se implementa en SPRINT 3.1)
-# from skills.dispatch.bottle_tracker import BottleTracker
+# Bottle Tracker SWAP
+from skills.dispatch.bottle_tracker import BottleTracker, get_bottle_tracker
 
 __all__ = [
     # Orquestador
@@ -55,8 +55,9 @@ __all__ = [
     # GPS Tracker
     "GPSTracker",
     "get_gps_tracker",
-    # Bottle Tracker (placeholder)
-    # "BottleTracker",
+    # Bottle Tracker
+    "BottleTracker",
+    "get_bottle_tracker",
 ]
 
 # Version
