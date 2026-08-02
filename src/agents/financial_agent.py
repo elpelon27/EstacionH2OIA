@@ -33,9 +33,9 @@ from typing import Any, Optional
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from financial import database as db  # type: ignore[import-not-found]
-from financial import currency, cobranzas, nomina, proveedores, verificacion, reportes  # type: ignore[import-not-found]
-from financial.models import Producto, PedidoFinanciero, Pago  # type: ignore[import-not-found]
+from financial import database as db
+from financial import currency, cobranzas, nomina, proveedores, verificacion, reportes
+from financial.models import Producto, PedidoFinanciero, Pago
 
 logger = logging.getLogger("financial_shield.agent")
 
@@ -157,7 +157,7 @@ class FinancialShieldAgent:
                 fs_pedido_id, comprobante_image_url, monto_eur, meta_token
             )
             if result.get("success"):
-                return dict(result)  # type: ignore[no-any-return]
+                return result  # type: ignore[no-any-return]
             # Si OCR falla, continuar a manual
 
         # Método 2: API bancaria (si hay referencia/código)
@@ -166,7 +166,7 @@ class FinancialShieldAgent:
                 fs_pedido_id, referencia, monto_eur
             )
             if result.get("success"):
-                return dict(result)  # type: ignore[no-any-return]
+                return result  # type: ignore[no-any-return]
 
         # Método 3: Manual (default)
         result = await verificacion.verificar_pago_manual(
@@ -176,7 +176,7 @@ class FinancialShieldAgent:
             referencia=referencia,
         )
 
-        return dict(result)  # type: ignore[no-any-return]
+        return result  # type: ignore[no-any-return]
 
     async def confirmar_pago_manual(
         self,
@@ -186,9 +186,10 @@ class FinancialShieldAgent:
         referencia: str | None = None,
     ) -> dict[str, Any]:
         """Líder confirma pago via Telegram /pagado."""
-        return await verificacion.verificar_pago_manual(  # type: ignore[no-any-return]
+        result = await verificacion.verificar_pago_manual(
             fs_pedido_id, monto_eur, metodo_pago, referencia, "telegram_lider"
         )
+        return result  # type: ignore[no-any-return]
 
     # ========================================================================
     # 3. ENTREGA CONFIRMADA (trigger loop verificación)
@@ -206,7 +207,7 @@ class FinancialShieldAgent:
     # 4. LOOP DE RECORDATORIOS
     # ========================================================================
 
-    async def procesar_recordatorios_pendientes(self) -> list[dict]:
+    async def procesar_recordatorios_pendientes(self) -> list[dict[str, Any]]:
         """
         Procesa todos los pedidos que necesitan recordatorio.
         Returns: lista de dicts con 'phone', 'mensaje', 'accion'
@@ -266,7 +267,7 @@ class FinancialShieldAgent:
         cuenta_id = cobranzas.crear_cuenta_cobrar(pedido, tipo_credito)
 
         # Actualizar pedido con tipo de crédito
-        from .database import get_db  # type: ignore[import-not-found]
+        from .database import get_db
         now = datetime.now(CARACAS_TZ).isoformat()
         venc = cobranzas.calcular_fecha_vencimiento(tipo_credito)
         with get_db() as conn:
@@ -322,15 +323,15 @@ class FinancialShieldAgent:
 
     def get_tasa_actual(self) -> str:
         """Retorna string con tasa actual."""
-        return currency.get_tasa_display()
+        return currency.get_tasa_display()  # type: ignore[no-any-return]
 
-    def set_tasa_manual(self, tasa: float):
+    def set_tasa_manual(self, tasa: float) -> float:
         """Líder setea tasa manual via Telegram."""
-        return currency.set_manual_rate(tasa)
+        return currency.set_manual_rate(tasa)  # type: ignore[no-any-return]
 
-    def get_resumen_cobranzas(self) -> dict:
+    def get_resumen_cobranzas(self) -> dict[str, Any]:
         """Resumen de cuentas por cobrar."""
-        return cobranzas.get_resumen_cobranzas()
+        return cobranzas.get_resumen_cobranzas()  # type: ignore[no-any-return]
 
 
 # ============================================================================
@@ -352,7 +353,7 @@ def get_agent() -> FinancialShieldAgent:
 # Punto de entrada (para cron / systemd)
 # ============================================================================
 
-async def main():
+async def main() -> None:
     """Ejecuta tareas programadas del FS (loop recordatorios + reporte)."""
     agent = get_agent()
     agent.init()

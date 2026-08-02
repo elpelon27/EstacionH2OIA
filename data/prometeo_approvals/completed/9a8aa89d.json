@@ -1,0 +1,11 @@
+{
+  "id": "9a8aa89d",
+  "type": "input",
+  "prompt": "Ingresa el nombre de la nueva feature:",
+  "context": {},
+  "timeout_seconds": 10,
+  "created_at": "2026-07-31T22:49:07.030633+00:00",
+  "status": "completed",
+  "response": "mi_feature_nueva",
+  "responded_at": "2026-07-31T22:49:07.030642+00:00"
+}

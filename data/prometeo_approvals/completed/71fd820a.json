@@ -1,0 +1,13 @@
+{
+  "id": "71fd820a",
+  "type": "sudo_password",
+  "prompt": "Test final completo",
+  "context": {
+    "test": true
+  },
+  "timeout_seconds": 10,
+  "created_at": "2026-07-31T22:47:40.410864+00:00",
+  "status": "expired",
+  "response": null,
+  "responded_at": null
+}

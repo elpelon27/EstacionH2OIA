@@ -540,7 +540,12 @@ async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     """Recibe ubicación GPS del chofer vía Telegram."""
     chat = update.effective_chat
     message = update.message
-    assert chat is not None and message is not None
+    
+    # Guard clause - handle edge cases where Telegram sends update without chat/message
+    if chat is None or message is None:
+        logger.warning("handle_location: update sin chat o message (edge case Telegram)")
+        return
+    
     chat_id = chat.id
     chofer = get_chofer_by_chat_id(chat_id)
 
@@ -548,7 +553,9 @@ async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         return
 
     location = message.location
-    assert location is not None
+    if location is None:
+        logger.warning("handle_location: message sin location")
+        return
     lat = location.latitude
     lng = location.longitude
 

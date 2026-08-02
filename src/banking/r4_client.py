@@ -18,7 +18,7 @@ logger = logging.getLogger("r4banco.client")
 class R4BankError(Exception):
     """Error devuelto por el banco (code, message)"""
 
-    def __init__(self, code: str, message: str, raw: dict = None):
+    def __init__(self, code: str, message: str, raw: dict[str, Any] | None = None):
         self.code = code
         self.message = message
         self.raw = raw
@@ -101,7 +101,7 @@ class R4Client:
         method: str,
         endpoint_key: str,
         payload: dict[str, Any],
-        extra_headers: dict[str, str] = None,
+        extra_headers: dict[str, str] | None = None,
     ) -> dict[str, Any]:
         """Ejecuta request con retry exponencial"""
         url = self.base_url + ENDPOINTS[endpoint_key]
@@ -139,7 +139,7 @@ class R4Client:
                     endpoint_key,
                     data.get("code") if isinstance(data, dict) else "N/A",
                 )
-                return data
+                return data if isinstance(data, dict) else {"raw": data}
 
             except httpx.HTTPStatusError as e:
                 last_error = f"HTTP {e.response.status_code}: {e.response.text}"
@@ -160,7 +160,7 @@ class R4Client:
     # ==================== MÉTODOS PÚBLICOS POR ENDPOINT ====================
 
     async def consultar_tasa_bcv(
-        self, moneda: str = "USD", fecha_valor: str = None
+        self, moneda: str = "USD", fecha_valor: str | None = None
     ) -> dict[str, Any]:
         """Consulta tasa BCV oficial. Endpoint: MBbcv"""
         if not fecha_valor:
@@ -169,7 +169,7 @@ class R4Client:
         return await self._request_with_retry("POST", "bcv", payload)
 
     async def consultar_cliente(
-        self, id_cliente: str, monto: str = None, telefono_comercio: str = None
+        self, id_cliente: str, monto: str | None = None, telefono_comercio: str | None = None
     ) -> dict[str, Any]:
         """Consulta/validación cliente para pago móvil. Endpoint: R4consulta"""
         payload = {"IdCliente": id_cliente}
@@ -361,7 +361,7 @@ class R4Client:
         monto_total: str,
         fecha: str,  # MM/DD/YYYY
         referencia: str,
-        personas: list,  # lista de dicts con nombres, documento, destino, montoPart
+        personas: list[dict[str, Any]],  # lista de dicts con nombres, documento, destino, montoPart
     ) -> dict[str, Any]:
         """Gestión de pagos (dispersión). Endpoint: R4pagos"""
         payload = {
@@ -372,15 +372,21 @@ class R4Client:
         }
         return await self._request_with_retry("POST", "dispersar", payload)
 
-    async def close(self):
+    async def close(self) -> None:
         """Cerrar cliente HTTP"""
         await self._client.aclose()
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "R4Client":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_val: BaseException | None,
+        exc_tb: Any | None,
+    ) -> bool | None:
         await self.close()
+        return None
 
 
 # ==================== FACTORY ====================

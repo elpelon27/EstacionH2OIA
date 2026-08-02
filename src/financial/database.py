@@ -351,11 +351,14 @@ END;
 
 @contextmanager
 def get_db() -> Iterator[sqlite3.Connection]:
-    """Context manager para conexión SQLite (thread-safe, WAL, FK, busy_timeout)."""
+    """Context manager para conexión SQLite (thread-safe, WAL, FK, busy_timeout).
+    
+    busy_timeout aumentado a 30s para manejar concurrencia startup (Financial Shield recovery + bridge init).
+    """
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=5000")
+    conn.execute("PRAGMA busy_timeout=30000")  # 30s para evitar "database is locked" en startup concurrente
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA synchronous=NORMAL")
     try:
@@ -367,6 +370,9 @@ def get_db() -> Iterator[sqlite3.Connection]:
         raise
     finally:
         conn.close()
+def init_database() -> None:
+    """Alias de compatibilidad — inicializa/migra a v3.0."""
+    init_database_v3()
 
 
 def init_database_v3() -> None:

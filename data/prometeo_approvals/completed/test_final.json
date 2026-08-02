@@ -1,0 +1,13 @@
+{
+  "id": "test_final",
+  "type": "sudo_password",
+  "prompt": "Test final completo",
+  "context": {
+    "test": true
+  },
+  "timeout_seconds": 20,
+  "created_at": "2026-07-31T22:47:42.411097+00:00",
+  "status": "completed",
+  "response": "password_real_456",
+  "responded_at": "2026-07-31T22:47:42.411108+00:00"
+}

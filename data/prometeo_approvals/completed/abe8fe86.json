@@ -1,0 +1,13 @@
+{
+  "id": "abe8fe86",
+  "type": "sudo_password",
+  "prompt": "Test final: \u00bfpuedes confirmar reinicio de valentina-bridge?",
+  "context": {
+    "service": "valentina-bridge"
+  },
+  "timeout_seconds": 15,
+  "created_at": "2026-07-31T23:10:52.887235+00:00",
+  "status": "completed",
+  "response": "s\u00ed confirmo todo listo",
+  "responded_at": "2026-07-31T23:10:52.887245+00:00"
+}

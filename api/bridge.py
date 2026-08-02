@@ -27,6 +27,7 @@ Seguridad:
 Autor: Prometeo (arquitecto IA Estación H2O)
 """
 
+# Standard library imports
 import asyncio
 import hashlib
 import hmac
@@ -38,9 +39,43 @@ import sqlite3
 import sys
 import time
 from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
+
+# Third-party imports
+import httpx
+from fastapi import FastAPI, HTTPException, Request
+from fastapi.responses import JSONResponse, PlainTextResponse
+from fastapi.responses import Response as RawResponse
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.util import get_remote_address
+
+# Local imports
+try:
+    from api.routes.dispatch import router as dispatch_router
+except ModuleNotFoundError:
+    # When running from /mnt/ssd_trabajo/hermes-agent/api/ (systemd WorkingDirectory)
+    import sys
+    sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+    from api.routes.dispatch import router as dispatch_router
+
+# Métricas Prometheus
+try:
+    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+
+    PROMETHEUS_AVAILABLE = True
+except ImportError:
+    PROMETHEUS_AVAILABLE = False
+
+# Telegram alerts (opcional, no bloquea si no está configurado)
+try:
+    import telegram
+
+    TELEGRAM_AVAILABLE = True
+except ImportError:
+    TELEGRAM_AVAILABLE = False
 
 # P1-2: sdnotify para watchdog systemd
 try:
@@ -48,6 +83,7 @@ try:
 except ImportError:
     sdnotify = None
 
+# System path for local imports
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
 
@@ -88,29 +124,11 @@ except Exception:
         return None
 
 
-import httpx
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import JSONResponse, PlainTextResponse
-from fastapi.responses import Response as RawResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
-
-# Métricas Prometheus
+# P1-2: sdnotify para watchdog systemd
 try:
-    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
-
-    PROMETHEUS_AVAILABLE = True
+    import sdnotify  # type: ignore[import-untyped]
 except ImportError:
-    PROMETHEUS_AVAILABLE = False
-
-# Telegram alerts (opcional, no bloquea si no está configurado)
-try:
-    import telegram
-
-    TELEGRAM_AVAILABLE = True
-except ImportError:
-    TELEGRAM_AVAILABLE = False
+    sdnotify = None
 
 # ============================================================================
 # Configuración (todas las secrets via variables de entorno)
@@ -184,6 +202,9 @@ DEDUP_TTL_SECONDS = 300  # 5 minutos
 
 # Hora de arranque para uptime
 START_TIME = time.time()
+
+# P0-B FIX: Background task reference for recovery scan
+_recovery_task: asyncio.Task[Any] | None = None
 
 # State tracking: último total correcto por teléfono (para corregir en mensajes posteriores)
 # phone_hash -> {"total": float, "qty_bot": int, "qty_hielo": int}
@@ -1058,10 +1079,8 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
 
     # P1-5: usar haversine de route_engine (esférico, preciso) con fallback local
     _haversine_impl: Any = None
-    try:
+    with suppress(ImportError):
         from skills.dispatch.route_engine import haversine as _haversine_impl
-    except ImportError:
-        pass
 
     best_id = None
     best_km = float("inf")
@@ -1099,7 +1118,6 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict[str, 
         lat = state.get("latitude")
         lng = state.get("longitude")
         qty_bot = state.get("qty_botellones", 0) or 0
-        qty_hielo = state.get("qty_hielo", 0) or 0
         zone_id = _nearest_zone_id(lat, lng)
         total_bottles_visit = qty_bot  # proxy simple; hielo no es botellones
         now = datetime.now(CARACAS_TZ).timestamp()
@@ -1180,9 +1198,14 @@ def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict[str, 
 def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str) -> None:
     """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
     TRIGGER: cuando cliente confirma pago (efectivo '2' o 'ya pagué' tras pago móvil).
-    NO encolar en abortos ('volver'/'menú' desde awaiting_payment)."""
+    NO encolar en abortos ('volver'/'menú' desde awaiting_payment).
+    
+    SPRINT 4.1: Usa WorkloadRouter → DispatcherSkill para notificación al chofer
+    (antes: llamada HTTP directa a /dispatch/notify-driver).
+    
+    SPRINT 4.2: Vehicle assignment inteligente por zona y capacidad.
+    """
     import sqlite3 as _sq3
-
     import httpx
 
     try:
@@ -1236,31 +1259,198 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         # para que el dispatcher tenga un cliente real al planear rutas.
         _sync_client_to_dispatch_db(ph_hash, from_phone, state)
 
-        # FASE 1.5: Notificar al chofer via endpoint /dispatch/notify-driver
-        # Llamada síncrona para no romper el flujo del bridge
+        # SPRINT 4.2: Vehicle assignment inteligente
+        vehicle_id = _assign_vehicle_for_order(lat, lng, qty_bot)
+        
+        # SPRINT 4.1: Notificar al chofer via WorkloadRouter → DispatcherSkill
+        # (antes: llamada HTTP directa a /dispatch/notify-driver)
         try:
-            dispatch_url = "http://localhost:8000/dispatch/notify-driver"
-            payload = {
-                "vehicle_id": 1,  # TODO: determinar vehículo según capacidad/zona
-                "client_name": contact_name,
-                "client_phone": from_phone,
-                "bottles_full": state.get("qty_botellones", 0),
-                "lat": lat or 0.0,
-                "lng": lng or 0.0,
-                "address": address,
-                "total_eur": total,
-                "total_bs": total_bs,
-                "metodo_pago": metodo,
-            }
-            import httpx
-
-            with httpx.Client(timeout=10.0) as client:
-                client.post(dispatch_url, json=payload)
-            logger.info("📦 Pedido notificado a chofer via /dispatch/notify-driver")
+            from core.workload_router import get_router
+            import asyncio
+            
+            router = get_router()
+            
+            # Ejecutar notificación de forma asíncrona (fire-and-forget)
+            async def _notify_driver_async():
+                # Retry logic: 3 attempts with exponential backoff
+                max_retries = 3
+                base_delay = 0.5  # seconds
+                
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        result = await router.execute(
+                            trigger="dispatch_request",
+                            action="notify_driver",
+                            vehicle_id=vehicle_id,
+                            client_name=contact_name,
+                            client_phone=from_phone,
+                            bottles_full=state.get("qty_botellones", 0),
+                            lat=lat or 0.0,
+                            lng=lng or 0.0,
+                            address=address,
+                            total_eur=total,
+                            total_bs=total_bs,
+                            metodo_pago=metodo,
+                        )
+                        if result.get("success") and result.get("data", {}).get("sent"):
+                            logger.info("📦 Pedido notificado a chofer via WorkloadRouter → DispatcherSkill (vehicle=%d)", vehicle_id)
+                            return True
+                        else:
+                            logger.warning("⚠️ Notificación a chofer falló (intento %d/%d): %s", attempt, max_retries, result.get("message", "unknown"))
+                    except Exception as e:
+                        logger.warning("Error en notificación WorkloadRouter (intento %d/%d): %s", attempt, max_retries, e)
+                    
+                    # Wait before retry (exponential backoff)
+                    if attempt < max_retries:
+                        await asyncio.sleep(base_delay * (2 ** (attempt - 1)))
+                
+                # All retries failed
+                logger.error("❌ Notificación a chofer falló tras %d intentos", max_retries)
+                return False
+            
+            # Fire-and-forget sin bloquear el flujo del bridge
+            import asyncio as _asyncio
+            try:
+                loop = _asyncio.get_event_loop()
+                if loop.is_running():
+                    loop.create_task(_notify_driver_async())
+                else:
+                    _asyncio.run(_notify_driver_async())
+            except RuntimeError:
+                # No hay loop, crear uno nuevo
+                _asyncio.run(_notify_driver_async())
+                
         except Exception as e:
-            logger.warning("No se pudo notificar a chofer (endpoint interno): %s", e)
+            logger.warning("Error importando WorkloadRouter para notificación: %s", e)
+            # Fallback: llamada HTTP directa (método anterior)
+            try:
+                dispatch_url = "http://localhost:8000/dispatch/notify-driver"
+                payload = {
+                    "vehicle_id": vehicle_id,
+                    "client_name": contact_name,
+                    "client_phone": from_phone,
+                    "bottles_full": state.get("qty_botellones", 0),
+                    "lat": lat or 0.0,
+                    "lng": lng or 0.0,
+                    "address": address,
+                    "total_eur": total,
+                    "total_bs": total_bs,
+                    "metodo_pago": metodo,
+                }
+                # Retry logic for fallback HTTP
+                max_retries = 3
+                for attempt in range(1, max_retries + 1):
+                    try:
+                        with httpx.Client(timeout=10.0) as client:
+                            resp = client.post(dispatch_url, json=payload)
+                            if resp.status_code == 200:
+                                logger.info("📦 Pedido notificado a chofer via fallback HTTP /dispatch/notify-driver (vehicle=%d)", vehicle_id)
+                                break
+                            else:
+                                logger.warning("Fallback HTTP status %d (intento %d/%d)", resp.status_code, attempt, max_retries)
+                    except Exception as e2:
+                        logger.warning("Fallback HTTP error (intento %d/%d): %s", attempt, max_retries, e2)
+                    
+                    if attempt < max_retries:
+                        import time
+                        time.sleep(0.5 * (2 ** (attempt - 1)))
+                else:
+                    logger.error("❌ Fallback HTTP también falló tras %d intentos", max_retries)
+            except Exception as e2:
+                logger.error("Fallback HTTP exception: %s", e2)
     except Exception as e:
         logger.error("Error enviando a dispatch_queue: %s", e)
+
+
+def _assign_vehicle_for_order(lat: float | None, lng: float | None, bottles_needed: int) -> int:
+    """
+    Asigna vehículo óptimo basado en:
+    1. Zona del cliente (haversine a centros de zona)
+    2. Capacidad disponible (pending_deliveries < 10, max_full_bottles)
+    3. Menor carga actual
+    
+    Returns: vehicle_id (1 o 2)
+    """
+    import sqlite3 as _sq3
+    
+    if lat is None or lng is None:
+        logger.warning("Sin GPS para assignment, usando vehicle_id=1 por defecto")
+        return 1
+    
+    try:
+        dispatch_conn = _sq3.connect("/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
+        dispatch_conn.row_factory = _sq3.Row
+        
+        # 1. Encontrar zona más cercana al cliente
+        zones = dispatch_conn.execute(
+            "SELECT id, center_lat, center_lng FROM zones WHERE center_lat IS NOT NULL AND center_lng IS NOT NULL"
+        ).fetchall()
+        
+        if not zones:
+            logger.warning("No hay zonas definidas, usando vehicle_id=1")
+            return 1
+        
+        # Haversine simple inline
+        from math import radians, sin, cos, sqrt, atan2
+        def haversine(lat1, lng1, lat2, lng2):
+            R = 6371.0
+            dlat = radians(lat2 - lat1)
+            dlng = radians(lng2 - lng1)
+            a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+            return 2 * R * atan2(sqrt(a), sqrt(1 - a))
+        
+        best_zone_id = None
+        best_dist = float("inf")
+        for z in zones:
+            dist = haversine(lat, lng, z["center_lat"], z["center_lng"])
+            if dist < best_dist:
+                best_dist = dist
+                best_zone_id = z["id"]
+        
+        logger.info("Cliente en zona más cercana: %s (%.1f km)", best_zone_id, best_dist)
+        
+        # 2. Buscar vehicles activos con chat_id y capacidad
+        vehicles = dispatch_conn.execute(
+            """
+            SELECT v.id, v.name, v.operator_name, v.telegram_chat_id, v.max_full_bottles,
+                   COALESCE(SUM(CASE WHEN d.status = 'pending' THEN 1 ELSE 0 END), 0) as pending_deliveries
+            FROM vehicles v
+            LEFT JOIN deliveries d ON d.vehicle_id = v.id AND d.status = 'pending'
+            WHERE v.active = 1 AND v.telegram_chat_id IS NOT NULL
+            GROUP BY v.id, v.name, v.operator_name, v.telegram_chat_id, v.max_full_bottles
+            ORDER BY pending_deliveries ASC, v.id ASC
+            """
+        ).fetchall()
+        
+        dispatch_conn.close()
+        
+        if not vehicles:
+            logger.warning("No hay vehicles con chat_id configurado, usando vehicle_id=1")
+            return 1
+        
+        # 3. Filtrar por capacidad: pending < 10 y max_full_bottles >= bottles_needed
+        suitable = []
+        for v in vehicles:
+            if v["pending_deliveries"] < 10 and v["max_full_bottles"] >= bottles_needed:
+                suitable.append(v)
+        
+        if not suitable:
+            logger.warning("Ningún vehicle tiene capacidad para %d botellones, usando el de menos carga", bottles_needed)
+            suitable = [v for v in vehicles if v["pending_deliveries"] < 10]
+            if not suitable:
+                logger.warning("Todos los vehicles saturados, usando vehicle_id=1")
+                return 1
+        
+        # 4. Retornar el de menos carga (ya ordenado por pending_deliveries ASC)
+        chosen = suitable[0]
+        logger.info("Vehicle asignado: %s (%s) - pending=%d, cap=%d, need=%d",
+                   chosen["name"], chosen["operator_name"], chosen["pending_deliveries"], 
+                   chosen["max_full_bottles"], bottles_needed)
+        return chosen["id"]
+        
+    except Exception as e:
+        logger.error("Error en vehicle assignment: %s, defaulting to 1", e)
+        return 1
 
 
 def _handle_deterministic(
@@ -1280,7 +1470,7 @@ def _handle_deterministic(
     text_lower = text_body.lower().strip()
 
     # Detectar si viene de botón interactivo
-    is_interactive = msg.get("type") == "interactive" or msg.get("_was_interactive", False)
+    msg.get("type") == "interactive" or msg.get("_was_interactive", False)
 
     # ====================================================================
     # ESTADO: None (nueva conversación) o completed
@@ -2215,12 +2405,12 @@ def _build_order_payload(
 
     # Total en euros — CÁLCULO DETERMINÍSTICO (no extraer del LLM)
     # El LLM puede equivocarse en cálculos. El bridge calcula con precios oficiales.
-    PRECIO_BOTELLON = 1.00  # €
-    PRECIO_HIELO = 1.20  # €
+    precio_botellon = 1.00  # €
+    precio_hielo = 1.20  # €
     qty_bot_val: Any = payload.get("qty_botellones", 0)
     qty_hielo_val: Any = payload.get("qty_hielo", 0)
     payload["total_eur"] = round(
-        (float(qty_bot_val) * PRECIO_BOTELLON) + (float(qty_hielo_val) * PRECIO_HIELO), 2
+        (float(qty_bot_val) * precio_botellon) + (float(qty_hielo_val) * precio_hielo), 2
     )
 
     # Método de pago (si aparece en la respuesta de confirmación de pago)
@@ -2287,7 +2477,7 @@ async def _watchdog_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    global _http_client, _telegram_bot, _watchdog_task
+    global _http_client, _telegram_bot, _watchdog_task, _recovery_task
     _init_db()
     _http_client = httpx.AsyncClient()
 
@@ -2303,8 +2493,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try:
             _telegram_bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
             await _send_telegram(
-                "✅ <b>Valentina Bridge iniciado</b>\n\n💧 Estación H2O lista para atender."
-            )
+                            "✅ <b>Valentina Bridge iniciado</b>\\n\\n💧 Estación H2O lista para atender."
+                        )
             logger.info("Telegram alerts activadas (chat_id=%s)", TELEGRAM_CHAT_ID)
         except Exception as e:
             logger.warning("Telegram no disponible: %s", e)
@@ -2314,38 +2504,48 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         os.remove(KILL_SWITCH_FILE)
         logger.info("Kill switch limpiado al arranque")
 
-    # v3.0: Recovery scan de pagos atascados (Financial Shield)
-    try:
-        from src.financial.verificacion import recovery_scan_stuck_payments
-
-        recovered = await recovery_scan_stuck_payments()
-        if recovered:
-            logger.warning("Financial Shield recovery: %d pedidos reanudados", recovered)
-    except Exception as e:
-        logger.warning("Financial Shield recovery scan falló: %s", e)
-
     logger.info("Valentina Bridge iniciado en puerto %d", BRIDGE_PORT)
     logger.info("Dify API: %s", DIFY_API_URL)
     logger.info("Meta API version: %s", META_API_VERSION)
     logger.info("Prometheus metrics: %s", "activadas" if PROMETHEUS_AVAILABLE else "no disponibles")
+
+    # P0-B FIX: Recovery scan en background task POST-yield (no bloquea startup, evita 'database is locked')
+    async def _run_recovery_scan():
+        # Pequeña pausa para que el bridge termine de arrancar y acepte requests
+        await asyncio.sleep(2)
+        try:
+            from src.financial.verificacion import recovery_scan_stuck_payments
+
+            recovered = await recovery_scan_stuck_payments()
+            if recovered:
+                logger.warning("Financial Shield recovery (bg): %d pedidos reanudados", recovered)
+        except Exception as e:
+            logger.warning("Financial Shield recovery scan (bg) falló: %s", e)
+
+    _recovery_task = asyncio.create_task(_run_recovery_scan())
+
     yield
 
     # P1-2: Cancelar watchdog en shutdown
     if _watchdog_task:
         _watchdog_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await _watchdog_task
-        except asyncio.CancelledError:
-            pass
+
+    # Cancelar recovery task si aún está corriendo
+    if _recovery_task and not _recovery_task.done():
+        _recovery_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await _recovery_task
 
     # Graceful shutdown
-    logger.info("Cerrando conexiones...")
-    if _telegram_bot:
-        await _send_telegram(
-            "⚠️ <b>Valentina Bridge detenido</b>\n\nLos mensajes no se responden temporalmente."
-        )
-    await _http_client.aclose()
-    logger.info("Valentina Bridge detenido")
+        logger.info("Cerrando conexiones...")
+        if _telegram_bot:
+            await _send_telegram(
+                "⚠️ <b>Valentina Bridge detenido</b>\\n\\nLos mensajes no se responden temporalmente."
+            )
+        await _http_client.aclose()
+        logger.info("Valentina Bridge detenido")
 
 
 app = FastAPI(
@@ -2356,6 +2556,9 @@ app = FastAPI(
 )
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
+
+# Include dispatch routes
+app.include_router(dispatch_router)
 
 
 @app.get("/")
@@ -2501,7 +2704,7 @@ async def meta_webhook(request: Request) -> JSONResponse:
         data = json.loads(raw_body)
     except json.JSONDecodeError:
         MESSAGES_TOTAL.labels(status="error").inc()
-        raise HTTPException(status_code=400, detail="Invalid JSON")
+        raise HTTPException(status_code=400, detail="Invalid JSON") from None
 
     # Meta envía status updates (delivered, read) en el mismo webhook.
     # Solo procesamos mensajes entrantes, ignoramos status.

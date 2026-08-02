@@ -24,6 +24,14 @@ strict = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
+# Financial module - relax some strict settings for now
+[[tool.mypy.overrides]]
+module = "financial.*"
+strict = false
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

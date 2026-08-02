@@ -23,6 +23,8 @@ class TestAtomicPaymentFlow:
     def setup_db(self):
         """Limpiar tablas de test antes y después"""
         with db.get_db() as conn:
+            # Disable FK checks for cleanup
+            conn.execute("PRAGMA foreign_keys = OFF")
             conn.execute(
                 "DELETE FROM fs_pagos WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
             )
@@ -30,8 +32,10 @@ class TestAtomicPaymentFlow:
             conn.execute(
                 "DELETE FROM fs_verificacion_log WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
             )
+            conn.execute("PRAGMA foreign_keys = ON")
         yield
         with db.get_db() as conn:
+            conn.execute("PRAGMA foreign_keys = OFF")
             conn.execute(
                 "DELETE FROM fs_pagos WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
             )
@@ -39,6 +43,7 @@ class TestAtomicPaymentFlow:
             conn.execute(
                 "DELETE FROM fs_verificacion_log WHERE fs_pedido_id IN (SELECT id FROM fs_pedidos WHERE pedido_id >= 90000)"
             )
+            conn.execute("PRAGMA foreign_keys = ON")
 
     @pytest.mark.asyncio
     async def test_pago_total_directo(self):
