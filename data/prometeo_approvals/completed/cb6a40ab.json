@@ -1,0 +1,11 @@
+{
+  "id": "cb6a40ab",
+  "type": "validation",
+  "prompt": "Test health check - \u00bftodo verde?",
+  "context": {},
+  "timeout_seconds": 10,
+  "created_at": "2026-07-31T23:09:35.426460+00:00",
+  "status": "completed",
+  "response": "s\u00ed confirmo",
+  "responded_at": "2026-07-31T23:09:35.426486+00:00"
+}

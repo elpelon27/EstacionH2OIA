@@ -1,0 +1,51 @@
+# /etc/systemd/system/prometeo-telegram.service
+# ============================================================================
+# systemd unit — Prometeo Telegram Bot (Líder ↔ Agente IA)
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+# Instalar:
+#   sudo cp /mnt/ssd_trabajo/hermes-agent/systemd/prometeo-telegram.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable prometeo-telegram
+#   sudo systemctl start prometeo-telegram
+# ============================================================================
+
+[Unit]
+Description=Prometeo Telegram Bot — Líder ↔ Agente IA
+After=network-online.target valentina-bridge.service
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+User=skynet
+Group=skynet
+
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/skills
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python prometeo_telegram.py
+
+Restart=always
+RestartSec=10
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp /mnt/ssd_trabajo/hermes-agent/data
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictNamespaces=true
+LockPersonality=true
+
+MemoryMax=256M
+CPUQuota=50%
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=prometeo-telegram
+
+[Install]
+WantedBy=multi-user.target

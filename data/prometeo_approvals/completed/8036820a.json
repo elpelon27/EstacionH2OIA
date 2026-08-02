@@ -1,0 +1,11 @@
+{
+  "id": "8036820a",
+  "type": "validation",
+  "prompt": "Test validation",
+  "context": {},
+  "timeout_seconds": 10,
+  "created_at": "2026-07-31T22:50:05.578259+00:00",
+  "status": "completed",
+  "response": "s\u00ed",
+  "responded_at": "2026-07-31T22:50:05.578286+00:00"
+}

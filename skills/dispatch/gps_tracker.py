@@ -224,7 +224,17 @@ class GPSTracker:
         conn.execute(
             """
             INSERT INTO gps_tracks
-                (vehicle_id, lat, lng, accuracy, speed_kmh, source, delivery_id, track_type, created_at)
+            (
+                vehicle_id,
+                lat,
+                lng,
+                accuracy,
+                speed_kmh,
+                source,
+                delivery_id,
+                track_type,
+                created_at
+            )
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
@@ -338,16 +348,20 @@ if __name__ == "__main__":
         # Punto dentro (Bella Vista)
         p1 = GPSPoint(vehicle_id=1, lat=10.6500, lng=-71.6200, source="tasker")
         r1 = await tracker.process_gps_point(p1)
-        print(
-            f"Bella Vista: inside={r1.inside_perimeter}, zone={r1.nearest_zone_id}, dist={r1.distance_to_depot_km}km"
+        msg1 = (
+            f"Bella Vista: inside={r1.inside_perimeter}, "
+            f"zone={r1.nearest_zone_id}, dist={r1.distance_to_depot_km}km"
         )
+        print(msg1)
 
         # Punto fuera (Caracas ~400km)
         p2 = GPSPoint(vehicle_id=1, lat=10.5000, lng=-66.9000, source="tasker")
         r2 = await tracker.process_gps_point(p2)
-        print(
-            f"Caracas: inside={r2.inside_perimeter}, alert={r2.alert_triggered}, dist={r2.distance_to_depot_km}km"
+        msg2 = (
+            f"Caracas: inside={r2.inside_perimeter}, "
+            f"alert={r2.alert_triggered}, dist={r2.distance_to_depot_km}km"
         )
+        print(msg2)
 
         # Heatmap
         hm = tracker.get_heatmap_data(hours_back=168)  # 7 días

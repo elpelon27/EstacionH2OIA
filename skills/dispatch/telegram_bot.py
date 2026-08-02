@@ -252,6 +252,28 @@ class DispatcherTelegramBot:
         """Configura handlers de la aplicación (se llama en run())."""
         pass  # Se hace en run() para tener acceso a self.app
 
+    def _ensure_app(self) -> None:
+        """Inicializa la aplicación Telegram si no existe (para webhooks)."""
+        if self.app is None:
+            self.app = Application.builder().token(self.token).build()
+            # Configurar handlers (igual que en run())
+            self.app.add_handler(CommandHandler("start", self.cmd_start))
+            self.app.add_handler(CommandHandler("ruta", self.cmd_ruta))
+            self.app.add_handler(CommandHandler("siguiente", self.cmd_siguiente))
+            self.app.add_handler(CommandHandler("status", self.cmd_status))
+            self.app.add_handler(CommandHandler("help", self.cmd_help))
+            self.app.add_handler(CallbackQueryHandler(self.callback_registro, pattern="^reg_"))
+            self.app.add_handler(CallbackQueryHandler(self.callback_accion, pattern="^(arr_|del_|no_|new_)"))
+            self.app.add_handler(CallbackQueryHandler(self.callback_checkin, pattern="^checkin_"))
+            self.app.add_handler(MessageHandler(filters.LOCATION, self.handle_location))
+
+    async def process_update(self, update: dict[str, Any]) -> None:
+        """Procesa un update de Telegram (para webhook)."""
+        self._ensure_app()
+        # Convertir dict a Update object
+        tg_update = Update.de_json(update, self.app.bot)
+        await self.app.process_update(tg_update)
+
     # ----------------------------------------------------------------------
     # Comandos Telegram
     # ----------------------------------------------------------------------
@@ -747,83 +769,85 @@ class DispatcherTelegramBot:
     # ----------------------------------------------------------------------
 
     async def send_delivery_to_chofer(
-        self,
-        vehicle_id: int,
-        client_name: str,
-        client_phone: str,
-        bottles_full: int,
-        lat: float,
-        lng: float,
-        address: str,
-        total_eur: float = 0,
-        total_bs: float = 0,
-        metodo_pago: str = "",
-    ) -> bool:
-        """Envía un pedido al chofer por Telegram. Llamado externamente."""
+            self,
+            vehicle_id: int,
+            client_name: str,
+            client_phone: str,
+            bottles_full: int,
+            lat: float,
+            lng: float,
+            address: str,
+            total_eur: float = 0,
+            total_bs: float = 0,
+            metodo_pago: str = "",
+        ) -> bool:
+            """Envía un pedido al chofer por Telegram. Llamado externamente."""
+            # Ensure app is initialized (for webhook/external calls)
+            self._ensure_app()
+        
+            conn = get_dispatch_db()
+            vehicle = conn.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
+            conn.close()
 
-        conn = get_dispatch_db()
-        vehicle = conn.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
-        conn.close()
+            if not vehicle or not vehicle["telegram_chat_id"]:
+                logger.warning("Vehículo %d no tiene chat_id de Telegram", vehicle_id)
+                return False
 
-        if not vehicle or not vehicle["telegram_chat_id"]:
-            logger.warning("Vehículo %d no tiene chat_id de Telegram", vehicle_id)
-            return False
+            chat_id = vehicle["telegram_chat_id"]
+            gps_url = format_gps_url(lat, lng) if lat and lng else ""
 
-        chat_id = vehicle["telegram_chat_id"]
-        gps_url = format_gps_url(lat, lng) if lat and lng else ""
+            # Construir mensaje según método de pago
+            if metodo_pago and ("efectivo" in metodo_pago.lower()):
+                bs_str = f" (Bs. {total_bs:.2f})" if total_bs and total_bs > 0 else ""
+                msg = (
+                    f"🚚 NUEVO PEDIDO\\n"
+                    f"━━━━━━━━━━━━━━━━\\n"
+                    f"👤 {client_name}\\n"
+                    f"📱 {client_phone}\\n"
+                    f"📦 {bottles_full} botellones de agua\\n"
+                    f"💰 Total: €{total_eur:.2f}{bs_str}\\n"
+                )
+                if gps_url:
+                    msg += f"📍 {gps_url}\\n"
+                msg += "⚠️ PAGO EN EFECTIVO — Cobrar al entregar\\n"
+                msg += "━━━━━━━━━━━━━━━━"
+            else:
+                msg = (
+                    f"🚚 NUEVO PEDIDO\\n"
+                    f"━━━━━━━━━━━━━━━━\\n"
+                    f"👤 {client_name}\\n"
+                    f"📱 {client_phone}\\n"
+                    f"📦 {bottles_full} botellones de agua\\n"
+                )
+                if gps_url:
+                    msg += f"📍 {gps_url}\\n"
+                msg += "━━━━━━━━━━━━━━━━"
 
-        # Construir mensaje según método de pago
-        if metodo_pago and ("efectivo" in metodo_pago.lower()):
-            bs_str = f" (Bs. {total_bs:.2f})" if total_bs and total_bs > 0 else ""
-            msg = (
-                f"🚚 NUEVO PEDIDO\n"
-                f"━━━━━━━━━━━━━━━━\n"
-                f"👤 {client_name}\n"
-                f"📱 {client_phone}\n"
-                f"📦 {bottles_full} botellones de agua\n"
-                f"💰 Total: €{total_eur:.2f}{bs_str}\n"
-            )
-            if gps_url:
-                msg += f"📍 {gps_url}\n"
-            msg += "⚠️ PAGO EN EFECTIVO — Cobrar al entregar\n"
-            msg += "━━━━━━━━━━━━━━━━"
-        else:
-            msg = (
-                f"🚚 NUEVO PEDIDO\n"
-                f"━━━━━━━━━━━━━━━━\n"
-                f"👤 {client_name}\n"
-                f"📱 {client_phone}\n"
-                f"📦 {bottles_full} botellones de agua\n"
-            )
-            if gps_url:
-                msg += f"📍 {gps_url}\n"
-            msg += "━━━━━━━━━━━━━━━━"
+            keyboard = [
+                [
+                    InlineKeyboardButton("📍 Llegué", callback_data=f"new_arr_{vehicle_id}"),
+                    InlineKeyboardButton("✅ Entregado", callback_data=f"new_del_{vehicle_id}"),
+                ],
+                [
+                    InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
+                ],
+            ]
+            reply_markup = InlineKeyboardMarkup(keyboard)
 
-        keyboard = [
-            [
-                InlineKeyboardButton("📍 Llegué", callback_data=f"new_arr_{vehicle_id}"),
-                InlineKeyboardButton("✅ Entregado", callback_data=f"new_del_{vehicle_id}"),
-            ],
-            [
-                InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
-            ],
-        ]
-        reply_markup = InlineKeyboardMarkup(keyboard)
-
-        try:
-            bot = self.app.bot
-            if bot is None:
-                raise RuntimeError("Bot not initialized")
-            await bot.send_message(
-                chat_id=chat_id,
-                text=msg,
-                reply_markup=reply_markup,
-            )
-            logger.info("📦 Pedido enviado a %s (vehicle=%d)", vehicle["operator_name"], vehicle_id)
-            return True
-        except Exception as e:
-            logger.error("Error enviando a chofer %s: %s", vehicle["operator_name"], e)
-            return False
+            try:
+                bot = self.app.bot
+                if bot is None:
+                    raise RuntimeError("Bot not initialized")
+                await bot.send_message(
+                    chat_id=chat_id,
+                    text=msg,
+                    reply_markup=reply_markup,
+                )
+                logger.info("📦 Pedido enviado a %s (vehicle=%d)", vehicle["operator_name"], vehicle_id)
+                return True
+            except Exception as e:
+                logger.error("Error enviando a chofer %s: %s", vehicle["operator_name"], e)
+                return False
 
     # ----------------------------------------------------------------------
     # Check-in 8:00 AM

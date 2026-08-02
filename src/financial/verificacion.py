@@ -39,7 +39,7 @@ META_API_VERSION = os.getenv("META_API_VERSION", "v25.0")
 # VRAM Guard para Qwen2.5-VL fallback
 PYNVML_AVAILABLE = False
 try:
-    import pynvml
+    import pynvml  # type: ignore[import-untyped]
 
     pynvml.nvmlInit()
     PYNVML_AVAILABLE = True

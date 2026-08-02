@@ -10,6 +10,14 @@ from typing import Any, Dict, List, Optional, TYPE_CHECKING
 
 from core.config import get_settings
 from core.logger import get_logger
+from telegram import Update
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    MessageHandler,
+    filters,
+)
 
 if TYPE_CHECKING:
     from skills.dispatch.route_engine import ClientOrder, VRPResult
@@ -91,6 +99,7 @@ class DispatcherSkill:
             "confirm_delivery": self._confirm_delivery,
             "get_driver_status": self._get_driver_status,
             "delivery_delivered": self._delivery_delivered,
+            "handle_telegram_update": self._handle_telegram_update,
         }
 
         handler = action_map.get(action)
@@ -360,6 +369,34 @@ class DispatcherSkill:
             delivery_id=delivery_id,
         )
         return {"success": True, "message": "Entrega confirmada y botellón asignado a cliente", "data": result}
+
+    # ----------------------------------------------------------------------
+    # Action: handle_telegram_update
+    # ----------------------------------------------------------------------
+    async def _handle_telegram_update(self, update: dict[str, Any]) -> Dict[str, Any]:
+        """Procesa update de Telegram Bot choferes vía DispatcherTelegramBot."""
+        try:
+            bot = self.telegram_bot
+            # Asegurar que la aplicación está inicializada
+            if bot.app is None:
+                bot.app = Application.builder().token(bot.token).build()
+                # Configurar handlers (copiado de run())
+                bot.app.add_handler(CommandHandler("start", bot.cmd_start))
+                bot.app.add_handler(CommandHandler("ruta", bot.cmd_ruta))
+                bot.app.add_handler(CommandHandler("siguiente", bot.cmd_siguiente))
+                bot.app.add_handler(CommandHandler("status", bot.cmd_status))
+                bot.app.add_handler(CommandHandler("help", bot.cmd_help))
+                bot.app.add_handler(CallbackQueryHandler(bot.callback_registro, pattern="^reg_"))
+                bot.app.add_handler(CallbackQueryHandler(bot.callback_accion, pattern="^(arr_|del_|no_|new_)"))
+                bot.app.add_handler(CallbackQueryHandler(bot.callback_checkin, pattern="^checkin_"))
+                bot.app.add_handler(MessageHandler(filters.LOCATION, bot.handle_location))
+                # Inicializar la aplicación
+                await bot.app.initialize()
+            await bot.app.process_update(update)
+            return {"success": True, "message": "Update procesado", "data": None}
+        except Exception as e:
+            self.logger.exception("Error procesando telegram update: %s", e)
+            return self._error(f"Error procesando telegram update: {e}")
 
     # ----------------------------------------------------------------------
     # Helpers

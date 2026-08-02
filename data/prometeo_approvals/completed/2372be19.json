@@ -1,0 +1,11 @@
+{
+  "id": "2372be19",
+  "type": "validation",
+  "prompt": "Test timeout",
+  "context": {},
+  "timeout_seconds": 1,
+  "created_at": "2026-07-31T22:50:19.579789+00:00",
+  "status": "expired",
+  "response": null,
+  "responded_at": null
+}

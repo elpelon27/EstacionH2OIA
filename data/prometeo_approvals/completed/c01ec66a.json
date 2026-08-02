@@ -1,0 +1,14 @@
+{
+  "id": "c01ec66a",
+  "type": "sudo_password",
+  "prompt": "Test real: Necesito sudo para reiniciar valentina-bridge.service",
+  "context": {
+    "service": "valentina-bridge",
+    "action": "restart"
+  },
+  "timeout_seconds": 300,
+  "created_at": "2026-07-31T22:47:10.125893+00:00",
+  "status": "completed",
+  "response": "test_password_123",
+  "responded_at": "2026-07-31T22:47:10.125903+00:00"
+}

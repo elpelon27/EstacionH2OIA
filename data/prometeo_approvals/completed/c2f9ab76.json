@@ -1,0 +1,13 @@
+{
+  "id": "c2f9ab76",
+  "type": "validation",
+  "prompt": "\u00bfConfirmas el deploy a producci\u00f3n?",
+  "context": {
+    "env": "prod"
+  },
+  "timeout_seconds": 10,
+  "created_at": "2026-07-31T22:48:32.443935+00:00",
+  "status": "completed",
+  "response": "s\u00ed",
+  "responded_at": "2026-07-31T22:48:32.443945+00:00"
+}

@@ -1,0 +1,13 @@
+{
+  "id": "12b52a56",
+  "type": "sudo_password",
+  "prompt": "Test final: necesito sudo real",
+  "context": {
+    "service": "test"
+  },
+  "timeout_seconds": 10,
+  "created_at": "2026-07-31T22:48:05.417243+00:00",
+  "status": "completed",
+  "response": "password_real_789",
+  "responded_at": "2026-07-31T22:48:05.417258+00:00"
+}

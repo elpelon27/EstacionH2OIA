@@ -1,0 +1,13 @@
+{
+  "id": "546ec487",
+  "type": "sudo_password",
+  "prompt": "Necesito sudo para test",
+  "context": {
+    "target": "/etc/test"
+  },
+  "timeout_seconds": 15,
+  "created_at": "2026-07-31T22:30:06.284876+00:00",
+  "status": "completed",
+  "response": "mi_password_secreto",
+  "responded_at": "2026-07-31T22:30:06.284887+00:00"
+}

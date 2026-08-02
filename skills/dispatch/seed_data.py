@@ -1,525 +1,407 @@
 #!/usr/bin/env python3
 """
-============================================================================
-Seed Data — Pobla dispatch.db con datos base para Estación H2O
+Seed Data — Datos iniciales para Dispatcher + SWAP
 Estación H2O · Maracaibo, Venezuela
-============================================================================
 
-Puebla:
-- 5 zonas de Maracaibo (Bella Vista, Las Delicias, La Limpia, Centro, Tierra Negra)
-- 2 vehículos (Triciclo 1/2, shift 'both')
-- 16 clientes piloto (B2B + multifamiliares semana 1-2, unifamiliares semana 3)
+Pobla:
+- 5 zonas de Maracaibo
+- 2 vehículos (Triciclo 1 y 2) con operador integrado
+- 16 clientes piloto (B2B + multifamiliares + unifamiliares)
 - 165 botellones loaner (H2O-001 a H2O-165)
-
-Uso:
-    python skills/dispatch/seed_data.py
 """
 
 import sqlite3
-import time
-from pathlib import Path
+import logging
+from datetime import datetime, timezone
+from typing import Any
+
+logger = logging.getLogger("dispatch.seed_data")
 
 DISPATCH_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
-BOTTLE_PREFIX = "H2O-"
-TOTAL_BOTTLES = 165
+
+# Zona 1: Norte (Oeste) — Urbanizaciones alta densidad
+# Zona 2: Centro — Comercial + residencial
+# Zona 3: Sur (Este) — Urbanizaciones + B2B
+# Zona 4: Oeste — Industrial + B2B
+# Zona 5: San Francisco — Residencial + mixto
+
+ZONES = [
+    {
+        "id": 1,
+        "name": "Norte",
+        "center_lat": 10.6700,
+        "center_lng": -71.6300,
+        "radius_km": 8.0,
+        "description": "Urbanizaciones Norte (La Limpia, El Milagro, Veritas, etc.)",
+    },
+    {
+        "id": 2,
+        "name": "Centro",
+        "center_lat": 10.6447,
+        "center_lng": -71.6101,
+        "radius_km": 5.0,
+        "description": "Centro comercial + residencial denso",
+    },
+    {
+        "id": 3,
+        "name": "Sur-Este",
+        "center_lat": 10.6100,
+        "center_lng": -71.5800,
+        "radius_km": 7.0,
+        "description": "Sur-Este (La Lago, El Soler, etc.)",
+    },
+    {
+        "id": 4,
+        "name": "Oeste",
+        "center_lat": 10.6500,
+        "center_lng": -71.6600,
+        "radius_km": 8.0,
+        "description": "Oeste (Industrial, B2B, La Polar, etc.)",
+    },
+    {
+        "id": 5,
+        "name": "San Francisco",
+        "center_lat": 10.6300,
+        "center_lng": -71.6800,
+        "radius_km": 8.0,
+        "description": "San Francisco (residencial + mixto)",
+    },
+]
+
+VEHICLES = [
+    {
+        "id": 1,
+        "name": "Triciclo 1",
+        "operator_name": "YORDANIS",
+        "telegram_chat_id": 123456789,
+        "max_full_bottles": 30,
+        "max_empty_bottles": 70,
+    },
+    {
+        "id": 2,
+        "name": "Triciclo 2",
+        "operator_name": "EVERT",
+        "telegram_chat_id": 987654321,
+        "max_full_bottles": 30,
+        "max_empty_bottles": 70,
+    },
+]
+
+# 16 clientes piloto:
+# Semana 1-2: B2B + multifamiliares
+# Semana 3: unifamiliares
+CLIENTS = [
+    # B2B / Comercial (semana 1-2)
+    {
+        "phone": "+584140000001",
+        "name": "Hotel del Lago",
+        "address": "Av. Del Lago, Urbanización El Milagro",
+        "lat": 10.6650,
+        "lng": -71.6250,
+        "client_type": "b2b",
+        "visit_frequency": "daily",
+        "bottle_exchange_model": 1,  # 1:1
+        "bottle_return_hours": 24,
+    },
+    {
+        "phone": "+584140000002",
+        "name": "Restaurante El Faro",
+        "address": "Av. Fuerzas Armadas, Centro",
+        "lat": 10.6450,
+        "lng": -71.6100,
+        "client_type": "b2b",
+        "visit_frequency": "daily",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 24,
+    },
+    {
+        "phone": "+584140000003",
+        "name": "Clínica San Rafael",
+        "address": "Av. Universidad, Veritas",
+        "lat": 10.6700,
+        "lng": -71.6300,
+        "client_type": "b2b",
+        "visit_frequency": "daily",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 24,
+    },
+    {
+        "phone": "+584140000004",
+        "name": "Oficinas Corp. Polar",
+        "address": "Zona Industrial, La Polar",
+        "lat": 10.6550,
+        "lng": -71.6550,
+        "client_type": "b2b",
+        "visit_frequency": "weekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 36,
+    },
+    {
+        "phone": "+584140000005",
+        "name": "Universidad del Zulia - Rectorado",
+        "address": "Av. Universidad, Veritas",
+        "lat": 10.6680,
+        "lng": -71.6280,
+        "client_type": "b2b",
+        "visit_frequency": "weekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 36,
+    },
+    {
+        "phone": "+584140000006",
+        "name": "Centro Comercial Sambil",
+        "address": "Av. Fuerzas Armadas, Sambil",
+        "lat": 10.6400,
+        "lng": -71.6050,
+        "client_type": "b2b",
+        "visit_frequency": "daily",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 24,
+    },
+    # Multifamiliares (semana 1-2)
+    {
+        "phone": "+584140000007",
+        "name": "Condominio Los Naranjos",
+        "address": "Urbanización Los Naranjos, Norte",
+        "lat": 10.6720,
+        "lng": -71.6280,
+        "client_type": "multifamiliar",
+        "visit_frequency": "weekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 36,
+    },
+    {
+        "phone": "+584140000008",
+        "name": "Residencias El Soler",
+        "address": "Urbanización El Soler, Sur-Este",
+        "lat": 10.6150,
+        "lng": -71.5850,
+        "client_type": "multifamiliar",
+        "visit_frequency": "weekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 36,
+    },
+    {
+        "phone": "+584140000009",
+        "name": "Edificio Las Palmas",
+        "address": "Av. El Milagro, El Milagro",
+        "lat": 10.6620,
+        "lng": -71.6220,
+        "client_type": "multifamiliar",
+        "visit_frequency": "weekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 36,
+    },
+    {
+        "phone": "+584140000010",
+        "name": "Torres del Lago",
+        "address": "Av. Del Lago, Urbanización La Limpia",
+        "lat": 10.6600,
+        "lng": -71.6200,
+        "client_type": "multifamiliar",
+        "visit_frequency": "weekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 36,
+    },
+    {
+        "phone": "+584140000011",
+        "name": "Conjunto Residencial Veritas",
+        "address": "Urbanización Veritas, Norte",
+        "lat": 10.6750,
+        "lng": -71.6320,
+        "client_type": "multifamiliar",
+        "visit_frequency": "weekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 36,
+    },
+    # Unifamiliares (semana 3)
+    {
+        "phone": "+584140000012",
+        "name": "Familia Pérez - Casa 1",
+        "address": "Calle 85, Urbanización La Limpia",
+        "lat": 10.6680,
+        "lng": -71.6260,
+        "client_type": "unifamiliar",
+        "visit_frequency": "biweekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 48,
+    },
+    {
+        "phone": "+584140000013",
+        "name": "Familia González - Casa 2",
+        "address": "Calle 72, Urbanización El Milagro",
+        "lat": 10.6630,
+        "lng": -71.6240,
+        "client_type": "unifamiliar",
+        "visit_frequency": "biweekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 48,
+    },
+    {
+        "phone": "+584140000014",
+        "name": "Familia Rodríguez - Casa 3",
+        "address": "Av. 5, Urbanización Veritas",
+        "lat": 10.6730,
+        "lng": -71.6310,
+        "client_type": "unifamiliar",
+        "visit_frequency": "biweekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 48,
+    },
+    {
+        "phone": "+584140000015",
+        "name": "Familia Hernández - Casa 4",
+        "address": "Calle 12, Urbanización La Limpia",
+        "lat": 10.6650,
+        "lng": -71.6240,
+        "client_type": "unifamiliar",
+        "visit_frequency": "biweekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 48,
+    },
+    {
+        "phone": "+584140000016",
+        "name": "Familia Martínez - Casa 5",
+        "address": "Av. Principal, Urbanización La Limpia",
+        "lat": 10.6670,
+        "lng": -71.6250,
+        "client_type": "unifamiliar",
+        "visit_frequency": "biweekly",
+        "bottle_exchange_model": 1,
+        "bottle_return_hours": 48,
+    },
+]
 
 
 def get_db() -> sqlite3.Connection:
     conn = sqlite3.connect(DISPATCH_DB)
-    conn.execute("PRAGMA foreign_keys = ON")
     conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA foreign_keys = ON")
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA synchronous = NORMAL")
     return conn
 
 
-def hash_phone(phone: str) -> str:
-    """Hash simple para phone_hash (consistente con bridge.py)."""
-    import hashlib
-
-    salt = "change-this-in-production"  # LOG_SALT del .env
-    return hashlib.sha256(f"{salt}:{phone}".encode()).hexdigest()[:32]
-
-
-def seed_zones() -> None:
-    """5 zonas de Maracaibo."""
-    zones = [
-        {
-            "name": "Bella Vista",
-            "description": "Zona residencial/comercial al norte",
-            "center_lat": 10.6500,
-            "center_lng": -71.6200,
-            "radius_km": 3.0,
-            "color": "#3B82F6",
-        },
-        {
-            "name": "Las Delicias",
-            "description": "Zona residencial consolidada",
-            "center_lat": 10.6400,
-            "center_lng": -71.6150,
-            "radius_km": 2.5,
-            "color": "#10B981",
-        },
-        {
-            "name": "La Limpia",
-            "description": "Zona comercial e industrial",
-            "center_lat": 10.6450,
-            "center_lng": -71.6050,
-            "radius_km": 3.0,
-            "color": "#F59E0B",
-        },
-        {
-            "name": "Centro",
-            "description": "Centro histórico y comercial",
-            "center_lat": 10.6447,
-            "center_lng": -71.6101,
-            "radius_km": 2.0,
-            "color": "#EF4444",
-        },
-        {
-            "name": "Tierra Negra",
-            "description": "Zona residencial en expansión sur",
-            "center_lat": 10.6300,
-            "center_lng": -71.6000,
-            "radius_km": 3.5,
-            "color": "#8B5CF6",
-        },
-    ]
-
-    conn = get_db()
-    now = time.time()
-    for z in zones:
+def init_zones(conn: sqlite3.Connection) -> None:
+    logger.info("Insertando zonas...")
+    for zone in ZONES:
         conn.execute(
             """
-            INSERT OR IGNORE INTO zones (name, description, center_lat, center_lng, radius_km, color, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT OR IGNORE INTO zones (id, name, center_lat, center_lng, radius_km, description)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
             (
-                z["name"],
-                z["description"],
-                z["center_lat"],
-                z["center_lng"],
-                z["radius_km"],
-                z["color"],
-                now,
+                zone["id"],
+                zone["name"],
+                zone["center_lat"],
+                zone["center_lng"],
+                zone["radius_km"],
+                zone["description"],
             ),
         )
     conn.commit()
-    conn.close()
-    print(f"✅ Zonas: {len(zones)} insertadas/verificadas")
+    logger.info("Zonas insertadas: %d", len(ZONES))
 
 
-def seed_vehicles() -> None:
-    """2 triciclos (operadores YORDANIS + EVERT)."""
-    vehicles = [
-        {
-            "name": "Triciclo 1",
-            "operator_name": "YORDANIS",
-            "max_full_bottles": 30,
-            "max_empty_bottles": 70,
-            "shift": "both",
-            "active": 1,
-        },
-        {
-            "name": "Triciclo 2",
-            "operator_name": "EVERT",
-            "max_full_bottles": 30,
-            "max_empty_bottles": 70,
-            "shift": "both",
-            "active": 1,
-        },
-    ]
-
-    conn = get_db()
-    now = time.time()
-    for v in vehicles:
+def init_vehicles(conn: sqlite3.Connection) -> None:
+    logger.info("Insertando vehículos...")
+    for v in VEHICLES:
         conn.execute(
             """
-            INSERT OR IGNORE INTO vehicles (name, operator_name, max_full_bottles, max_empty_bottles, shift, active, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT OR IGNORE INTO vehicles (id, name, operator_name, telegram_chat_id, max_full_bottles, max_empty_bottles)
+            VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (
-                v["name"],
-                v["operator_name"],
-                v["max_full_bottles"],
-                v["max_empty_bottles"],
-                v["shift"],
-                v["active"],
-                now,
-            ),
+            (v["id"], v["name"], v["operator_name"], v["telegram_chat_id"], v["max_full_bottles"], v["max_empty_bottles"]),
         )
     conn.commit()
-    conn.close()
-    print(f"✅ Vehículos: {len(vehicles)} insertados/verificados")
+    logger.info("Vehículos insertados: %d", len(VEHICLES))
 
 
-def seed_clients() -> None:
-    """16 clientes piloto: B2B + multifamiliares (semana 1-2), unifamiliares (semana 3)."""
-    clients = [
-        # B2B - Restaurantes (prioridad alta, botellón exchange model 1)
-        {
-            "phone": "+584121234567",
-            "name": "Restaurante El Portal",
-            "address_text": "Av. 2 El Milagro, Bella Vista",
-            "lat": 10.6500,
-            "lng": -71.6200,
-            "client_type": "b2b",
-            "avg_bottles_per_visit": 6,
-            "visit_frequency": "daily",
-            "visit_days": "1,2,3,4,5,6",
-            "priority": 1,
-            "zone_name": "Bella Vista",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 24,
-        },
-        {
-            "phone": "+584122345678",
-            "name": "Restaurante La Buena Mesa",
-            "address_text": "Calle 72, Las Delicias",
-            "lat": 10.6400,
-            "lng": -71.6150,
-            "client_type": "b2b",
-            "avg_bottles_per_visit": 6,
-            "visit_frequency": "daily",
-            "visit_days": "1,2,3,4,5,6",
-            "priority": 1,
-            "zone_name": "Las Delicias",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 24,
-        },
-        {
-            "phone": "+584123456789",
-            "name": "Farmacia Central",
-            "address_text": "Av. Universidad, La Limpia",
-            "lat": 10.6450,
-            "lng": -71.6050,
-            "client_type": "b2b",
-            "avg_bottles_per_visit": 4,
-            "visit_frequency": "3x_week",
-            "visit_days": "1,3,5",
-            "priority": 3,
-            "zone_name": "La Limpia",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 24,
-        },
-        {
-            "phone": "+584124567890",
-            "name": "Panadería San José",
-            "address_text": "Calle 93, Centro",
-            "lat": 10.6447,
-            "lng": -71.6101,
-            "client_type": "b2b",
-            "avg_bottles_per_visit": 5,
-            "visit_frequency": "daily",
-            "visit_days": "1,2,3,4,5,6",
-            "priority": 2,
-            "zone_name": "Centro",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 24,
-        },
-        # Multifamiliares - Semana 1-2 (prioridad media, exchange model 1)
-        {
-            "phone": "+584141112233",
-            "name": "Residencias Los Sauces - Torre A",
-            "address_text": "Urbanización Los Sauces, Bella Vista",
-            "lat": 10.6520,
-            "lng": -71.6180,
-            "client_type": "multifamily",
-            "avg_bottles_per_visit": 3,
-            "visit_frequency": "2x_week",
-            "visit_days": "2,5",
-            "priority": 4,
-            "zone_name": "Bella Vista",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584142223344",
-            "name": "Residencias Los Sauces - Torre B",
-            "address_text": "Urbanización Los Sauces, Bella Vista",
-            "lat": 10.6525,
-            "lng": -71.6185,
-            "client_type": "multifamily",
-            "avg_bottles_per_visit": 3,
-            "visit_frequency": "2x_week",
-            "visit_days": "2,5",
-            "priority": 4,
-            "zone_name": "Bella Vista",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584143334455",
-            "name": "Condominio Las Palmas",
-            "address_text": "Av. Principal, Las Delicias",
-            "lat": 10.6380,
-            "lng": -71.6120,
-            "client_type": "multifamily",
-            "avg_bottles_per_visit": 4,
-            "visit_frequency": "2x_week",
-            "visit_days": "1,4",
-            "priority": 4,
-            "zone_name": "Las Delicias",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584144445566",
-            "name": "Edificio Centro Plaza",
-            "address_text": "Calle 88, Centro",
-            "lat": 10.6460,
-            "lng": -71.6080,
-            "client_type": "multifamily",
-            "avg_bottles_per_visit": 5,
-            "visit_frequency": "3x_week",
-            "visit_days": "1,3,5",
-            "priority": 3,
-            "zone_name": "Centro",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584145556677",
-            "name": "Conjunto Residencial El Rosal",
-            "address_text": "Sector El Rosal, La Limpia",
-            "lat": 10.6470,
-            "lng": -71.6020,
-            "client_type": "multifamily",
-            "avg_bottles_per_visit": 3,
-            "visit_frequency": "2x_week",
-            "visit_days": "2,6",
-            "priority": 5,
-            "zone_name": "La Limpia",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584146667788",
-            "name": "Urbanización Tierra Negra - Módulo 1",
-            "address_text": "Av. Tierra Negra, Tierra Negra",
-            "lat": 10.6280,
-            "lng": -71.5980,
-            "client_type": "multifamily",
-            "avg_bottles_per_visit": 4,
-            "visit_frequency": "2x_week",
-            "visit_days": "3,6",
-            "priority": 5,
-            "zone_name": "Tierra Negra",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        # Unifamiliares - Semana 3 (prioridad estándar, exchange model 1)
-        {
-            "phone": "+584161112233",
-            "name": "Sra. González (Casa 123)",
-            "address_text": "Calle 75, Las Delicias",
-            "lat": 10.6420,
-            "lng": -71.6130,
-            "client_type": "residential",
-            "avg_bottles_per_visit": 2,
-            "visit_frequency": "weekly",
-            "visit_days": "1",
-            "priority": 5,
-            "zone_name": "Las Delicias",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584162223344",
-            "name": "Sr. Pérez (Casa 456)",
-            "address_text": "Av. 3A, Bella Vista",
-            "lat": 10.6540,
-            "lng": -71.6160,
-            "client_type": "residential",
-            "avg_bottles_per_visit": 2,
-            "visit_frequency": "weekly",
-            "visit_days": "3",
-            "priority": 5,
-            "zone_name": "Bella Vista",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584163334455",
-            "name": "Familia Rodríguez (Casa 789)",
-            "address_text": "Calle 90, Centro",
-            "lat": 10.6430,
-            "lng": -71.6070,
-            "client_type": "residential",
-            "avg_bottles_per_visit": 1,
-            "visit_frequency": "biweekly",
-            "visit_days": "5",
-            "priority": 6,
-            "zone_name": "Centro",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584164445566",
-            "name": "Sra. Martínez (Casa 321)",
-            "address_text": "Calle 12, La Limpia",
-            "lat": 10.6480,
-            "lng": -71.6000,
-            "client_type": "residential",
-            "avg_bottles_per_visit": 2,
-            "visit_frequency": "weekly",
-            "visit_days": "2",
-            "priority": 5,
-            "zone_name": "La Limpia",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584165556677",
-            "name": "Sr. López (Casa 654)",
-            "address_text": "Av. Principal, Tierra Negra",
-            "lat": 10.6320,
-            "lng": -71.5950,
-            "client_type": "residential",
-            "avg_bottles_per_visit": 1,
-            "visit_frequency": "biweekly",
-            "visit_days": "4",
-            "priority": 6,
-            "zone_name": "Tierra Negra",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-        {
-            "phone": "+584166667788",
-            "name": "Familia Hernández (Casa 987)",
-            "address_text": "Calle 66, Las Delicias",
-            "lat": 10.6360,
-            "lng": -71.6100,
-            "client_type": "residential",
-            "avg_bottles_per_visit": 3,
-            "visit_frequency": "weekly",
-            "visit_days": "6",
-            "priority": 5,
-            "zone_name": "Las Delicias",
-            "bottle_exchange_model": 1,
-            "bottle_return_hours": 36,
-        },
-    ]
+def init_clients(conn: sqlite3.Connection) -> None:
+    logger.info("Insertando clientes piloto...")
+    # Import haversine from route_engine
+    import sys
+    sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+    from skills.dispatch.route_engine import haversine
 
-    conn = get_db()
-    now = time.time()
+    for client in CLIENTS:
+        # Calcular zona más cercana
+        best_zone = None
+        best_dist = float("inf")
+        for zone in ZONES:
+            dist = haversine(client["lat"], client["lng"], zone["center_lat"], zone["center_lng"])
+            if dist < best_dist:
+                best_dist = dist
+                best_zone = zone["id"]
 
-    # Mapear zone_name -> zone_id
-    zone_map = {}
-    for row in conn.execute("SELECT id, name FROM zones").fetchall():
-        zone_map[row["name"]] = row["id"]
+        phone_hash = __import__("hashlib").sha256(f"change-this-in-production:{client['phone']}".encode()).hexdigest()[:32]
 
-    inserted = 0
-    for c in clients:
-        zone_id = zone_map.get(c["zone_name"])
-        if zone_id is None:
-            print(f"⚠️ Zona no encontrada: {c['zone_name']} para cliente {c['name']}")
-            continue
-
-        ph = hash_phone(c["phone"])
         conn.execute(
             """
             INSERT OR IGNORE INTO clients (
-                phone, phone_hash, name, address_text, lat, lng, client_type,
-                avg_bottles_per_visit, visit_frequency, visit_days, priority,
-                zone_id, bottle_exchange_model, bottle_return_hours, active, created_at, updated_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                phone, phone_hash, name, address_text, lat, lng, zone_id,
+                client_type, visit_frequency, bottle_exchange_model, bottle_return_hours
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """,
             (
-                c["phone"],
-                ph,
-                c["name"],
-                c["address_text"],
-                c["lat"],
-                c["lng"],
-                c["client_type"],
-                c["avg_bottles_per_visit"],
-                c["visit_frequency"],
-                c["visit_days"],
-                c["priority"],
-                zone_id,
-                c["bottle_exchange_model"],
-                c["bottle_return_hours"],
-                1,
-                now,
-                now,
+                client["phone"],
+                phone_hash,
+                client["name"],
+                client["address"],
+                client["lat"],
+                client["lng"],
+                best_zone,
+                client["client_type"],
+                client["visit_frequency"],
+                client["bottle_exchange_model"],
+                client["bottle_return_hours"],
             ),
         )
-        if conn.total_changes > inserted:
-            inserted += 1
-
     conn.commit()
-    conn.close()
-    print(f"✅ Clientes: {inserted} insertados/verificados (total objetivo: 16)")
+    logger.info("Clientes insertados: %d", len(CLIENTS))
 
 
-def seed_bottles() -> None:
-    """165 botellones loaner: H2O-001 a H2O-165."""
+def init_bottles(conn: sqlite3.Connection) -> None:
+    logger.info("Insertando 165 botellones loaner...")
+    now = datetime.now(timezone.utc).isoformat()
+    for i in range(1, 166):
+        bottle_code = f"H2O-{i:03d}"
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO bottles (bottle_code, status, created_at, updated_at)
+            VALUES (?, 'available', ?, ?)
+            """,
+            (bottle_code, now, now),
+        )
+    conn.commit()
+    logger.info("Botellones insertados: 165")
+
+
+def run_seed() -> None:
+    logger.info("=== INICIANDO SEED DATA ===")
     conn = get_db()
 
-    # Verificar cuántos ya existen
-    existing = conn.execute(
-        "SELECT COUNT(*) FROM bottles WHERE bottle_code LIKE ?", (f"{BOTTLE_PREFIX}%",)
-    ).fetchone()[0]
+    # Asegurar que tablas existan (schema ya existe en dispatch.db)
+    init_zones(conn)
+    init_vehicles(conn)
+    init_clients(conn)
+    init_bottles(conn)
 
-    if existing >= TOTAL_BOTTLES:
-        conn.close()
-        print(f"✅ Botellones: {existing} ya existentes (objetivo: {TOTAL_BOTTLES})")
-        return
+    # Verificar
+    cur = conn.cursor()
+    cur.execute("SELECT COUNT(*) FROM zones")
+    logger.info("Zonas totales: %d", cur.fetchone()[0])
+    cur.execute("SELECT COUNT(*) FROM vehicles")
+    logger.info("Vehículos totales: %d", cur.fetchone()[0])
+    cur.execute("SELECT COUNT(*) FROM clients")
+    logger.info("Clientes totales: %d", cur.fetchone()[0])
+    cur.execute("SELECT COUNT(*) FROM bottles")
+    logger.info("Botellones totales: %d", cur.fetchone()[0])
 
-    now = time.time()
-    to_insert = TOTAL_BOTTLES - existing
-    print(f"📦 Insertando {to_insert} botellones loaner...")
-
-    batch = []
-    for i in range(existing + 1, TOTAL_BOTTLES + 1):
-        code = f"{BOTTLE_PREFIX}{i:03d}"
-        batch.append((code, "available", None, None, None, now, now))
-
-    conn.executemany(
-        """
-        INSERT INTO bottles (bottle_code, status, client_id, dispatch_delivery_id, assigned_at, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, ?, ?)
-        """,
-        batch,
-    )
-    conn.commit()
     conn.close()
-    print(f"✅ Botellones loaner: {TOTAL_BOTTLES} totales (insertados {to_insert} nuevos)")
-
-
-def seed_all() -> None:
-    """Ejecuta todos los seeds en orden."""
-    print("=" * 60)
-    print("🌱 SEED DATA — Estación H2O Maracaibo")
-    print("=" * 60)
-
-    Path(DISPATCH_DB).parent.mkdir(parents=True, exist_ok=True)
-
-    seed_zones()
-    seed_vehicles()
-    seed_clients()
-    seed_bottles()
-
-    # Verificación final
-    conn = get_db()
-    counts = {
-        "zones": conn.execute("SELECT COUNT(*) FROM zones").fetchone()[0],
-        "vehicles": conn.execute("SELECT COUNT(*) FROM vehicles WHERE active=1").fetchone()[0],
-        "clients": conn.execute("SELECT COUNT(*) FROM clients WHERE active=1").fetchone()[0],
-        "bottles": conn.execute("SELECT COUNT(*) FROM bottles").fetchone()[0],
-        "bottles_available": conn.execute(
-            "SELECT COUNT(*) FROM bottles WHERE status='available'"
-        ).fetchone()[0],
-    }
-    conn.close()
-
-    print("\n" + "=" * 60)
-    print("📊 RESUMEN FINAL")
-    print("=" * 60)
-    for k, v in counts.items():
-        print(f"  {k}: {v}")
-    print("=" * 60)
-    print("💧 Seed completado — Estación H2O listo para operar")
+    logger.info("=== SEED DATA COMPLETADO ===")
 
 
 if __name__ == "__main__":
-    seed_all()
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+    run_seed()

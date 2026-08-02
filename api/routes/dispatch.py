@@ -223,3 +223,23 @@ async def health_check() -> dict[str, Any]:
         "service": "dispatcher",
         "dispatch_db": "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db",
     }
+
+
+# ============================================================================
+# Dispatch Queue Consumer Endpoint
+# ============================================================================
+
+
+@router.post("/process-queue")
+async def process_queue(max_orders: int = 20) -> dict[str, Any]:
+    """Procesa pedidos pending de dispatch_queue en tiempo real.
+    
+    Este endpoint consume la dispatch_queue (conversations.db) y:
+    1. Lee pedidos pending
+    2. Asigna a chofer/vehículo con menos carga
+    3. Crea delivery en dispatch.db
+    4. Notifica chofer via /dispatch/notify-driver
+    5. Marca pedidos como 'enviado'
+    """
+    from skills.dispatch.consumer import process_queue_endpoint as consumer_process
+    return await consumer_process(max_orders=max_orders)
