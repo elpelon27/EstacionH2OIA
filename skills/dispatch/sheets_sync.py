@@ -16,7 +16,7 @@ import logging
 import os
 import threading
 from datetime import datetime, timedelta, timezone
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger("dispatch.sheets_sync")
 
@@ -356,9 +356,8 @@ async def sync_all_dispatcher() -> None:
     Se ejecuta periódicamente (ej: cada hora) o bajo demanda.
     """
     # Obtener datos actuales de BD
-    from skills.dispatch.gps_tracker import get_gps_tracker
     from skills.dispatch.bottle_tracker import get_bottle_tracker
-    from skills.dispatch.telegram_bot import get_dispatcher_bot
+    from skills.dispatch.gps_tracker import get_gps_tracker
 
     gps_tracker = get_gps_tracker()
     bottle_tracker = get_bottle_tracker()

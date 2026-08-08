@@ -10,10 +10,9 @@ Pobla:
 - 165 botellones loaner (H2O-001 a H2O-165)
 """
 
-import sqlite3
 import logging
-from datetime import datetime, timezone
-from typing import Any
+import sqlite3
+from datetime import UTC, datetime
 
 logger = logging.getLogger("dispatch.seed_data")
 
@@ -311,7 +310,14 @@ def init_vehicles(conn: sqlite3.Connection) -> None:
             INSERT OR IGNORE INTO vehicles (id, name, operator_name, telegram_chat_id, max_full_bottles, max_empty_bottles)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
-            (v["id"], v["name"], v["operator_name"], v["telegram_chat_id"], v["max_full_bottles"], v["max_empty_bottles"]),
+            (
+                v["id"],
+                v["name"],
+                v["operator_name"],
+                v["telegram_chat_id"],
+                v["max_full_bottles"],
+                v["max_empty_bottles"],
+            ),
         )
     conn.commit()
     logger.info("Vehículos insertados: %d", len(VEHICLES))
@@ -321,6 +327,7 @@ def init_clients(conn: sqlite3.Connection) -> None:
     logger.info("Insertando clientes piloto...")
     # Import haversine from route_engine
     import sys
+
     sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
     from skills.dispatch.route_engine import haversine
 
@@ -334,7 +341,11 @@ def init_clients(conn: sqlite3.Connection) -> None:
                 best_dist = dist
                 best_zone = zone["id"]
 
-        phone_hash = __import__("hashlib").sha256(f"change-this-in-production:{client['phone']}".encode()).hexdigest()[:32]
+        phone_hash = (
+            __import__("hashlib")
+            .sha256(f"change-this-in-production:{client['phone']}".encode())
+            .hexdigest()[:32]
+        )
 
         conn.execute(
             """
@@ -363,7 +374,7 @@ def init_clients(conn: sqlite3.Connection) -> None:
 
 def init_bottles(conn: sqlite3.Connection) -> None:
     logger.info("Insertando 165 botellones loaner...")
-    now = datetime.now(timezone.utc).isoformat()
+    now = datetime.now(UTC).isoformat()
     for i in range(1, 166):
         bottle_code = f"H2O-{i:03d}"
         conn.execute(

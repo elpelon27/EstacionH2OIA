@@ -263,7 +263,9 @@ class DispatcherTelegramBot:
             self.app.add_handler(CommandHandler("status", self.cmd_status))
             self.app.add_handler(CommandHandler("help", self.cmd_help))
             self.app.add_handler(CallbackQueryHandler(self.callback_registro, pattern="^reg_"))
-            self.app.add_handler(CallbackQueryHandler(self.callback_accion, pattern="^(arr_|del_|no_|new_)"))
+            self.app.add_handler(
+                CallbackQueryHandler(self.callback_accion, pattern="^(arr_|del_|no_|new_)")
+            )
             self.app.add_handler(CallbackQueryHandler(self.callback_checkin, pattern="^checkin_"))
             self.app.add_handler(MessageHandler(filters.LOCATION, self.handle_location))
 
@@ -523,10 +525,13 @@ class DispatcherTelegramBot:
             # SWAP: Notificar WorkloadRouter para asignar botellón loaner (available -> in_transit_full)
             try:
                 from core.workload_router import get_router
+
                 router = get_router()
                 # Obtener client_id de la entrega
                 conn = sqlite3.connect(DISPATCH_DB)
-                row = conn.execute("SELECT client_id FROM deliveries WHERE id = ?", (delivery_id,)).fetchone()
+                row = conn.execute(
+                    "SELECT client_id FROM deliveries WHERE id = ?", (delivery_id,)
+                ).fetchone()
                 conn.close()
                 if row:
                     client_id = row["client_id"]
@@ -631,10 +636,11 @@ class DispatcherTelegramBot:
                 )
             elif action_kind == "del":
                 update_delivery_status(delivery_id, "delivered")
-                
+
                 # SWAP: Notificar al WorkloadRouter para tracking de botellón (available -> in_transit_full -> with_client)
                 try:
                     from core.workload_router import get_router
+
                     router = get_router()
                     await router.execute(
                         trigger="delivery_delivered",
@@ -643,8 +649,10 @@ class DispatcherTelegramBot:
                         delivery_id=delivery_id,
                     )
                 except Exception as e:
-                    logger.warning("No se pudo notificar a WorkloadRouter delivery_delivered: %s", e)
-                
+                    logger.warning(
+                        "No se pudo notificar a WorkloadRouter delivery_delivered: %s", e
+                    )
+
                 # Verificar si hay más entregas
                 deliveries = get_pending_deliveries_for_chofer(chofer["id"])
                 pending = [d for d in deliveries if d["status"] == "pending"]
@@ -664,10 +672,14 @@ class DispatcherTelegramBot:
                     keyboard = [
                         [
                             InlineKeyboardButton("📍 Llegué", callback_data=f"arr_{next_d['id']}"),
-                            InlineKeyboardButton("✅ Entregado", callback_data=f"del_{next_d['id']}"),
+                            InlineKeyboardButton(
+                                "✅ Entregado", callback_data=f"del_{next_d['id']}"
+                            ),
                         ],
                         [
-                            InlineKeyboardButton("❌ No responde", callback_data=f"no_{next_d['id']}"),
+                            InlineKeyboardButton(
+                                "❌ No responde", callback_data=f"no_{next_d['id']}"
+                            ),
                         ],
                     ]
                     await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
@@ -769,85 +781,85 @@ class DispatcherTelegramBot:
     # ----------------------------------------------------------------------
 
     async def send_delivery_to_chofer(
-            self,
-            vehicle_id: int,
-            client_name: str,
-            client_phone: str,
-            bottles_full: int,
-            lat: float,
-            lng: float,
-            address: str,
-            total_eur: float = 0,
-            total_bs: float = 0,
-            metodo_pago: str = "",
-        ) -> bool:
-            """Envía un pedido al chofer por Telegram. Llamado externamente."""
-            # Ensure app is initialized (for webhook/external calls)
-            self._ensure_app()
-        
-            conn = get_dispatch_db()
-            vehicle = conn.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
-            conn.close()
+        self,
+        vehicle_id: int,
+        client_name: str,
+        client_phone: str,
+        bottles_full: int,
+        lat: float,
+        lng: float,
+        address: str,
+        total_eur: float = 0,
+        total_bs: float = 0,
+        metodo_pago: str = "",
+    ) -> bool:
+        """Envía un pedido al chofer por Telegram. Llamado externamente."""
+        # Ensure app is initialized (for webhook/external calls)
+        self._ensure_app()
 
-            if not vehicle or not vehicle["telegram_chat_id"]:
-                logger.warning("Vehículo %d no tiene chat_id de Telegram", vehicle_id)
-                return False
+        conn = get_dispatch_db()
+        vehicle = conn.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
+        conn.close()
 
-            chat_id = vehicle["telegram_chat_id"]
-            gps_url = format_gps_url(lat, lng) if lat and lng else ""
+        if not vehicle or not vehicle["telegram_chat_id"]:
+            logger.warning("Vehículo %d no tiene chat_id de Telegram", vehicle_id)
+            return False
 
-            # Construir mensaje según método de pago
-            if metodo_pago and ("efectivo" in metodo_pago.lower()):
-                bs_str = f" (Bs. {total_bs:.2f})" if total_bs and total_bs > 0 else ""
-                msg = (
-                    f"🚚 NUEVO PEDIDO\\n"
-                    f"━━━━━━━━━━━━━━━━\\n"
-                    f"👤 {client_name}\\n"
-                    f"📱 {client_phone}\\n"
-                    f"📦 {bottles_full} botellones de agua\\n"
-                    f"💰 Total: €{total_eur:.2f}{bs_str}\\n"
-                )
-                if gps_url:
-                    msg += f"📍 {gps_url}\\n"
-                msg += "⚠️ PAGO EN EFECTIVO — Cobrar al entregar\\n"
-                msg += "━━━━━━━━━━━━━━━━"
-            else:
-                msg = (
-                    f"🚚 NUEVO PEDIDO\\n"
-                    f"━━━━━━━━━━━━━━━━\\n"
-                    f"👤 {client_name}\\n"
-                    f"📱 {client_phone}\\n"
-                    f"📦 {bottles_full} botellones de agua\\n"
-                )
-                if gps_url:
-                    msg += f"📍 {gps_url}\\n"
-                msg += "━━━━━━━━━━━━━━━━"
+        chat_id = vehicle["telegram_chat_id"]
+        gps_url = format_gps_url(lat, lng) if lat and lng else ""
 
-            keyboard = [
-                [
-                    InlineKeyboardButton("📍 Llegué", callback_data=f"new_arr_{vehicle_id}"),
-                    InlineKeyboardButton("✅ Entregado", callback_data=f"new_del_{vehicle_id}"),
-                ],
-                [
-                    InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
-                ],
-            ]
-            reply_markup = InlineKeyboardMarkup(keyboard)
+        # Construir mensaje según método de pago
+        if metodo_pago and ("efectivo" in metodo_pago.lower()):
+            bs_str = f" (Bs. {total_bs:.2f})" if total_bs and total_bs > 0 else ""
+            msg = (
+                f"🚚 NUEVO PEDIDO\\n"
+                f"━━━━━━━━━━━━━━━━\\n"
+                f"👤 {client_name}\\n"
+                f"📱 {client_phone}\\n"
+                f"📦 {bottles_full} botellones de agua\\n"
+                f"💰 Total: €{total_eur:.2f}{bs_str}\\n"
+            )
+            if gps_url:
+                msg += f"📍 {gps_url}\\n"
+            msg += "⚠️ PAGO EN EFECTIVO — Cobrar al entregar\\n"
+            msg += "━━━━━━━━━━━━━━━━"
+        else:
+            msg = (
+                f"🚚 NUEVO PEDIDO\\n"
+                f"━━━━━━━━━━━━━━━━\\n"
+                f"👤 {client_name}\\n"
+                f"📱 {client_phone}\\n"
+                f"📦 {bottles_full} botellones de agua\\n"
+            )
+            if gps_url:
+                msg += f"📍 {gps_url}\\n"
+            msg += "━━━━━━━━━━━━━━━━"
 
-            try:
-                bot = self.app.bot
-                if bot is None:
-                    raise RuntimeError("Bot not initialized")
-                await bot.send_message(
-                    chat_id=chat_id,
-                    text=msg,
-                    reply_markup=reply_markup,
-                )
-                logger.info("📦 Pedido enviado a %s (vehicle=%d)", vehicle["operator_name"], vehicle_id)
-                return True
-            except Exception as e:
-                logger.error("Error enviando a chofer %s: %s", vehicle["operator_name"], e)
-                return False
+        keyboard = [
+            [
+                InlineKeyboardButton("📍 Llegué", callback_data=f"new_arr_{vehicle_id}"),
+                InlineKeyboardButton("✅ Entregado", callback_data=f"new_del_{vehicle_id}"),
+            ],
+            [
+                InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
+            ],
+        ]
+        reply_markup = InlineKeyboardMarkup(keyboard)
+
+        try:
+            bot = self.app.bot
+            if bot is None:
+                raise RuntimeError("Bot not initialized")
+            await bot.send_message(
+                chat_id=chat_id,
+                text=msg,
+                reply_markup=reply_markup,
+            )
+            logger.info("📦 Pedido enviado a %s (vehicle=%d)", vehicle["operator_name"], vehicle_id)
+            return True
+        except Exception as e:
+            logger.error("Error enviando a chofer %s: %s", vehicle["operator_name"], e)
+            return False
 
     # ----------------------------------------------------------------------
     # Check-in 8:00 AM
