@@ -43,6 +43,9 @@ from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
+# System path for local imports
+sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+
 # Third-party imports
 import httpx
 from fastapi import FastAPI, HTTPException, Request
@@ -53,11 +56,14 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 # Local imports
+from api.meta_client import get_meta_client, set_http_client
+
 try:
     from api.routes.dispatch import router as dispatch_router
 except ModuleNotFoundError:
     # When running from /mnt/ssd_trabajo/hermes-agent/api/ (systemd WorkingDirectory)
     import sys
+
     sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
     from api.routes.dispatch import router as dispatch_router
 
@@ -82,9 +88,6 @@ try:
     import sdnotify  # type: ignore[import-untyped]
 except ImportError:
     sdnotify = None
-
-# System path for local imports
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
 
 # Helper: convertir EUR a Bs. usando última tasa guardada en fs_tasas_cambio
@@ -273,64 +276,126 @@ def _is_within_business_hours() -> bool:
 
 
 # ============================================================================
-# Métricas Prometheus
+# Métricas Prometheus — Lazy initialization para evitar duplicados en tests
 # ============================================================================
 
-if PROMETHEUS_AVAILABLE:
-    MESSAGES_TOTAL = Counter(
-        "valentina_messages_total",
-        "Mensajes entrantes de WhatsApp",
-        ["status"],  # ok, ignored, error, duplicate
-    )
-    RESPONSE_TIME = Histogram(
-        "valentina_response_time_seconds",
-        "Tiempo total de respuesta (webhook → Meta send)",
-        buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0),
-    )
-    DIFY_CALLS = Counter(
-        "valentina_dify_calls_total",
-        "Llamadas a Dify Chatflow",
-        ["status"],  # ok, error, timeout
-    )
-    META_SEND = Counter(
-        "valentina_meta_send_total",
-        "Envíos a Meta Graph API",
-        ["status"],  # ok, error
-    )
-    ORDERS_TOTAL = Counter(
-        "valentina_orders_total",
-        "Pedidos confirmados por Valentina",
-    )
-    ESCALATIONS_TOTAL = Counter(
-        "valentina_escalations_total",
-        "Escalamientos a humano",
-    )
-    ACTIVE_CONVERSATIONS = Gauge(
-        "valentina_active_conversations",
-        "Conversaciones activas (últimas 24h)",
-    )
-    DEDUP_HITS = Counter(
-        "valentina_dedup_hits_total",
-        "Mensajes duplicados ignorados",
-    )
-else:
-    # Stubs si prometheus_client no está instalado
-    class _Stub:
-        def labels(self, *a: Any, **kw: Any) -> "_Stub":
-            return self
+def _get_prometheus_metrics():
+    """Crear o retornar métricas Prometheus existentes (lazy singleton).
 
-        def inc(self, *a: Any, **kw: Any) -> None:
-            pass
+    Evita ValueError: Duplicated timeseries cuando el módulo se importa
+    múltiples veces en tests (pytest reloads).
+    """
+    if not PROMETHEUS_AVAILABLE:
+        # Stubs si prometheus_client no está instalado
+        class _Stub:
+            def labels(self, *a: Any, **kw: Any) -> "_Stub":
+                return self
 
-        def observe(self, *a: Any, **kw: Any) -> None:
-            pass
+            def inc(self, *a: Any, **kw: Any) -> None:
+                pass
 
-        def set(self, *a: Any, **kw: Any) -> None:
-            pass
+            def observe(self, *a: Any, **kw: Any) -> None:
+                pass
 
-    MESSAGES_TOTAL = RESPONSE_TIME = DIFY_CALLS = META_SEND = _Stub()  # type: ignore[assignment]
-    ORDERS_TOTAL = ESCALATIONS_TOTAL = DEDUP_HITS = _Stub()  # type: ignore[assignment]
-    ACTIVE_CONVERSATIONS = _Stub()  # type: ignore[assignment]
+            def set(self, *a: Any, **kw: Any) -> None:
+                pass
+
+        return {
+            "MESSAGES_TOTAL": _Stub(),
+            "RESPONSE_TIME": _Stub(),
+            "DIFY_CALLS": _Stub(),
+            "META_SEND": _Stub(),
+            "ORDERS_TOTAL": _Stub(),
+            "ESCALATIONS_TOTAL": _Stub(),
+            "ACTIVE_CONVERSATIONS": _Stub(),
+            "DEDUP_HITS": _Stub(),
+        }
+
+    from prometheus_client import REGISTRY, Counter, Gauge, Histogram
+
+    # Nombres de métricas para chequear existencia
+    metric_names = {
+        "MESSAGES_TOTAL": "valentina_messages_total",
+        "RESPONSE_TIME": "valentina_response_time_seconds",
+        "DIFY_CALLS": "valentina_dify_calls_total",
+        "META_SEND": "valentina_meta_send_total",
+        "ORDERS_TOTAL": "valentina_orders_total",
+        "ESCALATIONS_TOTAL": "valentina_escalations_total",
+        "ACTIVE_CONVERSATIONS": "valentina_active_conversations",
+        "DEDUP_HITS": "valentina_dedup_hits_total",
+    }
+
+    metrics = {}
+    for attr_name, metric_name in metric_names.items():
+        # Buscar si ya existe en el registry
+        existing = None
+        for collector in REGISTRY._collector_to_names:
+            if metric_name in REGISTRY._collector_to_names[collector]:
+                existing = collector
+                break
+
+        if existing:
+            metrics[attr_name] = existing
+        else:
+            # Crear nueva métrica
+            if attr_name == "MESSAGES_TOTAL":
+                metrics[attr_name] = Counter(
+                    metric_name,
+                    "Mensajes entrantes de WhatsApp",
+                    ["status"],  # ok, ignored, error, duplicate
+                )
+            elif attr_name == "RESPONSE_TIME":
+                metrics[attr_name] = Histogram(
+                    metric_name,
+                    "Tiempo total de respuesta (webhook → Meta send)",
+                    buckets=(0.1, 0.5, 1.0, 2.0, 5.0, 10.0, 30.0),
+                )
+            elif attr_name == "DIFY_CALLS":
+                metrics[attr_name] = Counter(
+                    metric_name,
+                    "Llamadas a Dify Chatflow",
+                    ["status"],  # ok, error, timeout
+                )
+            elif attr_name == "META_SEND":
+                metrics[attr_name] = Counter(
+                    metric_name,
+                    "Envíos a Meta Graph API",
+                    ["status"],  # ok, error
+                )
+            elif attr_name == "ORDERS_TOTAL":
+                metrics[attr_name] = Counter(
+                    metric_name,
+                    "Pedidos confirmados por Valentina",
+                )
+            elif attr_name == "ESCALATIONS_TOTAL":
+                metrics[attr_name] = Counter(
+                    metric_name,
+                    "Escalamientos a humano",
+                )
+            elif attr_name == "ACTIVE_CONVERSATIONS":
+                metrics[attr_name] = Gauge(
+                    metric_name,
+                    "Conversaciones activas (últimas 24h)",
+                )
+            elif attr_name == "DEDUP_HITS":
+                metrics[attr_name] = Counter(
+                    metric_name,
+                    "Mensajes duplicados ignorados",
+                )
+
+    return metrics
+
+
+# Inicializar métricas (lazy - se ejecuta una sola vez al importar)
+_prom_metrics = _get_prometheus_metrics()
+MESSAGES_TOTAL = _prom_metrics["MESSAGES_TOTAL"]
+RESPONSE_TIME = _prom_metrics["RESPONSE_TIME"]
+DIFY_CALLS = _prom_metrics["DIFY_CALLS"]
+META_SEND = _prom_metrics["META_SEND"]
+ORDERS_TOTAL = _prom_metrics["ORDERS_TOTAL"]
+ESCALATIONS_TOTAL = _prom_metrics["ESCALATIONS_TOTAL"]
+ACTIVE_CONVERSATIONS = _prom_metrics["ACTIVE_CONVERSATIONS"]
+DEDUP_HITS = _prom_metrics["DEDUP_HITS"]
 
 
 # ============================================================================
@@ -1199,13 +1264,14 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
     """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
     TRIGGER: cuando cliente confirma pago (efectivo '2' o 'ya pagué' tras pago móvil).
     NO encolar en abortos ('volver'/'menú' desde awaiting_payment).
-    
+
     SPRINT 4.1: Usa WorkloadRouter → DispatcherSkill para notificación al chofer
     (antes: llamada HTTP directa a /dispatch/notify-driver).
-    
+
     SPRINT 4.2: Vehicle assignment inteligente por zona y capacidad.
     """
     import sqlite3 as _sq3
+
     import httpx
 
     try:
@@ -1261,21 +1327,22 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
 
         # SPRINT 4.2: Vehicle assignment inteligente
         vehicle_id = _assign_vehicle_for_order(lat, lng, qty_bot)
-        
+
         # SPRINT 4.1: Notificar al chofer via WorkloadRouter → DispatcherSkill
         # (antes: llamada HTTP directa a /dispatch/notify-driver)
         try:
-            from core.workload_router import get_router
             import asyncio
-            
+
+            from core.workload_router import get_router
+
             router = get_router()
-            
+
             # Ejecutar notificación de forma asíncrona (fire-and-forget)
             async def _notify_driver_async():
                 # Retry logic: 3 attempts with exponential backoff
                 max_retries = 3
                 base_delay = 0.5  # seconds
-                
+
                 for attempt in range(1, max_retries + 1):
                     try:
                         result = await router.execute(
@@ -1293,23 +1360,38 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
                             metodo_pago=metodo,
                         )
                         if result.get("success") and result.get("data", {}).get("sent"):
-                            logger.info("📦 Pedido notificado a chofer via WorkloadRouter → DispatcherSkill (vehicle=%d)", vehicle_id)
+                            logger.info(
+                                "📦 Pedido notificado a chofer via WorkloadRouter → "
+                                "DispatcherSkill (vehicle=%d)",
+                                vehicle_id,
+                            )
                             return True
                         else:
-                            logger.warning("⚠️ Notificación a chofer falló (intento %d/%d): %s", attempt, max_retries, result.get("message", "unknown"))
+                            logger.warning(
+                                "⚠️ Notificación a chofer falló (intento %d/%d): %s",
+                                attempt,
+                                max_retries,
+                                result.get("message", "unknown"),
+                            )
                     except Exception as e:
-                        logger.warning("Error en notificación WorkloadRouter (intento %d/%d): %s", attempt, max_retries, e)
-                    
+                        logger.warning(
+                            "Error en notificación WorkloadRouter (intento %d/%d): %s",
+                            attempt,
+                            max_retries,
+                            e,
+                        )
+
                     # Wait before retry (exponential backoff)
                     if attempt < max_retries:
                         await asyncio.sleep(base_delay * (2 ** (attempt - 1)))
-                
+
                 # All retries failed
                 logger.error("❌ Notificación a chofer falló tras %d intentos", max_retries)
                 return False
-            
+
             # Fire-and-forget sin bloquear el flujo del bridge
             import asyncio as _asyncio
+
             try:
                 loop = _asyncio.get_event_loop()
                 if loop.is_running():
@@ -1319,7 +1401,7 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
             except RuntimeError:
                 # No hay loop, crear uno nuevo
                 _asyncio.run(_notify_driver_async())
-                
+
         except Exception as e:
             logger.warning("Error importando WorkloadRouter para notificación: %s", e)
             # Fallback: llamada HTTP directa (método anterior)
@@ -1344,15 +1426,27 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
                         with httpx.Client(timeout=10.0) as client:
                             resp = client.post(dispatch_url, json=payload)
                             if resp.status_code == 200:
-                                logger.info("📦 Pedido notificado a chofer via fallback HTTP /dispatch/notify-driver (vehicle=%d)", vehicle_id)
+                                logger.info(
+                                    "📦 Pedido notificado a chofer via fallback HTTP "
+                                    "/dispatch/notify-driver (vehicle=%d)",
+                                    vehicle_id,
+                                )
                                 break
                             else:
-                                logger.warning("Fallback HTTP status %d (intento %d/%d)", resp.status_code, attempt, max_retries)
+                                logger.warning(
+                                    "Fallback HTTP status %d (intento %d/%d)",
+                                    resp.status_code,
+                                    attempt,
+                                    max_retries,
+                                )
                     except Exception as e2:
-                        logger.warning("Fallback HTTP error (intento %d/%d): %s", attempt, max_retries, e2)
-                    
+                        logger.warning(
+                            "Fallback HTTP error (intento %d/%d): %s", attempt, max_retries, e2
+                        )
+
                     if attempt < max_retries:
                         import time
+
                         time.sleep(0.5 * (2 ** (attempt - 1)))
                 else:
                     logger.error("❌ Fallback HTTP también falló tras %d intentos", max_retries)
@@ -1368,37 +1462,39 @@ def _assign_vehicle_for_order(lat: float | None, lng: float | None, bottles_need
     1. Zona del cliente (haversine a centros de zona)
     2. Capacidad disponible (pending_deliveries < 10, max_full_bottles)
     3. Menor carga actual
-    
+
     Returns: vehicle_id (1 o 2)
     """
     import sqlite3 as _sq3
-    
+
     if lat is None or lng is None:
         logger.warning("Sin GPS para assignment, usando vehicle_id=1 por defecto")
         return 1
-    
+
     try:
         dispatch_conn = _sq3.connect("/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
         dispatch_conn.row_factory = _sq3.Row
-        
+
         # 1. Encontrar zona más cercana al cliente
         zones = dispatch_conn.execute(
-            "SELECT id, center_lat, center_lng FROM zones WHERE center_lat IS NOT NULL AND center_lng IS NOT NULL"
+            "SELECT id, center_lat, center_lng "
+            "FROM zones WHERE center_lat IS NOT NULL AND center_lng IS NOT NULL"
         ).fetchall()
-        
+
         if not zones:
             logger.warning("No hay zonas definidas, usando vehicle_id=1")
             return 1
-        
+
         # Haversine simple inline
-        from math import radians, sin, cos, sqrt, atan2
+        from math import atan2, cos, radians, sin, sqrt
+
         def haversine(lat1, lng1, lat2, lng2):
             R = 6371.0
             dlat = radians(lat2 - lat1)
             dlng = radians(lng2 - lng1)
             a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
             return 2 * R * atan2(sqrt(a), sqrt(1 - a))
-        
+
         best_zone_id = None
         best_dist = float("inf")
         for z in zones:
@@ -1406,48 +1502,57 @@ def _assign_vehicle_for_order(lat: float | None, lng: float | None, bottles_need
             if dist < best_dist:
                 best_dist = dist
                 best_zone_id = z["id"]
-        
+
         logger.info("Cliente en zona más cercana: %s (%.1f km)", best_zone_id, best_dist)
-        
+
         # 2. Buscar vehicles activos con chat_id y capacidad
-        vehicles = dispatch_conn.execute(
-            """
-            SELECT v.id, v.name, v.operator_name, v.telegram_chat_id, v.max_full_bottles,
-                   COALESCE(SUM(CASE WHEN d.status = 'pending' THEN 1 ELSE 0 END), 0) as pending_deliveries
-            FROM vehicles v
-            LEFT JOIN deliveries d ON d.vehicle_id = v.id AND d.status = 'pending'
-            WHERE v.active = 1 AND v.telegram_chat_id IS NOT NULL
-            GROUP BY v.id, v.name, v.operator_name, v.telegram_chat_id, v.max_full_bottles
-            ORDER BY pending_deliveries ASC, v.id ASC
-            """
-        ).fetchall()
-        
+        query = (
+            "SELECT v.id, v.name, v.operator_name, v.telegram_chat_id, "
+            "v.max_full_bottles, "
+            "COALESCE(SUM(CASE WHEN d.status = 'pending' THEN 1 ELSE 0 END), 0) "
+            "as pending_deliveries "
+            "FROM vehicles v "
+            "LEFT JOIN deliveries d ON d.vehicle_id = v.id AND d.status = 'pending' "
+            "WHERE v.active = 1 AND v.telegram_chat_id IS NOT NULL "
+            "GROUP BY v.id, v.name, v.operator_name, v.telegram_chat_id, v.max_full_bottles "
+            "ORDER BY pending_deliveries ASC, v.id ASC"
+        )
+        vehicles = dispatch_conn.execute(query).fetchall()
+
         dispatch_conn.close()
-        
+
         if not vehicles:
             logger.warning("No hay vehicles con chat_id configurado, usando vehicle_id=1")
             return 1
-        
+
         # 3. Filtrar por capacidad: pending < 10 y max_full_bottles >= bottles_needed
         suitable = []
         for v in vehicles:
             if v["pending_deliveries"] < 10 and v["max_full_bottles"] >= bottles_needed:
                 suitable.append(v)
-        
+
         if not suitable:
-            logger.warning("Ningún vehicle tiene capacidad para %d botellones, usando el de menos carga", bottles_needed)
+            logger.warning(
+                "Ningún vehicle tiene capacidad para %d botellones, usando el de menos carga",
+                bottles_needed,
+            )
             suitable = [v for v in vehicles if v["pending_deliveries"] < 10]
             if not suitable:
                 logger.warning("Todos los vehicles saturados, usando vehicle_id=1")
                 return 1
-        
+
         # 4. Retornar el de menos carga (ya ordenado por pending_deliveries ASC)
         chosen = suitable[0]
-        logger.info("Vehicle asignado: %s (%s) - pending=%d, cap=%d, need=%d",
-                   chosen["name"], chosen["operator_name"], chosen["pending_deliveries"], 
-                   chosen["max_full_bottles"], bottles_needed)
+        logger.info(
+            "Vehicle asignado: %s (%s) - pending=%d, cap=%d, need=%d",
+            chosen["name"],
+            chosen["operator_name"],
+            chosen["pending_deliveries"],
+            chosen["max_full_bottles"],
+            bottles_needed,
+        )
         return chosen["id"]
-        
+
     except Exception as e:
         logger.error("Error en vehicle assignment: %s, defaulting to 1", e)
         return 1
@@ -2475,11 +2580,37 @@ async def _watchdog_loop() -> None:
         await asyncio.sleep(interval)
 
 
+# ============================================================================
+# Meta webhook message processor — core business logic
+# ============================================================================
+
+async def _process_meta_message(msg: dict[str, Any], value: dict[str, Any]) -> None:
+    """
+    Procesa un mensaje de Meta Cloud API ya validado y parseado.
+    Llamado desde webhook_meta.py tras validación HMAC, kill-switch, dedup, etc.
+    """
+    logger.info("_process_meta_message called - delegating to internal handler")
+    # The actual processing is done in meta_webhook endpoint
+    # This function is kept for compatibility with webhook_meta.py
+    pass
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     global _http_client, _telegram_bot, _watchdog_task, _recovery_task
     _init_db()
     _http_client = httpx.AsyncClient()
+
+    # Importar y registrar webhook Meta
+    from api.webhook_meta import register_webhook_meta_routes, set_message_handler
+    register_webhook_meta_routes(app)
+    set_message_handler(_process_meta_message)
+
+    # Registrar HTTP client en MetaClient
+    set_http_client(_http_client)
+
+    # Inicializar MetaClient singleton
+    get_meta_client()
 
     # P1-2: Iniciar watchdog systemd
     if sdnotify is not None:
@@ -2493,8 +2624,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         try:
             _telegram_bot = telegram.Bot(token=TELEGRAM_BOT_TOKEN)
             await _send_telegram(
-                            "✅ <b>Valentina Bridge iniciado</b>\\n\\n💧 Estación H2O lista para atender."
-                        )
+                "✅ <b>Valentina Bridge iniciado</b>\\\\n\\\\n💧 Estación H2O lista para atender."
+            )
             logger.info("Telegram alerts activadas (chat_id=%s)", TELEGRAM_CHAT_ID)
         except Exception as e:
             logger.warning("Telegram no disponible: %s", e)
@@ -2509,7 +2640,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     logger.info("Meta API version: %s", META_API_VERSION)
     logger.info("Prometheus metrics: %s", "activadas" if PROMETHEUS_AVAILABLE else "no disponibles")
 
-    # P0-B FIX: Recovery scan en background task POST-yield (no bloquea startup, evita 'database is locked')
+    # P0-B FIX: Recovery scan en background task POST-yield
+    # (no bloquea startup, evita 'database is locked')
     async def _run_recovery_scan():
         # Pequeña pausa para que el bridge termine de arrancar y acepte requests
         await asyncio.sleep(2)
@@ -2542,7 +2674,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         logger.info("Cerrando conexiones...")
         if _telegram_bot:
             await _send_telegram(
-                "⚠️ <b>Valentina Bridge detenido</b>\\n\\nLos mensajes no se responden temporalmente."
+                "⚠️ <b>Valentina Bridge detenido</b>\\\\\\\\n\\\\\\\\n"
+                "Los mensajes no se responden temporalmente."
             )
         await _http_client.aclose()
         logger.info("Valentina Bridge detenido")

@@ -204,7 +204,7 @@ async def telegram_webhook(request: Request) -> dict[str, Any]:
         update = await request.json()
         # Procesar via DispatcherSkill
         router = get_router()
-        result = await router.execute(
+        await router.execute(
             trigger="dispatch_request",
             action="handle_telegram_update",
             update=update,
@@ -233,7 +233,7 @@ async def health_check() -> dict[str, Any]:
 @router.post("/process-queue")
 async def process_queue(max_orders: int = 20) -> dict[str, Any]:
     """Procesa pedidos pending de dispatch_queue en tiempo real.
-    
+
     Este endpoint consume la dispatch_queue (conversations.db) y:
     1. Lee pedidos pending
     2. Asigna a chofer/vehículo con menos carga
@@ -242,4 +242,5 @@ async def process_queue(max_orders: int = 20) -> dict[str, Any]:
     5. Marca pedidos como 'enviado'
     """
     from skills.dispatch.consumer import process_queue_endpoint as consumer_process
+
     return await consumer_process(max_orders=max_orders)
