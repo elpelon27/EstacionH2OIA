@@ -4,20 +4,26 @@ Filosofía:
 - 7:40am - 6:00pm: Operación productiva (clientes) → Qwen local
 - 6:00pm - 7:40am: Auto-mejora del sistema → Fusion Tournament
 """
-from enum import Enum
+
 from datetime import datetime, time
+from enum import StrEnum
 from typing import Any
+
+from core.circuit_breaker import CircuitOpenError, get_circuit_breaker_registry
 from core.config import get_settings
-from core.logger import get_logger
-from core.qwen_client import get_qwen
-from core.openrouter_client import get_openrouter
+from core.cost_guard import get_cost_guard
 from core.fusion import get_fusion
+from core.logger import get_logger
+from core.openrouter_client import get_openrouter
+from core.qwen_client import get_qwen
+from core.rate_limiter import get_rate_limiter
 
 logger = get_logger("router")
 
 
-class Route(str, Enum):
+class Route(StrEnum):
     """Destinos posibles para una tarea."""
+
     QWEN_LOCAL = "qwen_local"
     OPENROUTER_GLM = "openrouter:glm"
     OPENROUTER_CLAUDE = "openrouter:claude"
@@ -42,10 +48,8 @@ ROUTE_TABLE: dict[str, Route] = {
     "dispatch_gps_track": Route.DISPATCH_SKILL,
     "dispatch_bottle_inventory": Route.DISPATCH_SKILL,
     "delivery_delivered": Route.DISPATCH_SKILL,  # SWAP: entrega confirmada → bottle_tracker
-    
     # Auto-mejora (6:00pm - 7:40am)
     "self_improve_request": Route.SELF_IMPROVE_SKILL,
-    
     # Desarrollo (cualquier horario)
     "architect_request": Route.FUSION,
     "code_generation_complex": Route.OPENROUTER_DEEPSEEK,
@@ -65,18 +69,17 @@ class WorkloadRouter:
 
     def resolve(self, trigger: str) -> Route:
         """Resolver ruta para un trigger dado.
-        
+
         Aplica lógica de horario: si es self_improve y estamos en horario
         laboral, lo bloquea (solo nocturno).
         """
         route = ROUTE_TABLE.get(trigger, Route.QWEN_LOCAL)  # Default: Qwen local
-        
+
         # Regla: self_improve solo después de 6:00pm
-        if route == Route.SELF_IMPROVE_SKILL:
-            if self._is_business_hours():
-                logger.warning("self_improve_blocked_during_business_hours")
-                return Route.QWEN_LOCAL  # Fallback: no hacer nada especial
-        
+        if route == Route.SELF_IMPROVE_SKILL and self._is_business_hours():
+            logger.warning("self_improve_blocked_during_business_hours")
+            return Route.QWEN_LOCAL  # Fallback: no hacer nada especial
+
         logger.info("route_resolved", trigger=trigger, route=route.value)
         return route
 
@@ -86,7 +89,7 @@ class WorkloadRouter:
         messages: list[dict[str, str]] | None = None,
         temperature: float = 0.3,
         max_tokens: int = 1024,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> dict[str, Any]:
         """Ejecutar tarea enrutándola al modelo/skill correcto.
 
@@ -102,40 +105,143 @@ class WorkloadRouter:
         """
         route = self.resolve(trigger)
 
-        # === SKILLS ===
+        # === SKILLS (sin guards LLM) ===
         if route == Route.PAYMENT_SKILL:
             from skills.payment_skill import PaymentSkill
+
             payment_skill = PaymentSkill()
             return await payment_skill.execute(**kwargs)
 
         if route == Route.INVENTORY_SKILL:
             from skills.inventory_skill import InventorySkill
+
             inventory_skill = InventorySkill()
             return await inventory_skill.execute(**kwargs)
 
         if route == Route.SELF_IMPROVE_SKILL:
             from skills.self_improve_skill import SelfImproveSkill
+
             self_improve_skill = SelfImproveSkill()
             return await self_improve_skill.execute(**kwargs)
 
         if route == Route.DISPATCH_SKILL:
             from skills.dispatcher_skill import get_dispatcher_skill
+
             dispatcher_skill = get_dispatcher_skill()
             return await dispatcher_skill.execute(**kwargs)
 
-        # === LLM ROUTING ===
-        if route == Route.QWEN_LOCAL:
-            qwen_client = await get_qwen()
-            result: dict[str, Any] = await qwen_client.chat(
-                messages=messages or [], temperature=temperature
+        # === LLM ROUTING CON GUARDS ===
+        cost_guard = get_cost_guard()
+        rate_limiter = get_rate_limiter()
+        cb_registry = get_circuit_breaker_registry()
+
+        # Determinar proveedor y modelo para guards
+        provider_key, model_name, estimated_cost = self._get_provider_info(route)
+
+        # 1. Cost Guard (solo para OpenRouter/Fusion)
+        if provider_key.startswith("openrouter") or route == Route.FUSION:
+            guard_result = await cost_guard.check()
+            if guard_result["status"] == "blocked":
+                logger.warning(
+                    "router_blocked_by_cost_guard",
+                    trigger=trigger,
+                    route=route.value,
+                    spent_today=guard_result["spent_today"],
+                )
+                # Fallback a Qwen local si disponible
+                if route != Route.QWEN_LOCAL:
+                    logger.info("router_fallback_qwen_local", trigger=trigger)
+                    return await self._execute_qwen_local(messages, temperature)
+                return {"error": "cost_guard_blocked", "spent_today": guard_result["spent_today"]}
+
+        # 2. Rate Limiter (por modelo)
+        rate_key = f"llm:{provider_key}:{model_name}"
+        rate_allowed = await rate_limiter.acquire(rate_key, tokens=1, timeout=5.0)
+        if not rate_allowed:
+            logger.warning("router_rate_limited", trigger=trigger, route=route.value, key=rate_key)
+            if route != Route.QWEN_LOCAL:
+                logger.info("router_fallback_qwen_local_rate", trigger=trigger)
+                return await self._execute_qwen_local(messages, temperature)
+            return {"error": "rate_limited", "key": rate_key}
+
+        # 3. Circuit Breaker + ejecución con fallback
+        try:
+            return await self._execute_with_circuit_breaker(
+                cb_registry, provider_key, route, messages, temperature, max_tokens, **kwargs
             )
-            return result
+        except CircuitOpenError:
+            logger.warning(
+                "router_circuit_open_fallback",
+                trigger=trigger,
+                route=route.value,
+                provider=provider_key,
+            )
+            if route != Route.QWEN_LOCAL:
+                logger.info("router_fallback_qwen_local_circuit", trigger=trigger)
+                return await self._execute_qwen_local(messages, temperature)
+            return {"error": "circuit_open", "provider": provider_key}
+        except Exception as e:
+            # Cualquier otro error en LLM → log y fallback a Qwen
+            logger.error(
+                "router_llm_error_fallback", trigger=trigger, route=route.value, error=str(e)
+            )
+            if route != Route.QWEN_LOCAL:
+                logger.info("router_fallback_qwen_local_error", trigger=trigger)
+                return await self._execute_qwen_local(messages, temperature)
+            raise
+
+    def _get_provider_info(self, route: Route) -> tuple[str, str, float]:
+        """Obtener clave de proveedor, nombre de modelo y costo estimado para una ruta."""
+        if route == Route.QWEN_LOCAL:
+            return ("ollama", "qwen2.5:7b", 0.0)
 
         if route == Route.FUSION:
-            fusion = get_fusion()
-            return await fusion.run(
-                messages=messages or [], temperature=temperature, max_tokens=max_tokens
-            )
+            # Fusion usa 4 modelos; estimamos costo promedio * 4 + judge
+            return ("openrouter", "fusion", 0.02)  # ~$0.02 estimado por tournament
+
+        # OpenRouter modelo único
+        model_map: dict[Route, str] = {
+            Route.OPENROUTER_GLM: "z-ai/glm-4.5",
+            Route.OPENROUTER_CLAUDE: "anthropic/claude-sonnet-4.5",
+            Route.OPENROUTER_DEEPSEEK: "deepseek/deepseek-chat-v3.2",
+            Route.OPENROUTER_GEMINI: "google/gemini-2.5-flash",
+        }
+        model = model_map.get(route, "z-ai/glm-4.5")
+        # Estimación rough: 1k prompt + 500 completion tokens
+        pricing = {
+            "z-ai/glm-4.5": 0.0014,
+            "anthropic/claude-sonnet-4.5": 0.009,
+            "deepseek/deepseek-chat-v3.2": 0.00021,
+            "google/gemini-2.5-flash": 0.0001125,
+        }
+        estimated = pricing.get(model, 0.001)
+        return ("openrouter", model, estimated)
+
+    async def _execute_with_circuit_breaker(
+        self,
+        cb_registry,
+        provider_key: str,
+        route: Route,
+        messages: list[dict[str, str]] | None,
+        temperature: float,
+        max_tokens: int,
+        **kwargs: Any,
+    ) -> dict[str, Any]:
+        """Ejecutar ruta LLM protegida por circuit breaker."""
+        cb_name = f"{provider_key}:{route.value}"
+
+        if route == Route.QWEN_LOCAL:
+            return await self._execute_qwen_local(messages, temperature)
+
+        if route == Route.FUSION:
+
+            async def _fusion_call():
+                fusion = get_fusion()
+                return await fusion.run(
+                    messages=messages or [], temperature=temperature, max_tokens=max_tokens
+                )
+
+            return await cb_registry.call(cb_name, _fusion_call)
 
         # OpenRouter modelo único
         or_client = await get_openrouter()
@@ -146,9 +252,20 @@ class WorkloadRouter:
             Route.OPENROUTER_GEMINI: "google/gemini-2.5-flash",
         }
         model = model_map[route]
-        return await or_client.chat(
-            messages=messages or [], model=model, temperature=temperature, max_tokens=max_tokens
-        )
+
+        async def _or_call():
+            return await or_client.chat(
+                messages=messages or [], model=model, temperature=temperature, max_tokens=max_tokens
+            )
+
+        return await cb_registry.call(cb_name, _or_call)
+
+    async def _execute_qwen_local(
+        self, messages: list[dict[str, str]] | None, temperature: float
+    ) -> dict[str, Any]:
+        """Ejecutar en Qwen local (fallback final)."""
+        qwen_client = await get_qwen()
+        return await qwen_client.chat(messages=messages or [], temperature=temperature)
 
     def _is_business_hours(self) -> bool:
         """Verificar si estamos en horario laboral (7:40am - 6:00pm)."""
