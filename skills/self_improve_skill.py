@@ -1,7 +1,9 @@
 """Self-Improve Skill — Auto-análisis con Fusion Tournament (nocturno)."""
 from typing import Any
-from skills.base_skill import BaseSkill
+
 from core.fusion import get_fusion
+from skills.base_skill import BaseSkill
+
 
 class SelfImproveSkill(BaseSkill):
     def __init__(self) -> None:
@@ -18,7 +20,12 @@ class SelfImproveSkill(BaseSkill):
             return self._error("No hay conversaciones")
         fusion = get_fusion()
         result = await fusion.run(
-            messages=[{"role": "user", "content": f"Analiza estas conversaciones: {conversations[-10:]}"}],
-            temperature=0.2, max_tokens=1024
+            messages=[
+                {"role": "user", "content": f"Analiza estas conversaciones: {conversations[-10:]}"}
+            ],
+            temperature=0.2,
+            max_tokens=1024,
         )
-        return self._success({"analysis": result.get("winner_response", ""), "score": result.get("score", 0)})
+        return self._success(
+            {"analysis": result.get("winner_response", ""), "score": result.get("score", 0)}
+        )

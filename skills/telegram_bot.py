@@ -21,12 +21,11 @@ Seguridad:
     Solo el chat_id del Líder (TELEGRAM_CHAT_ID) tiene permiso.
  """
 
-import os
-import sys
-import time
-import sqlite3
 import logging
-from datetime import datetime, timezone, timedelta
+import os
+import sqlite3
+import sys
+from datetime import datetime, timedelta, timezone
 
 from telegram import Update
 from telegram.ext import (
@@ -46,9 +45,13 @@ CARACAS_TZ = timezone(timedelta(hours=-4))
 
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID", "1663148211"))
-KILL_SWITCH_FILE = os.getenv("KILL_SWITCH_FILE", "/mnt/ssd_trabajo/hermes-agent/data/valentina.kill")
+KILL_SWITCH_FILE = os.getenv(
+    "KILL_SWITCH_FILE",
+    "/mnt/ssd_trabajo/hermes-agent/data/valentina.kill",
+)
 SQLITE_PATH = os.getenv(
-    "SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db"
+    "SQLITE_PATH",
+    "/mnt/ssd_trabajo/hermes-agent/data/conversations.db",
 )
 BRIDGE_HEALTH_URL = os.getenv("BRIDGE_HEALTH_URL", "http://localhost:8000/health")
 
@@ -142,10 +145,11 @@ async def cmd_orders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     today_start = datetime.now(CARACAS_TZ).replace(
         hour=0, minute=0, second=0, microsecond=0
     ).timestamp()
-    orders = conn.execute(
-        "SELECT id, product_description, status, created_at FROM orders WHERE created_at > ? ORDER BY created_at DESC LIMIT 10",
-        (today_start,),
-    ).fetchall()
+    query = (
+        "SELECT id, product_description, status, created_at "
+        "FROM orders WHERE created_at > ? ORDER BY created_at DESC LIMIT 10"
+    )
+    orders = conn.execute(query, (today_start,)).fetchall()
     conn.close()
     if not orders:
         await update.message.reply_text("📭 No hay pedidos hoy.")
@@ -267,7 +271,11 @@ def main() -> None:
     app.add_handler(CommandHandler("tasa", cmd_tasa))
     app.add_handler(CommandHandler("help", cmd_help))
 
-    logger.info("Telegram bot iniciado. Esperando comandos del Líder (chat_id=%s)", TELEGRAM_CHAT_ID)
+    logger.info(
+        "Telegram bot iniciado. Esperando comandos "
+        "del Líder (chat_id=%s)",
+        TELEGRAM_CHAT_ID,
+    )
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 

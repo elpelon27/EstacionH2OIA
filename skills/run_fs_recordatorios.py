@@ -1,11 +1,12 @@
 """Script para cron: procesa recordatorios pendientes cada 30 min."""
 import asyncio
-import sys
-import os
 import logging
+import os
+import sys
 
 # Cargar .env
 from pathlib import Path
+
 env_path = Path("/mnt/ssd_trabajo/hermes-agent/config/.env")
 if env_path.exists():
     for line in env_path.read_text().splitlines():

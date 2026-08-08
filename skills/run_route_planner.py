@@ -9,11 +9,11 @@ y notifica a cada chofer por Telegram con su ruta del día.
 Cron: 45 7 * * * /mnt/ssd_trabajo/hermes-agent/venv/bin/python skills/run_route_planner.py
 """
 import asyncio
-import sys
+import logging
 import os
 import sqlite3
-import logging
-from datetime import datetime, timezone, timedelta
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -152,7 +152,10 @@ async def _notify_chofer(route: Any, total_distance: float) -> None:
 async def main() -> None:
     try:
         from skills.dispatch.route_engine import (
-            compute_vrp_route, ClientOrder, DEPOT_LAT, DEPOT_LNG,
+            DEPOT_LAT,
+            DEPOT_LNG,
+            ClientOrder,
+            compute_vrp_route,
         )
 
         # 1. Leer pedidos pending
@@ -262,7 +265,11 @@ async def main() -> None:
         conv_conn.close()
         conn.close()
 
-        logger.info("Planificación completada: %d pedidos → %d rutas", len(pending), len(vrp_result.routes))
+        logger.info(
+            "Planificación completada: %d pedidos → %d rutas",
+            len(pending),
+            len(vrp_result.routes),
+        )
 
         # Log unassigned
         if vrp_result.unassigned:

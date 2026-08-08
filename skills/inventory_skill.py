@@ -2,7 +2,9 @@
 import sqlite3
 from pathlib import Path
 from typing import Any
+
 from skills.base_skill import BaseSkill
+
 
 class InventorySkill(BaseSkill):
     def __init__(self) -> None:
@@ -14,9 +16,17 @@ class InventorySkill(BaseSkill):
         if action == "get_stock":
             return await self._get_stock(kwargs.get("product"))
         elif action == "add_stock":
-            return await self._add_stock(kwargs.get("product", ""), kwargs.get("quantity", 0), kwargs.get("reason", ""))
+            return await self._add_stock(
+                kwargs.get("product", ""),
+                kwargs.get("quantity", 0),
+                kwargs.get("reason", ""),
+            )
         elif action == "remove_stock":
-            return await self._remove_stock(kwargs.get("product", ""), kwargs.get("quantity", 0), kwargs.get("reason", ""))
+            return await self._remove_stock(
+                kwargs.get("product", ""),
+                kwargs.get("quantity", 0),
+                kwargs.get("reason", ""),
+            )
         elif action == "check_alerts":
             return await self._check_alerts()
         return self._error(f"Acción no reconocida: {action}")
@@ -36,7 +46,8 @@ class InventorySkill(BaseSkill):
                 movement_type TEXT NOT NULL, quantity INTEGER NOT NULL,
                 reason TEXT, timestamp TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
-            INSERT OR IGNORE INTO inventory (product, current_stock) VALUES ('AGUA_20L', 50), ('HIELO_7KG', 20);
+            INSERT OR IGNORE INTO inventory (product, current_stock)
+            VALUES ('AGUA_20L', 50), ('HIELO_7KG', 20);
         """)
         conn.commit()
         return conn
@@ -53,8 +64,15 @@ class InventorySkill(BaseSkill):
 
     async def _add_stock(self, product: str, quantity: int, reason: str) -> dict[str, Any]:
         conn = self._get_conn()
-        conn.execute("UPDATE inventory SET current_stock = current_stock + ? WHERE product = ?", (quantity, product))
-        conn.execute("INSERT INTO inventory_movements VALUES (NULL, ?, 'entry', ?, ?)", (product, quantity, reason))
+        conn.execute(
+            "UPDATE inventory SET current_stock = current_stock + ? "
+            "WHERE product = ?",
+            (quantity, product),
+        )
+        conn.execute(
+            "INSERT INTO inventory_movements VALUES (NULL, ?, 'entry', ?, ?)",
+            (product, quantity, reason),
+        )
         conn.commit()
         row = conn.execute("SELECT * FROM inventory WHERE product = ?", (product,)).fetchone()
         conn.close()
@@ -66,8 +84,15 @@ class InventorySkill(BaseSkill):
         if not row or row["current_stock"] < quantity:
             conn.close()
             return self._error("Stock insuficiente")
-        conn.execute("UPDATE inventory SET current_stock = current_stock - ? WHERE product = ?", (quantity, product))
-        conn.execute("INSERT INTO inventory_movements VALUES (NULL, ?, 'exit', ?, ?)", (product, quantity, reason))
+        conn.execute(
+            "UPDATE inventory SET current_stock = current_stock - ? "
+            "WHERE product = ?",
+            (quantity, product),
+        )
+        conn.execute(
+            "INSERT INTO inventory_movements VALUES (NULL, ?, 'exit', ?, ?)",
+            (product, quantity, reason),
+        )
         conn.commit()
         row = conn.execute("SELECT * FROM inventory WHERE product = ?", (product,)).fetchone()
         conn.close()

@@ -36,7 +36,7 @@ import os
 import sqlite3
 import subprocess
 import sys
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -75,9 +75,7 @@ TELEGRAM_CHAT_ID = int(os.getenv("TELEGRAM_CHAT_ID_HERMES", "1663148211"))
 KILL_SWITCH_FILE = os.getenv(
     "KILL_SWITCH_FILE", "/mnt/ssd_trabajo/hermes-agent/data/valentina.kill"
 )
-SQLITE_PATH = os.getenv(
-    "SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db"
-)
+SQLITE_PATH = os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
 DISPATCH_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
 BRIDGE_HEALTH_URL = os.getenv("BRIDGE_HEALTH_URL", "http://localhost:8000/health")
 
@@ -101,8 +99,7 @@ ALLOWED_SHELL_COMMANDS = {
     "mem": "free -h",
     "processes": "ps aux | head -20",
     "services": (
-        "systemctl status valentina-bridge dispatcher-bot "
-        "telegram-bot cloudflared --no-pager"
+        "systemctl status valentina-bridge dispatcher-bot " "telegram-bot cloudflared --no-pager"
     ),
     "git_log": "cd /mnt/ssd_trabajo/hermes-agent && git log --oneline -10",
     "git_status": "cd /mnt/ssd_trabajo/hermes-agent && git status",
@@ -149,8 +146,7 @@ async def _require_confirmation(update: Update, action: str) -> bool:
     if "confirmo" in text.lower() or "sí confirmo" in text.lower() or "si confirmo" in text.lower():
         return True
     await msg.reply_text(
-        f"⚠️ Acción sensible: {action}\n"
-        f"Responde con \"confirmo\" o \"sí confirmo\" para proceder."
+        f"⚠️ Acción sensible: {action}\n" f'Responde con "confirmo" o "sí confirmo" para proceder.'
     )
     return False
 
@@ -177,6 +173,7 @@ async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not await _require_confirmation(update, "Activar kill switch (detener Valentina)"):
         return
     import os as _os
+
     _fd = _os.open(KILL_SWITCH_FILE, _os.O_CREAT | _os.O_WRONLY | _os.O_TRUNC, 0o600)
     with _os.fdopen(_fd, "w") as f:
         f.write(f"killed by {update.effective_user.username} at {datetime.now(CARACAS_TZ)}")
@@ -193,6 +190,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return await _unauthorized(update)
     assert update.message is not None
     import httpx
+
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(BRIDGE_HEALTH_URL, timeout=5)
@@ -209,8 +207,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     for svc in KNOWN_SERVICES:
         try:
             result = subprocess.run(
-                ["systemctl", "is-active", svc],
-                capture_output=True, text=True, timeout=3
+                ["systemctl", "is-active", svc], capture_output=True, text=True, timeout=3
             )
             svc_status[svc] = result.stdout.strip()
         except Exception:
@@ -239,6 +236,7 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     assert update.message is not None
 
     import httpx
+
     checks = {}
 
     # Bridge health
@@ -252,6 +250,7 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     # Dispatcher health (via skill)
     try:
         from skills.dispatcher_skill import get_dispatcher_skill
+
         get_dispatcher_skill()
         checks["dispatcher"] = {
             "skill_loaded": True,
@@ -278,6 +277,7 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     # Financial Shield health
     try:
         from src.agents.financial_agent import get_agent
+
         fs = get_agent()
         fs.init()
         checks["financial"] = {"agent_loaded": True}
@@ -287,6 +287,7 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     # WorkloadRouter health
     try:
         from core.workload_router import ROUTE_TABLE
+
         checks["workload_router"] = {"routes": list(ROUTE_TABLE.keys())}
     except Exception as e:
         checks["workload_router"] = {"error": str(e)}
@@ -334,7 +335,7 @@ async def cmd_memory(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             conn.row_factory = sqlite3.Row
             recent = conn.execute(
                 "SELECT COUNT(*) as cnt FROM conversations WHERE created_at > ?",
-                (datetime.now().timestamp() - 86400,)
+                (datetime.now().timestamp() - 86400,),
             ).fetchone()["cnt"]
             total = conn.execute("SELECT COUNT(*) as cnt FROM conversations").fetchone()["cnt"]
             conn.close()
@@ -367,7 +368,7 @@ async def cmd_memory(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                         lines = content.split("\n")
                         for i, line in enumerate(lines):
                             if query.lower() in line.lower():
-                                snippet = "\n".join(lines[max(0,i-2):i+3])
+                                snippet = "\n".join(lines[max(0, i - 2) : i + 3])
                                 results.append(f"📄 {rel}:\n```\n{snippet}\n```")
                                 break
                         if len(results) >= 5:
@@ -401,9 +402,9 @@ async def cmd_memory(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 else:
                     msg = f"🔍 Resultados episódicos para '{query}':\n\n"
                     for r in rows:
-                        ts = datetime.fromtimestamp(
-                            r["created_at"], CARACAS_TZ
-                        ).strftime("%m-%d %H:%M")
+                        ts = datetime.fromtimestamp(r["created_at"], CARACAS_TZ).strftime(
+                            "%m-%d %H:%M"
+                        )
                         msg += f"📱 {r['phone'][:8]}... | {ts}\n"
                         msg += f"  U: {r['user_message'][:100]}\n"
                         msg += f"  A: {r['assistant_message'][:100]}\n\n"
@@ -478,13 +479,13 @@ async def cmd_review(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             timeout=5,
         )
         commit_info = result.stdout.strip()
-        files_changed = [
-            line for line in commit_info.split("\n")[1:] if line.strip()
-        ]
+        files_changed = [line for line in commit_info.split("\n")[1:] if line.strip()]
 
         result = subprocess.run(
             ["git", "-C", "/mnt/ssd_trabajo/hermes-agent", "show", "--stat", "HEAD"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         diff_stat = result.stdout.strip()
 
@@ -523,12 +524,14 @@ async def cmd_tasa(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     args = ctx.args
     if not args:
         from src.financial.currency import get_tasa_display
+
         await update.message.reply_text("💱 Tasa actual: " + get_tasa_display())
         return
 
     try:
         tasa = float(args[0].replace(",", "."))
         from src.financial.currency import set_manual_rate
+
         set_manual_rate(tasa)
         await update.message.reply_text(f"✅ Tasa actualizada: 1 EUR = {tasa:.2f} VES")
         logger.info("Tasa manual actualizada por Líder: %.2f", tasa)
@@ -544,13 +547,17 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         result = subprocess.run(
             ["git", "-C", "/mnt/ssd_trabajo/hermes-agent", "log", "--oneline", "-5"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         git_log = result.stdout.strip()
 
         result = subprocess.run(
             ["git", "-C", "/mnt/ssd_trabajo/hermes-agent", "status", "--short"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         git_status = result.stdout.strip() or "clean"
 
@@ -567,7 +574,9 @@ async def cmd_deploy(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             commit_hash = ctx.args[1]
             result = subprocess.run(
                 ["git", "-C", "/mnt/ssd_trabajo/hermes-agent", "reset", "--hard", commit_hash],
-                capture_output=True, text=True, timeout=10
+                capture_output=True,
+                text=True,
+                timeout=10,
             )
             if result.returncode == 0:
                 msg = (
@@ -596,7 +605,9 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         result = subprocess.run(
             ["journalctl", "-u", service, "-n", "50", "--no-pager", "-o", "cat"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         logs = result.stdout.strip()
     except Exception as e:
@@ -628,16 +639,19 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     cmd_key = args[0]
     if cmd_key not in ALLOWED_SHELL_COMMANDS:
         await update.message.reply_text(
-            f"❌ Comando '{cmd_key}' no permitido.\n"
-            "Usa /shell sin args para ver la lista."
+            f"❌ Comando '{cmd_key}' no permitido.\n" "Usa /shell sin args para ver la lista."
         )
         return
 
     cmd = ALLOWED_SHELL_COMMANDS[cmd_key]
     try:
         result = subprocess.run(
-            cmd, shell=True, capture_output=True, text=True, timeout=15,
-            cwd="/mnt/ssd_trabajo/hermes-agent"
+            cmd,
+            shell=True,
+            capture_output=True,
+            text=True,
+            timeout=15,
+            cwd="/mnt/ssd_trabajo/hermes-agent",
         )
         output = result.stdout.strip()
         if result.stderr:
@@ -705,6 +719,7 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
 # SISTEMA DE APROBACIONES ASÍNCRONAS
 # ============================================================
 
+
 def _escape_md(text: str) -> str:
     """Escapa caracteres especiales de Markdown v2 para texto normal."""
     escape_chars = r"_*[]()~`>#+-=|{}.!"
@@ -742,12 +757,12 @@ async def _approval_notifier(app: Application[Any, Any, Any, Any, Any, Any]) -> 
                         "input": "📝",
                     }.get(data.get("type", ""), "📋")
 
-                    prompt_escaped = _escape_md(data.get('prompt', ''))
-                    context_json = json.dumps(data.get('context', {}), indent=2, ensure_ascii=False)
-                    created_escaped = _escape_md(data.get('created_at', ''))
-                    timeout_escaped = _escape_md(str(data.get('timeout_seconds', 3600)))
+                    prompt_escaped = _escape_md(data.get("prompt", ""))
+                    context_json = json.dumps(data.get("context", {}), indent=2, ensure_ascii=False)
+                    created_escaped = _escape_md(data.get("created_at", ""))
+                    timeout_escaped = _escape_md(str(data.get("timeout_seconds", 3600)))
                     req_id_inline = _escape_md_inline(req_id)
-                    type_escaped = _escape_md(data.get('type', 'desconocido'))
+                    type_escaped = _escape_md(data.get("type", "desconocido"))
 
                     msg = (
                         f"{type_emoji} *Solicitud de Prometeo* \\("
@@ -762,16 +777,15 @@ async def _approval_notifier(app: Application[Any, Any, Any, Any, Any, Any]) -> 
                     msg += (
                         f"\n*Creada:* {created_escaped}\n"
                         f"*Timeout:* {timeout_escaped}s\n\n"
-                        f"👉 Responde con:\n"
-                        f"  `/approve {req_id_inline} <respuesta>` \u2014 para aprobar/ingresar valor\n"
+                        "👉 Responde con:\n"
+                        f"  `/approve {req_id_inline} <respuesta>` \u2014 para aprobar/"
+                        f"ingresar valor\n"
                         f"  `/reject {req_id_inline}` \u2014 para rechazar\n"
                         f"  `/pending` \u2014 ver todas las pendientes"
                     )
 
                     await app.bot.send_message(
-                        chat_id=TELEGRAM_CHAT_ID,
-                        text=msg,
-                        parse_mode="MarkdownV2"
+                        chat_id=TELEGRAM_CHAT_ID, text=msg, parse_mode="MarkdownV2"
                     )
 
                     notified_ids.add(req_id)
@@ -820,16 +834,12 @@ async def cmd_pending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "input": "📝",
         }.get(p.get("type", ""), "📋")
 
-        req_id = _escape_md_inline(p.get('id', '?'))
-        prompt = _escape_md(p.get('prompt', '')[:80])
-        created = _escape_md(p.get('created_at', ''))
-        ptype = _escape_md(p.get('type', '?'))
+        req_id = _escape_md_inline(p.get("id", "?"))
+        prompt = _escape_md(p.get("prompt", "")[:80])
+        created = _escape_md(p.get("created_at", ""))
+        ptype = _escape_md(p.get("type", "?"))
 
-        msg += (
-            f"{type_emoji} `{req_id}` [{ptype}]\n"
-            f"   {prompt}...\n"
-            f"   ⏱️ {created}\n\n"
-        )
+        msg += f"{type_emoji} `{req_id}` [{ptype}]\n" f"   {prompt}...\n" f"   ⏱️ {created}\n\n"
 
     msg += "Usa `/approve <id> <respuesta>` o `/reject <id>`"
     await update.message.reply_text(msg, parse_mode="MarkdownV2")
@@ -849,7 +859,7 @@ async def cmd_approve(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
             "  `/approve abc12345 mipassword123` (para sudo_password)\n"
             "  `/approve abc12345 sí` (para validation/confirmation)\n"
             "  `/approve abc12345 texto libre` (para input)",
-            parse_mode="MarkdownV2"
+            parse_mode="MarkdownV2",
         )
         return
 
@@ -865,14 +875,16 @@ async def cmd_approve(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         data = json.loads(pending_path.read_text())
         data["status"] = "completed"
         data["response"] = response
-        data["responded_at"] = datetime.now(timezone.utc).isoformat()
+        data["responded_at"] = datetime.now(UTC).isoformat()
 
         completed_path = APPROVAL_COMPLETED_DIR / f"{req_id}.json"
         completed_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
         pending_path.unlink(missing_ok=True)
 
         req_id_escaped = _escape_md_inline(req_id)
-        await update.message.reply_text(f"✅ Solicitud `{req_id_escaped}` completada con respuesta", parse_mode="MarkdownV2")
+        await update.message.reply_text(
+            f"✅ Solicitud `{req_id_escaped}` completada con respuesta", parse_mode="MarkdownV2"
+        )
         logger.info(f"Approval {req_id} completada por Líder: {data.get('type')}")
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
@@ -899,14 +911,16 @@ async def cmd_reject(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         data = json.loads(pending_path.read_text())
         data["status"] = "rejected"
         data["response"] = None
-        data["responded_at"] = datetime.now(timezone.utc).isoformat()
+        data["responded_at"] = datetime.now(UTC).isoformat()
 
         completed_path = APPROVAL_COMPLETED_DIR / f"{req_id}.json"
         completed_path.write_text(json.dumps(data, indent=2, ensure_ascii=False))
         pending_path.unlink(missing_ok=True)
 
         req_id_escaped = _escape_md_inline(req_id)
-        await update.message.reply_text(f"🚫 Solicitud `{req_id_escaped}` rechazada", parse_mode="MarkdownV2")
+        await update.message.reply_text(
+            f"🚫 Solicitud `{req_id_escaped}` rechazada", parse_mode="MarkdownV2"
+        )
         logger.info(f"Approval {req_id} rechazada por Líder")
     except Exception as e:
         await update.message.reply_text(f"❌ Error: {e}")
