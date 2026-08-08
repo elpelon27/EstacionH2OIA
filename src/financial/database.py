@@ -32,8 +32,10 @@ logger = logging.getLogger("financial_shield.database")
 # Timezone Caracas
 CARACAS_TZ = timezone(timedelta(hours=-4))
 
-# Path de la BD (misma que Valentina)
+# Path de la BD (misma que Valentina) - usa :memory: en CI para tests
 DB_PATH = os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
+if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+    DB_PATH = ":memory:"
 
 # ============================================================================
 # Schema SQL completo v3.0 (idempotente)
