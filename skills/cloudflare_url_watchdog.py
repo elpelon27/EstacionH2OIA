@@ -19,12 +19,11 @@ Despliegue:
     Ejecuta cada 5 min via systemd timer
  """
 
+import logging
 import os
 import re
-import time
-import logging
 import subprocess
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 logging.basicConfig(
@@ -99,10 +98,10 @@ def log_change(old_url: str | None, new_url: str) -> None:
             f.write(f"[{now}] CAMBIO DE URL\n")
             f.write(f"  URL vieja: {old_url or '(ninguna)'}\n")
             f.write(f"  URL nueva: {new_url}\n")
-            f.write(f"  Acción requerida: actualizar Meta Dashboard\n")
-            f.write(f"    https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/\n")
+            f.write("  Acción requerida: actualizar Meta Dashboard\n")
+            f.write("    https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/\n")
             f.write(f"    Callback URL: {new_url}/webhook/meta\n")
-            f.write(f"    Verify Token: a2ee0e434375cb232a99f10e4e1d210a\n\n")
+            f.write("    Verify Token: a2ee0e434375cb232a99f10e4e1d210a\n\n")
     except Exception as e:
         logger.error("Error escribiendo log: %s", e)
 
@@ -176,8 +175,8 @@ def main() -> None:
     print("=" * 60)
     print(f"URL nueva: {current_url}")
     print(f"Callback URL: {current_url}/webhook/meta")
-    print(f"Verify Token: a2ee0e434375cb232a99f10e4e1d210a")
-    print(f"Ir a: https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/")
+    print("Verify Token: a2ee0e434375cb232a99f10e4e1d210a")
+    print("Ir a: https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/")
     print("=" * 60)
 
 

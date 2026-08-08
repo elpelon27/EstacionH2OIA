@@ -1,10 +1,13 @@
 """Payment Skill — Validación de pagos Pago Móvil vía OCR con Qwen2.5-VL."""
-from typing import Any
-import httpx
-import json
 import base64
+import json
+from typing import Any
+
+import httpx
 import ollama
+
 from skills.base_skill import BaseSkill
+
 
 class PaymentSkill(BaseSkill):
     def __init__(self) -> None:
@@ -58,10 +61,14 @@ class PaymentSkill(BaseSkill):
 
     async def _extract_payment_data(self, image_data: bytes) -> dict[str, str]:
         base64_image = base64.b64encode(image_data).decode("utf-8")
-        prompt = """Analiza esta captura de Pago Móvil venezolano.
-Extrae: amount, reference, bank, date, phone.
-Retorna SOLO JSON: {"amount":"515.18","reference":"123","bank":"Banesco","date":"2026-06-28","phone":""}"""
-        
+        prompt = (
+            "Analiza esta captura de Pago Móvil venezolano.\n"
+            "Extrae: amount, reference, bank, date, phone.\n"
+            "Retorna SOLO JSON: "
+            "{\"amount\":\"515.18\",\"reference\":\"123\",\"bank\":\"Banesco\","
+            "\"date\":\"2026-06-28\",\"phone\":\"\"}"
+        )
+
         try:
             response = ollama.chat(
                 model="qwen2.5:7b",
