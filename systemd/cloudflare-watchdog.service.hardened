@@ -1,0 +1,52 @@
+# ============================================================================
+# systemd unit — Cloudflare URL Watchdog (HARDENED)
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+
+[Unit]
+Description=Cloudflare URL Watchdog — detecta cambios de URL trycloudflare
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=3
+StartLimitIntervalSec=300
+StartLimitAction=none
+
+[Service]
+Type=oneshot
+User=skynet
+Group=skynet
+
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python skills/cloudflare_url_watchdog.py
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+MemoryMax=64M
+CPUQuota=10%
+TasksMax=10
+LimitNOFILE=256
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cloudflare-watchdog
+
+[Install]
+WantedBy=multi-user.target

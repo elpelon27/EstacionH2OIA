@@ -1,0 +1,66 @@
+# ============================================================================
+# systemd unit — Dispatcher Bot (HARDENED — referencia para futura activación)
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+# NOTA: Esta versión incluye hardening completo (ProtectSystem=strict, SystemCallFilter, etc.)
+# Requiere que el usuario skynet tenga límites de procesos suficientes (TasksMax=infinity en user slice)
+# Actualmente deshabilitada porque rompe el arranque en este sistema.
+# Versión operativa: dispatcher-bot.service (User=root)
+# ============================================================================
+
+[Unit]
+Description=Dispatcher Bot — Choferes (YORDANIS + EVERT) Estación H2O
+After=network-online.target valentina-bridge.service
+Wants=network-online.target valentina-bridge.service
+StartLimitBurst=5
+StartLimitIntervalSec=60
+StartLimitAction=none
+
+[Service]
+Type=simple
+User=skynet
+Group=skynet
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+ExecStart=/bin/bash /mnt/ssd_trabajo/hermes-agent/start_dispatcher.sh
+Restart=always
+RestartSec=10 20 30 60 120
+WatchdogSec=60
+
+# Hardening completo
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/mnt/ssd_trabajo/hermes-agent/data /mnt/ssd_trabajo/hermes-agent/logs
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+CapabilityBoundingSet=
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Resource limits
+MemoryMax=256M
+MemoryHigh=200M
+MemorySwapMax=0
+CPUQuota=50%
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
+TasksMax=200
+LimitNOFILE=4096
+LimitNPROC=200
+
+OOMScoreAdjust=-100
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dispatcher-bot
+
+[Install]
+WantedBy=multi-user.target

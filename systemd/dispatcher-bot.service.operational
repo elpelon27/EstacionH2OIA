@@ -1,0 +1,44 @@
+# ============================================================================
+# systemd unit — Dispatcher Bot (OPERATIONAL — 작동 검증됨)
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+
+[Unit]
+Description=Dispatcher Bot — Choferes (YORDANIS + EVERT) Estación H2O
+After=network-online.target valentina-bridge.service
+Wants=network-online.target valentina-bridge.service
+StartLimitBurst=5
+StartLimitIntervalSec=60
+StartLimitAction=none
+
+[Service]
+Type=simple
+User=skynet
+Group=skynet
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python skills/dispatcher.py
+Restart=always
+RestartSec=10 20 30 60 120
+WatchdogSec=60
+
+# Resource limits
+MemoryMax=256M
+MemoryHigh=200M
+MemorySwapMax=0
+CPUQuota=50%
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
+TasksMax=200
+LimitNOFILE=4096
+LimitNPROC=200
+
+OOMScoreAdjust=-100
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dispatcher-bot
+
+[Install]
+WantedBy=multi-user.target
