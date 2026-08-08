@@ -255,6 +255,55 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(help_text)
 
 
+async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Health check endpoint for kill-switch bot."""
+    if not _is_authorized(update):
+        return await _unauthorized(update)
+    import httpx
+    from datetime import datetime, timedelta, timezone
+    CARACAS_TZ = timezone(timedelta(hours=-4))
+    
+    # Check bridge health
+    bridge_ok = False
+    bridge_details = {}
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(BRIDGE_HEALTH_URL)
+            if resp.status_code == 200:
+                bridge_ok = True
+                bridge_details = resp.json()
+    except Exception as e:
+        logger.warning(f'Health check bridge error: {e}')
+    
+    # Check SQLite connectivity
+    sqlite_ok = False
+    try:
+        import sqlite3
+        conn = sqlite3.connect(SQLITE_PATH)
+        conn.execute('PRAGMA foreign_keys = ON')
+        conn.execute('SELECT 1').fetchone()
+        conn.close()
+        sqlite_ok = True
+    except Exception as e:
+        logger.warning(f'Health check SQLite error: {e}')
+    
+    # Check kill switch status
+    kill_active = os.path.exists(KILL_SWITCH_FILE)
+    
+    status_emoji = '✅' if (bridge_ok and sqlite_ok and not kill_active) else '⚠️'
+    health_text = (
+        f'{status_emoji} <b>Health Check - Kill Switch Bot</b>\n\n'
+        f'🤖 Bot: <b>ACTIVO</b>\n'
+        f'🌉 Bridge ({BRIDGE_HEALTH_URL}): {"✅ OK" if bridge_ok else "❌ ERROR"}\n'
+        f'💾 SQLite: {"✅ OK" if sqlite_ok else "❌ ERROR"}\n'
+        f'🛑 Kill Switch: {"🔴 ACTIVO" if kill_active else "🟢 INACTIVO"}\n'
+        f'🕐 {datetime.now(CARACAS_TZ).strftime("%Y-%m-%d %H:%M:%S")}'
+    )
+    if bridge_ok and bridge_details:
+        health_text += f'\n🔍 Checks: {bridge_details.get("checks", {})}'
+    await update.message.reply_text(health_text, parse_mode='HTML')
+
+
 def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN no configurado")
@@ -270,6 +319,7 @@ def main() -> None:
     app.add_handler(CommandHandler("metrics", cmd_metrics))
     app.add_handler(CommandHandler("tasa", cmd_tasa))
     app.add_handler(CommandHandler("help", cmd_help))
+    app.add_handler(CommandHandler("health", cmd_health))
 
     logger.info(
         "Telegram bot iniciado. Esperando comandos "

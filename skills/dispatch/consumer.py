@@ -421,9 +421,65 @@ def _mark_order_status(order_id: int, status: str) -> None:
 # ============================================================================
 # FastAPI Endpoint
 # ============================================================================
+
+# In-process event para notificar al consumer inmediatamente
+_consumer_event: asyncio.Event | None = None
+
+def get_consumer_event() -> asyncio.Event:
+    """Retorna el evento global para notificar al consumer."""
+    global _consumer_event
+    if _consumer_event is None:
+        _consumer_event = asyncio.Event()
+    return _consumer_event
+
+
+def notify_consumer() -> None:
+    """Señala al consumer que hay nuevos pedidos (no-bloqueante)."""
+    try:
+        event = get_consumer_event()
+        event.set()
+        event.clear()  # Auto-reset para siguiente notificación
+    except Exception:
+        pass  # Fail silently
+
+
 async def process_queue_endpoint(max_orders: int = 20) -> dict[str, Any]:
     """Endpoint FastAPI: POST /dispatch/process-queue"""
     return await consume_pending_orders(max_orders=max_orders)
+
+
+async def consumer_loop(poll_interval: int = 5) -> None:
+    """
+    Loop persistente que procesa pedidos en tiempo real.
+    Espera notificaciones via Event (instantáneo) o hace polling cada poll_interval segundos.
+    
+    Uso:
+        - En background task al arrancar bridge: asyncio.create_task(consumer_loop())
+        - Cada inserción en dispatch_queue llama notify_consumer()
+    """
+    event = get_consumer_event()
+    logger.info("🔄 Consumer loop iniciado (poll_interval=%ds)", poll_interval)
+    
+    while True:
+        try:
+            # Esperar evento o timeout de polling
+            try:
+                await asyncio.wait_for(event.wait(), timeout=poll_interval)
+            except asyncio.TimeoutError:
+                pass  # Polling normal
+            
+            # Procesar pedidos pendientes
+            result = await consume_pending_orders(max_orders=20)
+            if result["processed"] > 0:
+                logger.info("⚡ Consumer loop: processed=%d notified=%d", 
+                           result["processed"], result["notified"])
+                
+        except asyncio.CancelledError:
+            logger.info("Consumer loop cancelado")
+            break
+        except Exception as e:
+            logger.exception("Error en consumer_loop: %s", e)
+            await asyncio.sleep(5)  # Backoff ante error
 
 
 if __name__ == "__main__":

@@ -38,14 +38,14 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
 META_API_VERSION = os.getenv("META_API_VERSION", "v25.0")
 
 # VRAM Guard para Qwen2.5-VL fallback
-PYNVML_AVAILABLE = False
+NVML_AVAILABLE = False
 try:
-    import pynvml  # type: ignore[import-untyped]
+    import pynvml  # nvidia-ml-py (paquete renombrado, mismo módulo)
 
     pynvml.nvmlInit()
-    PYNVML_AVAILABLE = True
+    NVML_AVAILABLE = True
 except Exception:
-    logger.warning("pynvml no disponible; VRAM guard deshabilitado")
+    logger.warning("nvidia-ml-py no disponible; VRAM guard deshabilitado")
 
 # Perceptual hash (pHash) para anti-fraude de comprobantes
 try:
@@ -80,8 +80,8 @@ def _compute_phash(image_data: bytes) -> str | None:
 
 def _check_vram() -> bool:
     """Return True si hay VRAM libre >= VRAM_LIMIT_MB."""
-    if not PYNVML_AVAILABLE:
-        return True  # Fail-open si no hay pynvml
+    if not NVML_AVAILABLE:
+        return True  # Fail-open si no hay nvidia-ml-py
     try:
         handle = pynvml.nvmlDeviceGetHandleByIndex(0)
         info = pynvml.nvmlDeviceGetMemoryInfo(handle)

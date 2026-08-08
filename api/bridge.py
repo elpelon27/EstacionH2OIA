@@ -1321,6 +1321,14 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         conn.commit()
         conn.close()
         logger.info("📦 Pedido enviado a dispatch_queue para phone:%s", ph_hash[:8])
+        
+        # Notificar al consumer loop para procesamiento inmediato (sub-segundo)
+        try:
+            from skills.dispatch.consumer import notify_consumer
+            notify_consumer()
+        except Exception:
+            pass  # Fail silently si consumer no está corriendo
+        
         # FASE 1 paso 2: sincronizar cliente en dispatch.db (clients table)
         # para que el dispatcher tenga un cliente real al planear rutas.
         _sync_client_to_dispatch_db(ph_hash, from_phone, state)
@@ -2656,6 +2664,11 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     _recovery_task = asyncio.create_task(_run_recovery_scan())
 
+    # Iniciar consumer loop en background (procesa dispatch_queue en tiempo real)
+    from skills.dispatch.consumer import consumer_loop
+    _consumer_task = asyncio.create_task(consumer_loop(poll_interval=5))
+    logger.info("🔄 Consumer loop task creado")
+
     yield
 
     # P1-2: Cancelar watchdog en shutdown
@@ -2669,6 +2682,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         _recovery_task.cancel()
         with suppress(asyncio.CancelledError):
             await _recovery_task
+
+    # Cancelar consumer loop
+    if '_consumer_task' in globals() and _consumer_task and not _consumer_task.done():
+        _consumer_task.cancel()
+        with suppress(asyncio.CancelledError):
+            await _consumer_task
 
     # Graceful shutdown
         logger.info("Cerrando conexiones...")
