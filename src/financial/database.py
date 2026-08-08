@@ -352,13 +352,15 @@ END;
 @contextmanager
 def get_db() -> Iterator[sqlite3.Connection]:
     """Context manager para conexión SQLite (thread-safe, WAL, FK, busy_timeout).
-    
+
     busy_timeout aumentado a 30s para manejar concurrencia startup (Financial Shield recovery + bridge init).
     """
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=30000")  # 30s para evitar "database is locked" en startup concurrente
+    conn.execute(
+        "PRAGMA busy_timeout=30000"
+    )  # 30s para evitar "database is locked" en startup concurrente
     conn.execute("PRAGMA foreign_keys=ON")
     conn.execute("PRAGMA synchronous=NORMAL")
     try:
@@ -370,6 +372,8 @@ def get_db() -> Iterator[sqlite3.Connection]:
         raise
     finally:
         conn.close()
+
+
 def init_database() -> None:
     """Alias de compatibilidad — inicializa/migra a v3.0."""
     init_database_v3()
@@ -410,8 +414,8 @@ def init_database_v3() -> None:
 
         # 3. Backfill: tasa_eur_ves_deuda = tasa_eur_ves donde sea 0/NULL
         conn.execute("""
-            UPDATE fs_pedidos 
-            SET tasa_eur_ves_deuda = tasa_eur_ves 
+            UPDATE fs_pedidos
+            SET tasa_eur_ves_deuda = tasa_eur_ves
             WHERE tasa_eur_ves_deuda = 0 OR tasa_eur_ves_deuda IS NULL
         """)
 
@@ -419,7 +423,7 @@ def init_database_v3() -> None:
         conn.execute("""
             UPDATE fs_pedidos
             SET monto_pagado_eur = COALESCE((
-                SELECT SUM(monto_eur) FROM fs_pagos 
+                SELECT SUM(monto_eur) FROM fs_pagos
                 WHERE fs_pagos.fs_pedido_id = fs_pedidos.id AND verificado = 1
             ), 0)
             WHERE monto_pagado_eur = 0
@@ -584,12 +588,12 @@ def buscar_pedidos_por_telefono_monto(
     else:
         telefono_norm = digitos
 
-    placeholders = ",".join(["?"] * len(estados_permitidos))
+    ",".join(["?"] * len(estados_permitidos))
 
     with get_db() as conn:
         query = f"""
             SELECT * FROM fs_pedidos
-            WHERE 
+            WHERE
                 (cliente_telefono LIKE ? OR cliente_telefono LIKE ? OR cliente_telefono LIKE ?)
                 AND monto_total_eur BETWEEN ? AND ?
                 AND estado_pago IN ({",".join(["?"] * len(estados_permitidos))})
@@ -683,7 +687,9 @@ def get_pedidos_pendientes_pago() -> list[PedidoFinanciero]:
         return [PedidoFinanciero(**dict(r)) for r in rows]
 
 
-def update_estado_pago(fs_pedido_id: int, nuevo_estado: str, verificacion_metodo: str | None = None) -> None:
+def update_estado_pago(
+    fs_pedido_id: int, nuevo_estado: str, verificacion_metodo: str | None = None
+) -> None:
     """Actualiza estado de pago de un pedido financiero."""
     now = now_iso()
     with get_db() as conn:
@@ -789,7 +795,6 @@ def add_pago_and_update_pedido(
                 now,
             ),
         )
-        pago_id = cursor.lastrowid
 
         # 2. Actualizar pedido: sumar monto_pagado_eur + recalcular estado
         conn.execute(

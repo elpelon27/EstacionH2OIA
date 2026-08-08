@@ -12,11 +12,11 @@ Gestiona:
  """
 
 import logging
-from typing import Any, Optional
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from . import database as db
-from .models import PedidoFinanciero, CuentaCobrar
+from .models import CuentaCobrar, PedidoFinanciero
 
 logger = logging.getLogger("financial_shield.cobranzas")
 
@@ -101,7 +101,7 @@ def procesar_recordatorio(pedido: PedidoFinanciero) -> dict[str, Any]:
         db.log_verificacion(
             int(pedido.id) if pedido.id else 0, intento, "manual",
             False, "escalo_humano",
-            f"3 recordatorios fallidos — escalado a humano"
+            "3 recordatorios fallidos — escalado a humano"
         )
         return {
             "accion": "escalar_humano",

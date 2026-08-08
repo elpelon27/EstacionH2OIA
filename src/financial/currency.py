@@ -12,11 +12,10 @@
 Cada tasa se guarda en fs_tasas_cambio (inmutable).
  """
 
-import os
 import logging
+from datetime import timedelta, timezone
+
 import httpx
-from typing import Optional
-from datetime import datetime, timezone, timedelta
 
 from . import database as db
 
@@ -25,7 +24,7 @@ logger = logging.getLogger("financial_shield.currency")
 CARACAS_TZ = timezone(timedelta(hours=-4))
 
 
-async def get_eur_ves_rate() -> Optional[float]:
+async def get_eur_ves_rate() -> float | None:
     """
     Obtiene tasa EUR/VES con 3 prioridades:
     1. open.er-api.com (tiene EUR/VES directo)
@@ -57,7 +56,7 @@ async def get_eur_ves_rate() -> Optional[float]:
     return None
 
 
-async def _try_open_er_api() -> Optional[float]:
+async def _try_open_er_api() -> float | None:
     """Obtiene EUR/VES directo de open.er-api.com."""
     try:
         async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -79,7 +78,7 @@ async def _try_open_er_api() -> Optional[float]:
     return None
 
 
-async def _try_frankfurter() -> Optional[float]:
+async def _try_frankfurter() -> float | None:
     """Obtiene EUR/USD de frankfurter.dev (referencia secundaria)."""
     try:
         async with httpx.AsyncClient(follow_redirects=True) as client:

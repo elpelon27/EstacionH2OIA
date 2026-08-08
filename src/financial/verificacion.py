@@ -13,6 +13,7 @@ Scheduler resiliente + Recovery scan al arrancar + VRAM guard.
 """
 
 import base64
+import contextlib
 import logging
 import os
 import re
@@ -371,10 +372,8 @@ async def verificar_pago_ocr(
             if not referencia and m.group(1).isdigit():
                 referencia = m.group(1)
             if not monto_ves:
-                try:
+                with contextlib.suppress(ValueError):
                     monto_ves = float(m.group(1).replace(",", "").replace(".", ""))
-                except ValueError:
-                    pass
 
     # Si regex encuentra todo → éxito
     if referencia and monto_ves:
