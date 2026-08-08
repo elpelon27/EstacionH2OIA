@@ -15,8 +15,8 @@ def test_openrouter_config():
     """OpenRouter debe tener API key y modelos configurados."""
     import pytest
     settings = get_settings()
-    if not settings.openrouter_api_key:
-        pytest.skip("OPENROUTER_API_KEY no configurado en .env")
+    if not settings.openrouter_api_key or settings.openrouter_api_key == "test-key-dummy":
+        pytest.skip("OPENROUTER_API_KEY no configurado en .env (dummy)")
     assert settings.openrouter_api_key.startswith("sk-or-v1-")
     assert "z-ai/glm-4.5" in settings.fusion_models_list
     assert len(settings.fusion_models_list) == 4
@@ -33,8 +33,8 @@ def test_telegram_config():
     """Telegram debe tener tokens y chat_id."""
     import pytest
     settings = get_settings()
-    if not settings.telegram_bot_token_h2o:
-        pytest.skip("TELEGRAM_BOT_TOKEN_H2O no configurado en .env")
+    if not settings.telegram_bot_token_h2o or settings.telegram_bot_token_h2o == "test-token":
+        pytest.skip("TELEGRAM_BOT_TOKEN_H2O no configurado en .env (dummy)")
     assert settings.telegram_bot_token_hermes != ""
     assert settings.telegram_chat_id_lider > 0
 
