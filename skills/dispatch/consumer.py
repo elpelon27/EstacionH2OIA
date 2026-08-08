@@ -71,11 +71,11 @@ def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Distancia en km entre dos puntos."""
     from math import atan2, cos, radians, sin, sqrt
 
-    R = 6371.0
+    r = 6371.0
     dlat = radians(lat2 - lat1)
     dlng = radians(lng2 - lng1)
     a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
-    return 2 * R * atan2(sqrt(a), sqrt(1 - a))
+    return 2 * r * atan2(sqrt(a), sqrt(1 - a))
 
 
 def _fetch_pending_orders(limit: int = 20) -> list[Any]:
@@ -137,14 +137,17 @@ def _get_active_vehicles_with_load(conn: sqlite3.Connection) -> list[dict]:
     # Query vehicles with pending deliveries count, using date filter for today's sessions
     # but also include vehicles with no sessions for today (active vehicles)
     rows = conn.execute(
-        """SELECT v.id, v.name, v.operator_name, v.max_full_bottles,
-                  COALESCE(SUM(CASE WHEN d.status = 'pending' THEN 1 ELSE 0 END), 0) as pending_deliveries
-           FROM vehicles v
-           LEFT JOIN deliveries d ON d.vehicle_id = v.id AND d.status = 'pending'
-           LEFT JOIN dispatch_sessions ds ON ds.id = d.dispatch_session_id
-           WHERE v.active = 1
-           GROUP BY v.id, v.name, v.operator_name, v.max_full_bottles
-           ORDER BY pending_deliveries ASC, v.id ASC"""
+        """
+        SELECT v.id, v.name, v.operator_name, v.max_full_bottles,
+               COALESCE(SUM(CASE WHEN d.status = 'pending' THEN 1 ELSE 0 END), 0)
+               as pending_deliveries
+        FROM vehicles v
+        LEFT JOIN deliveries d ON d.vehicle_id = v.id AND d.status = 'pending'
+        LEFT JOIN dispatch_sessions ds ON ds.id = d.dispatch_session_id
+        WHERE v.active = 1
+        GROUP BY v.id, v.name, v.operator_name, v.max_full_bottles
+        ORDER BY pending_deliveries ASC, v.id ASC
+        """
     ).fetchall()
 
     return [
@@ -370,7 +373,8 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
             # Check if delivery_id column exists, if not use a different approach
             try:
                 conv_conn.execute(
-                    "UPDATE dispatch_queue SET estado='enviado', enviado_at=?, delivery_id=? WHERE id=?",
+                    "UPDATE dispatch_queue SET estado='enviado', "
+                    "enviado_at=?, delivery_id=? WHERE id=?",
                     (datetime.now(CARACAS_TZ).isoformat(), delivery_id, order_id),
                 )
             except sqlite3.OperationalError:
@@ -452,28 +456,31 @@ async def consumer_loop(poll_interval: int = 5) -> None:
     """
     Loop persistente que procesa pedidos en tiempo real.
     Espera notificaciones via Event (instantáneo) o hace polling cada poll_interval segundos.
-    
+
     Uso:
         - En background task al arrancar bridge: asyncio.create_task(consumer_loop())
         - Cada inserción en dispatch_queue llama notify_consumer()
     """
+    import contextlib
+
     event = get_consumer_event()
     logger.info("🔄 Consumer loop iniciado (poll_interval=%ds)", poll_interval)
-    
+
     while True:
         try:
             # Esperar evento o timeout de polling
-            try:
+            with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(event.wait(), timeout=poll_interval)
-            except asyncio.TimeoutError:
-                pass  # Polling normal
-            
+
             # Procesar pedidos pendientes
             result = await consume_pending_orders(max_orders=20)
             if result["processed"] > 0:
-                logger.info("⚡ Consumer loop: processed=%d notified=%d", 
-                           result["processed"], result["notified"])
-                
+                logger.info(
+                    "⚡ Consumer loop: processed=%d notified=%d",
+                    result["processed"],
+                    result["notified"],
+                )
+
         except asyncio.CancelledError:
             logger.info("Consumer loop cancelado")
             break
