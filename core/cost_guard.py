@@ -1,125 +1,156 @@
-"""Cost Guard — alertas y bloqueo por gasto diario de OpenRouter.
+"""Cost Guard — Enforcement de límites de gasto diario en OpenRouter.
 
-Protege el presupuesto del Líder:
-- $5/día → alerta Telegram al Líder
-- $15/día → bloqueo duro (pausa OpenRouter, fallback a Qwen local)
+Interfaz esperada por tests:
+- check() -> dict con status, alert_sent, block_active, spent_today
+- is_blocked() -> bool
+- _send_telegram_alert() -> async
+- get_openrouter_sync() para reset diario
 """
 
-from datetime import UTC, datetime
+from dataclasses import dataclass
+from datetime import date
 from typing import Any
-
-import httpx
 
 from core.config import get_settings
 from core.logger import get_logger
-from core.openrouter_client import get_openrouter
+from core.openrouter_client import OpenRouterClient, get_openrouter
 
 logger = get_logger("cost_guard")
 
 
+@dataclass
+class CostGuardResult:
+    """Resultado de la verificación de gasto."""
+
+    status: str  # "ok", "alerted", "blocked"
+    alert_sent: bool
+    block_active: bool
+    spent_today: float
+    reason: str = ""
+
+
 class CostGuard:
-    """Monitor de gasto diario en OpenRouter."""
+    """Guardián de presupuesto diario para OpenRouter."""
+
+    _instance: "CostGuard | None" = None
 
     def __init__(self) -> None:
+        if CostGuard._instance is not None:
+            raise RuntimeError("Use get_cost_guard() for singleton")
         self.settings = get_settings()
-        self.alert_threshold = self.settings.openrouter_daily_alert_usd
-        self.block_threshold = self.settings.openrouter_daily_block_usd
+        self._alert_usd = self.settings.openrouter_daily_alert_usd
+        self._block_usd = self.settings.openrouter_daily_block_usd
         self._alert_sent = False
         self._block_active = False
-        self._last_check_date: str | None = None
+        self._last_check_date = date.today()
 
-    async def check(self) -> dict[str, Any]:
-        """Verificar gasto actual y tomar acciones.
-
-        Returns:
-            dict con: spent_today, alert_sent, block_active, status
-        """
-        self._reset_if_new_day()
-
-        client = await get_openrouter()
-        spent = client.spent_today
-
-        # Verificar bloqueo duro
-        if spent >= self.block_threshold and not self._block_active:
-            self._block_active = True
-            await self._send_telegram_alert(
-                f"🔴 BLOQUEO OpenRouter: ${spent:.2f} hoy (límite ${self.block_threshold:.2f}). "
-                "IA cloud pausada. Usando Qwen local."
-            )
-            logger.warning("cost_guard_block_activated", spent=spent)
-
-        # Verificar alerta
-        elif spent >= self.alert_threshold and not self._alert_sent:
-            self._alert_sent = True
-            await self._send_telegram_alert(
-                f"🟠 ALERTA OpenRouter: ${spent:.2f} hoy (umbral ${self.alert_threshold:.2f}). "
-                f"Bloqueo a ${self.block_threshold:.2f}."
-            )
-            logger.warning("cost_guard_alert_sent", spent=spent)
-
-        return {
-            "spent_today": round(spent, 4),
-            "alert_threshold": self.alert_threshold,
-            "block_threshold": self.block_threshold,
-            "alert_sent": self._alert_sent,
-            "block_active": self._block_active,
-            "status": "blocked"
-            if self._block_active
-            else ("alerted" if self._alert_sent else "ok"),
-        }
+    @classmethod
+    def get_instance(cls) -> "CostGuard":
+        """Singleton pattern."""
+        if cls._instance is None:
+            cls._instance = cls()
+        return cls._instance
 
     def is_blocked(self) -> bool:
-        """¿OpenRouter está bloqueado?"""
+        """Verificar si el bloqueo está activo."""
         return self._block_active
 
-    def _reset_if_new_day(self) -> None:
-        """Resetear contadores si cambió el día (UTC)."""
-        today = datetime.now(UTC).strftime("%Y-%m-%d")
-        if self._last_check_date != today:
-            self._last_check_date = today
-            self._alert_sent = False
-            self._block_active = False
-            client = get_openrouter_sync()
-            if client:
-                client.reset_daily_spent()
-            logger.info("cost_guard_daily_reset", date=today)
+    async def check(self) -> dict[str, Any]:
+        """Verificar gasto actual y actuar según thresholds.
+
+        Returns:
+            dict con: status, alert_sent, block_active, spent_today
+        """
+        # Verificar cambio de día
+        today = date.today()
+        if today != self._last_check_date:
+            await self._reset_for_new_day()
+
+        client = await get_openrouter()
+        current = client.spent_today
+
+        # 1. Bloqueo duro
+        if current >= self._block_usd:
+            if not self._block_active:
+                self._block_active = True
+                await self._send_telegram_alert(
+                    "🚨 COST GUARD BLOCKED: "
+                    f"Gasto diario ${current:.2f} >= ${self._block_usd:.2f}. "
+                    "Llamadas a OpenRouter bloqueadas hasta medianoche."
+                )
+            logger.warning(
+                "cost_guard_blocked", spent_today=current, block_threshold=self._block_usd
+            )
+            return {
+                "status": "blocked",
+                "alert_sent": self._alert_sent,
+                "block_active": True,
+                "spent_today": current,
+            }
+
+        # 2. Alerta
+        if current >= self._alert_usd:
+            if not self._alert_sent:
+                self._alert_sent = True
+                await self._send_telegram_alert(
+                    f"⚠️ COST GUARD ALERT: Gasto diario ${current:.2f} >= ${self._alert_usd:.2f}. "
+                    f"Bloqueo en ${self._block_usd:.2f}."
+                )
+            logger.warning("cost_guard_alert", spent_today=current, alert_threshold=self._alert_usd)
+            return {
+                "status": "alerted",
+                "alert_sent": True,
+                "block_active": False,
+                "spent_today": current,
+            }
+
+        # 3. OK
+        return {
+            "status": "ok",
+            "alert_sent": self._alert_sent,
+            "block_active": False,
+            "spent_today": current,
+        }
+
+    async def _reset_for_new_day(self) -> None:
+        """Reset automático al cambiar de día."""
+        client = await get_openrouter()
+        client.reset_daily_spent()
+        self._alert_sent = False
+        self._block_active = False
+        self._last_check_date = date.today()
+        logger.info("cost_guard_daily_reset", new_day=str(self._last_check_date))
 
     async def _send_telegram_alert(self, message: str) -> None:
-        """Enviar alerta a Telegram del Líder."""
-        token = self.settings.telegram_bot_token_hermes
-        chat_id = self.settings.telegram_chat_id_lider
-        if not token or not chat_id:
-            logger.warning("cost_guard_no_telegram_configured")
+        """Enviar alerta por Telegram al líder usando Bot API directo."""
+        settings = get_settings()
+        bot_token = settings.telegram_bot_token_hermes
+        chat_id = settings.telegram_chat_id_lider
+        if not bot_token or not chat_id:
+            logger.warning("cost_guard_telegram_not_configured")
             return
-
         try:
-            async with httpx.AsyncClient(timeout=10) as http_client:
-                resp = await http_client.post(
-                    f"https://api.telegram.org/bot{token}/sendMessage",
-                    json={"chat_id": chat_id, "text": message},
-                )
-                if resp.status_code == 200:
-                    logger.info("cost_guard_alert_sent_telegram", message=message[:50])
-                else:
-                    logger.error("cost_guard_telegram_error", status=resp.status_code)
+            import httpx
+
+            url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
+            payload = {"chat_id": chat_id, "text": message, "parse_mode": "HTML"}
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                await client.post(url, json=payload)
         except Exception as e:
-            logger.error("cost_guard_telegram_exception", error=str(e))
+            logger.error("cost_guard_telegram_failed", error=str(e))
 
-
-def get_openrouter_sync() -> Any:
-    """Obtener instancia OpenRouter de forma síncrona (para reset)."""
-    from core.openrouter_client import OpenRouterClient
-
-    return OpenRouterClient.get_instance()
-
-
-# Singleton
-_guard_instance: CostGuard | None = None
+    def reset_manual(self) -> None:
+        """Reset manual (admin/testing)."""
+        self._alert_sent = False
+        self._block_active = False
+        logger.info("cost_guard_manual_reset")
 
 
 def get_cost_guard() -> CostGuard:
     """Obtener instancia singleton del CostGuard."""
-    global _guard_instance
-    if _guard_instance is None:
-        _guard_instance = CostGuard()
-    return _guard_instance
+    return CostGuard.get_instance()
+
+
+def get_openrouter_sync() -> OpenRouterClient:
+    """Acceso síncrono al cliente OpenRouter (para tests/reset)."""
+    return OpenRouterClient.get_instance()
