@@ -46,6 +46,7 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
+from typing import Any
 
 from skills.dispatch.route_engine import check_operation_perimeter
 
@@ -245,7 +246,7 @@ class DispatcherTelegramBot:
 
     def __init__(self, token: str | None = None):
         self.token = token or DISPATCHER_TOKEN
-        self.app: Application | None = None
+        self.app: Application[Any, Any, Any, Any, Any, Any] | None = None
         self._setup_handlers()
 
     def _setup_handlers(self) -> None:
@@ -272,6 +273,7 @@ class DispatcherTelegramBot:
     async def process_update(self, update: dict[str, Any]) -> None:
         """Procesa un update de Telegram (para webhook)."""
         self._ensure_app()
+        assert self.app is not None
         # Convertir dict a Update object
         tg_update = Update.de_json(update, self.app.bot)
         await self.app.process_update(tg_update)
@@ -527,7 +529,8 @@ class DispatcherTelegramBot:
             f'🌉 Bridge (puerto 8000): {"✅ OK" if bridge_ok else "❌ ERROR"}\n'
             f'🕐 {datetime.now(CARACAS_TZ).strftime("%Y-%m-%d %H:%M:%S")}'
         )
-        await update.message.reply_text(health_text, parse_mode='HTML')
+        if update.message:
+            await update.message.reply_text(health_text, parse_mode='HTML')
 
     # Callbacks de acción (botones)
     # ----------------------------------------------------------------------
@@ -889,6 +892,7 @@ class DispatcherTelegramBot:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         try:
+            assert self.app is not None
             bot = self.app.bot
             if bot is None:
                 raise RuntimeError("Bot not initialized")

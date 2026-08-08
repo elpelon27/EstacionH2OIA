@@ -1,0 +1,43 @@
+#,Repositorio,Enlace GitHub,Uso Principal,H2O,Trading,Agro,Score
+73,**PacifAIst/Quansloth**,https://github.com/PacifAIst/Quansloth,Análisis cuantitativo ligero,🟢,🟡,🟢,74
+74,**Helvesec/rmux**,https://github.com/Helvesec/rmux,Multiplexor terminal remoto,🟡,,🟡,74
+75,**Greedeks/GTweak**,https://github.com/Greedeks/GTweak,Optimización sistema,🟡,🟡,🟡,74
+76,**manojmallick/sigmap**,https://github.com/manojmallick/sigmap,Procesamiento señales GIS,🟢,🟡,🔴,73
+77,**houqp/kiorg**,https://github.com/houqp/kiorg,Orquestación tareas ligera,🟡,,🟡,73
+78,**techchipnet/ip-changer**,https://github.com/techchipnet/ip-changer,Rotación direcciones IP,🟡,,🟡,72
+79,**akinloluwami/avnac**,https://github.com/akinloluwami/avnac,Validación análisis datos,🟢,🟡,🟡,72
+80,**tencentcloud/CubeSandbox**,https://github.com/tencentcloud/CubeSandbox,Sandbox ejecución segura,🟢,🟡,🟢,72
+81,**fathah/hermes-desktop**,https://github.com/fathah/hermes-desktop,Framework apps desktop,🟡,🟡,🟡,71
+82,**titanwings/colleague-skill**,https://github.com/titanwings/colleague-skill,Habilidades agentes IA,🟡,,🟡,71
+83,**brokermr810/QuantDinger**,https://github.com/brokermr810/QuantDinger,Herramienta trading quant,🟢,,🟢,70
+84,**lapce/lapce**,https://github.com/lapce/lapce,Editor código Rust,🟡,🟡,🟡,70
+85,**VoltAgent/awesome-design-md**,https://github.com/VoltAgent/awesome-design-md,Recursos diseño agentes,🟢,🟢,🟢,70
+86,**Jakedismo/codegraph-rust**,https://github.com/Jakedismo/codegraph-rust,Visualización código grafo,🟢,,🟢,69
+87,**garrytan/gstack**,https://github.com/garrytan/gstack,Recomendaciones tech stack,🟢,,🟢,69
+88,**av/facts**,https://github.com/av/facts,Base hechos agentes IA,🟡,🟡,🟡,68
+89,**mit-pdos/biscuit**,https://github.com/mit-pdos/biscuit,Investigación capacidades,🟢,🟡,🟢,68
+90,**tinyhumansai/openhuman**,https://github.com/tinyhumansai/openhuman,Interacción humano-AI ética,🟡,,🟡,67
+91,**nexu-io/html-anything**,https://github.com/nexu-io/html-anything,Manipulación conversión HTML,🟡,,🟢,86
+92,**chiennv2000/orthrus**,https://github.com/chiennv2000/orthrus,Autenticación doble factor,🟡,,🟡,82
+93,**Pantheon-Security/medusa**,https://github.com/Pantheon-Security/medusa,Framework seguridad ofensiva,🟡,,🟡,84
+94,**alumnium-hq/alumnium**,https://github.com/alumnium-hq/alumnium,Plataforma networking alumni,🟢,🟢,🟢,65
+95,**nullclaw/nullclaw**,https://github.com/nullclaw/nullclaw,Seguridad hacking ético,🟢,🟡,🟢,65
+96,**mini-software/MiniPdf**,https://github.com/mini-software/MiniPdf,Librería .NET Office→PDF,🟡,🟢,🟡,65
+97,**fluffypony/dothething**,https://github.com/fluffypony/dothething,Script automatización genérica,🟢,🟢,🟢,65
+98,**Labellerr/Hands-On-Learning-in-Computer-Vision**,https://github.com/Labellerr/Hands-On-Learning-in-Computer-Vision,Curso visión computadora,🟡,🟡,,92
+119,**presenton/presenton**,https://github.com/presenton/presenton,Generador automático de presentaciones desde datos,🟡,🟡,🟡,**76**
+120,**AdguardTeam/AdguardFilters**,https://github.com/AdguardTeam/AdguardFilters,Listas de filtros para bloqueo de contenido en AdGuard,🟢,🟢,🟢,**75**
+121,**WickyNilliams/headroom.js**,https://github.com/WickyNilliams/headroom.js,Librería JS para espaciado dinámico de headers en web,🟢,🟢,🟢,**74**
+122,**vasu-devs/JustHireMe**,https://github.com/vasu-devs/JustHireMe,Constructor de portafolios/CV interactivo para desarrolladores,🟢,🟢,🟢,**72**
+149,**filiksyos/gitreverse**,https://github.com/filiksyos/gitreverse,Herramienta de ingeniería inversa y análisis de repos Git,🟡,🟡,🟡,**73**
+150,**cosscom/coss**,https://github.com/cosscom/coss,Plataforma de gestión operativa para pequeñas empresas,🟡,🟡,🟡,**72**
+151,**666ghj/MiroFish**,https://github.com/666ghj/MiroFish,Proyecto de visualización interactiva o juego educativo,🟢,🟢,🟢,**70**
+152,**moonshotai**,https://github.com/moonshotai,Organización de modelos de lenguaje y herramientas de IA,🟡,🟡,🟡,**68**
+165,**Adam-CAD/CADAM**,https://github.com/Adam-CAD/CADAM,Herramienta de diseño asistido por computadora (CAD) para modelado 2D/3D,🟢,🟢,🟡,**72**
+176,**trypostit/trypost**,https://github.com/trypostit/trypost,"Programador de redes sociales self-hosted: multi-red, built para equipos y agencias",🟢,🟢,🟢,**74**
+177,**station-10/awesome-marketing-machine-learning**,https://github.com/station-10/awesome-marketing-machine-learning,"Lista de librerías de ML para marketing: media mix models, attribution, causal inference",🟢,🟡,🟢,**72**
+198,**kartoza/awesome-geodata**,https://github.com/kartoza/awesome-geodata,Fuentes de datos geoespaciales legacy y servicios,🟢,,🔴,**74**
+199,**CommonGarden/awesome-open-ag**,https://github.com/CommonGarden/awesome-open-ag,Proyectos y bibliotecas open-source relacionadas con agricultura,🟢,,🔴,**72**
+200,**cedricIGV/awesome-finance**,https://github.com/cedricIGV/awesome-finance,"Recursos de finanzas personales: investing, budgeting, robo-advisors",🟢,,🟢,**71**
+201,**networktocode/awesome-network-automation**,https://github.com/networktocode/awesome-network-automation,Automatización de red: infraestructura + programación,🔴,,🟡,**70**
+202,**meirwah/awesome-workflow-engines**,https://github.com/meirwah/awesome-workflow-engines,Motores de workflow open-source para automatización,🔴,🟡,🟡,**68**

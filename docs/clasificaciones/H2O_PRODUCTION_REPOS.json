@@ -1,0 +1,151 @@
+{
+  "proyecto": "Estacion H2O",
+  "estado": "produccion_activa",
+  "repos_ya_operativos": [
+    {
+      "repo": "langgenius/dify",
+      "score": 98,
+      "categoria": "Plataforma low-code apps AI",
+      "uso_h2o": "Chatflow Valentina (qwen2.5:7b local)",
+      "estado": "ACTIVO",
+      "puerto": 5001
+    },
+    {
+      "repo": "tesseract-ocr/tesseract",
+      "score": 96,
+      "categoria": "Motor OCR líder mundial",
+      "uso_h2o": "OCR base fallback comprobantes",
+      "estado": "ACTIVO",
+      "integracion": "Fallback cuando Unlimited-OCR falla"
+    },
+    {
+      "repo": "n8n-io/n8n",
+      "score": 94,
+      "categoria": "Automatización low-code workflows",
+      "uso_h2o": "Workflows automatización H2O (futuro)",
+      "estado": "DESCARGADO",
+      "puerto": 5678
+    }
+  ],
+  "integrar_para_produccion": [
+    {
+      "repo": "baidu/Unlimited-OCR",
+      "score": "N/A",
+      "categoria": "OCR 99%+ bancario",
+      "uso_h2o": "Reemplazar Tesseract + Qwen-VL fallback",
+      "prioridad": "CRITICO",
+      "carpeta": "external_repos/perception/Unlimited-OCR",
+      "api_keys": ["BAIDU_OCR_API_KEY"]
+    },
+    {
+      "repo": "opendatalab/MinerU",
+      "score": 95,
+      "categoria": "Document Understanding",
+      "uso_h2o": "PDFs complejos, tablas, fórmulas, comprobantes",
+      "prioridad": "CRITICO",
+      "carpeta": "external_repos/perception/MinerU",
+      "api_keys": ["MINERU_API_KEY"]
+    },
+    {
+      "repo": "microsoft/markitdown",
+      "score": 95,
+      "categoria": "Conversión docs → Markdown",
+      "uso_h2o": "Ingesta conocimiento (PDFs, Word, Excel → Markdown)",
+      "prioridad": "CRITICO",
+      "carpeta": "external_repos/perception/markitdown"
+    },
+    {
+      "repo": "n8n-io/n8n",
+      "score": 94,
+      "categoria": "Automatización low-code",
+      "uso_h2o": "Workflows automatización H2O (recordatorios, reportes, alertas)",
+      "prioridad": "ALTA",
+      "carpeta": "external_repos/tools/n8n",
+      "puerto": 5678
+    },
+    {
+      "repo": "Enriquefft/openclaw-kapso-whatsapp",
+      "score": 88,
+      "categoria": "WhatsApp automation",
+      "uso_h2o": "Alternativa bridge WhatsApp / backup",
+      "prioridad": "ALTA",
+      "carpeta": "external_repos/tools/openclaw-kapso-whatsapp"
+    },
+    {
+      "repo": "tesseract-ocr/tesseract",
+      "score": 96,
+      "categoria": "OCR base fallback",
+      "uso_h2o": "Fallback cuando Unlimited-OCR falla",
+      "prioridad": "YA_INTEGRADO",
+      "carpeta": "external_repos/perception/tesseract"
+    }
+  ],
+  "integraciones_nativas_skills": [
+    {
+      "skill": "bridge_skill",
+      "descripcion": "Valentina Bridge - Meta ↔ Dify ↔ WhatsApp",
+      "estado": "OPERATIVO",
+      "archivo": "skills/bridge_skill.py"
+    },
+    {
+      "skill": "dispatcher_skill",
+      "descripcion": "Dispatcher Bot - Choferes Telegram",
+      "estado": "OPERATIVO",
+      "archivo": "skills/dispatcher_skill.py"
+    },
+    {
+      "skill": "financial_skill",
+      "descripcion": "Financial Shield - Pagos, cobranzas, nóminas",
+      "estado": "OPERATIVO",
+      "archivo": "skills/payment_skill.py"
+    },
+    {
+      "skill": "bottle_tracker_skill",
+      "descripcion": "SWAP - 165 botellones loaner tracking",
+      "estado": "OPERATIVO",
+      "archivo": "skills/dispatch/bottle_tracker.py"
+    },
+    {
+      "skill": "gps_tracker_skill",
+      "descripcion": "GPS Tracker - Choferes + Mapa calor",
+      "estado": "OPERATIVO",
+      "archivo": "skills/dispatch/gps_tracker.py"
+    },
+    {
+      "skill": "route_engine_skill",
+      "descripcion": "Route Engine - OR-Tools VRP",
+      "estado": "OPERATIVO",
+      "archivo": "skills/dispatch/route_engine.py"
+    },
+    {
+      "skill": "sheets_sync_skill",
+      "descripcion": "Google Sheets Sync - Mapa calor, inventario",
+      "estado": "OPERATIVO",
+      "archivo": "skills/dispatch/sheets_sync.py"
+    }
+  ],
+  "requisitos_produccion": {
+    "apis_externas": [
+      "META_ACCESS_TOKEN",
+      "META_APP_SECRET",
+      "META_VERIFY_TOKEN",
+      "DIFY_API_KEY",
+      "TELEGRAM_BOT_TOKEN",
+      "TELEGRAM_CHAT_ID"
+    ],
+    "apis_nuevas_requeridas": [
+      "BAIDU_OCR_API_KEY",
+      "MINERU_API_KEY",
+      "OPENAI_API_KEY",
+      "ANTHROPIC_API_KEY"
+    ],
+    "servicios_sistema": [
+      "valentina-bridge (puerto 8000)",
+      "dispatcher-bot",
+      "telegram-bot",
+      "prometeo-telegram",
+      "cloudflared",
+      "docker (dify, postgres, redis, ollama, qdrant, prometheus, grafana)"
+    ]
+  }
+}

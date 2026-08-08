@@ -69,7 +69,7 @@ except ModuleNotFoundError:
 
 # Métricas Prometheus
 try:
-    from prometheus_client import CONTENT_TYPE_LATEST, Counter, Gauge, Histogram, generate_latest
+    from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
     PROMETHEUS_AVAILABLE = True
 except ImportError:
@@ -1321,14 +1321,14 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         conn.commit()
         conn.close()
         logger.info("📦 Pedido enviado a dispatch_queue para phone:%s", ph_hash[:8])
-        
+
         # Notificar al consumer loop para procesamiento inmediato (sub-segundo)
         try:
             from skills.dispatch.consumer import notify_consumer
             notify_consumer()
         except Exception:
             pass  # Fail silently si consumer no está corriendo
-        
+
         # FASE 1 paso 2: sincronizar cliente en dispatch.db (clients table)
         # para que el dispatcher tenga un cliente real al planear rutas.
         _sync_client_to_dispatch_db(ph_hash, from_phone, state)
@@ -1497,11 +1497,11 @@ def _assign_vehicle_for_order(lat: float | None, lng: float | None, bottles_need
         from math import atan2, cos, radians, sin, sqrt
 
         def haversine(lat1, lng1, lat2, lng2):
-            R = 6371.0
+            r = 6371.0
             dlat = radians(lat2 - lat1)
             dlng = radians(lng2 - lng1)
             a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
-            return 2 * R * atan2(sqrt(a), sqrt(1 - a))
+            return 2 * r * atan2(sqrt(a), sqrt(1 - a))
 
         best_zone_id = None
         best_dist = float("inf")

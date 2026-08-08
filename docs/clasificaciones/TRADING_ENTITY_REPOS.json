@@ -1,0 +1,144 @@
+{
+  "entidad": "trading_entity",
+  "estado": "pendiente_h2o_operativo",
+  "descripcion": "Entidad futura para trading algorítmico, cuantitativo y sistemático. Se activará cuando H2O esté SWAP OPERATIVO y hermes-agent sea full-stack operativo.",
+  "repos_criticos": [
+    {
+      "repo": "coding-kitties/investing-algorithm-framework",
+      "score": 95,
+      "categoria": "Framework algoritmos trading",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/coding-kitties/investing-algorithm-framework"
+    },
+    {
+      "repo": "tensortrade-org/tensortrade",
+      "score": 92,
+      "categoria": "Framework RL trading",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/tensortrade-org/tensortrade"
+    },
+    {
+      "repo": "Y-Research-SBU/QuantAgent",
+      "score": 90,
+      "categoria": "Agente investigación cuantitativa",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/Y-Research-SBU/QuantAgent"
+    },
+    {
+      "repo": "HKUDS/AI-Trader",
+      "score": 94,
+      "categoria": "Bot trading algorítmico con IA",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/HKUDS/AI-Trader"
+    },
+    {
+      "repo": "chrisworsey55/atlas-gic",
+      "score": 87,
+      "categoria": "Agentes trading auto-mejorables",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/chrisworsey55/atlas-gic"
+    },
+    {
+      "repo": "QuantAgent",
+      "score": 95,
+      "categoria": "Agente cuantitativo",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/QuantAgent"
+    },
+    {
+      "repo": "Fincept-Corporation/FinceptTerminal",
+      "score": 89,
+      "categoria": "Terminal financiero análisis",
+      "prioridad": "ALTA",
+      "url": "https://github.com/Fincept-Corporation/FinceptTerminal"
+    },
+    {
+      "repo": "joelowj/awesome-algorithmic-trading",
+      "score": 93,
+      "categoria": "Frameworks trading algorítmico",
+      "prioridad": "ALTA",
+      "url": "https://github.com/joelowj/awesome-algorithmic-trading"
+    },
+    {
+      "repo": "wilsonfreitas/awesome-quant",
+      "score": 94,
+      "categoria": "Recursos finanzas cuantitativas",
+      "prioridad": "ALTA",
+      "url": "https://github.com/wilsonfreitas/awesome-quant"
+    },
+    {
+      "repo": "paperswithbacktest/awesome-systematic-trading",
+      "score": 82,
+      "categoria": "Trading sistemático Python",
+      "prioridad": "ALTA",
+      "url": "https://github.com/paperswithbacktest/awesome-systematic-trading"
+    },
+    {
+      "repo": "7kfpun/awesome-fintech",
+      "score": 80,
+      "categoria": "Bibliotecas financieras fintech",
+      "prioridad": "ALTA",
+      "url": "https://github.com/7kfpun/awesome-fintech"
+    },
+    {
+      "repo": "grananqvist/Awesome-Quant-ML-Trading",
+      "score": 76,
+      "categoria": "Quant ML trading",
+      "prioridad": "ALTA",
+      "url": "https://github.com/grananqvist/Awesome-Quant-ML-Trading"
+    },
+    {
+      "repo": "cbailes/awesome-deep-trading",
+      "score": 78,
+      "categoria": "Deep learning trading",
+      "prioridad": "ALTA",
+      "url": "https://github.com/cbailes/awesome-deep-trading"
+    }
+  ],
+  "recursos_educativos": [
+    {
+      "repo": "paperswithbacktest/awesome-systematic-trading",
+      "score": 82,
+      "categoria": "Aprendizaje trading Python",
+      "url": "https://github.com/paperswithbacktest/awesome-systematic-trading"
+    },
+    {
+      "repo": "joelowj/awesome-algorithmic-trading",
+      "score": 93,
+      "categoria": "Frameworks algorítmicos",
+      "url": "https://github.com/joelowj/awesome-algorithmic-trading"
+    },
+    {
+      "repo": "wilsonfreitas/awesome-quant",
+      "score": 94,
+      "categoria": "Recursos finanzas cuantitativas",
+      "url": "https://github.com/wilsonfreitas/awesome-quant"
+    },
+    {
+      "repo": "grananqvist/Awesome-Quant-ML-Trading",
+      "score": 76,
+      "categoria": "Quant ML trading",
+      "url": "https://github.com/grananqvist/Awesome-Quant-ML-Trading"
+    },
+    {
+      "repo": "cbailes/awesome-deep-trading",
+      "score": 78,
+      "categoria": "Deep learning trading",
+      "url": "https://github.com/cbailes/awesome-deep-trading"
+    },
+    {
+      "repo": "paperswithbacktest/awesome-systematic-trading",
+      "score": 82,
+      "categoria": "Trading sistemático",
+      "url": "https://github.com/paperswithbacktest/awesome-systematic-trading"
+    },
+    {
+      "repo": "wangzhe3224/awesome-systematic-trading",
+      "score": 86,
+      "categoria": "Trading sistemático recursos",
+      "url": "https://github.com/wangzhe3224/awesome-systematic-trading"
+    }
+  ],
+  "condicion_activacion": "H2O SWAP OPERATIVO + hermes-agent full-stack operativo + trading_entity_listo",
+  "notas": "Activar solo cuando H2O esté SWAP OPERATIVO y hermes-agent sea full-stack operativo. Esta entidad manejará trading algorítmico, cuantitativo y sistemático para crypto, acciones, futuros, opciones."
+}

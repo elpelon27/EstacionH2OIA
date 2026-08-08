@@ -24,6 +24,11 @@ strict = false
 disallow_untyped_defs = false
 disallow_incomplete_defs = false
 
+# OR-Tools - no tiene stubs tipados
+[[tool.mypy.overrides]]
+module = "ortools.*"
+ignore_missing_imports = true
+
 # Financial module - relax some strict settings for now
 [[tool.mypy.overrides]]
 module = "financial.*"

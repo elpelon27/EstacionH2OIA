@@ -1,0 +1,44 @@
+# ============================================================================
+# systemd unit — Boot Alert Notifier
+# Estación H2O · Maracaibo, Venezuela
+# Notifica por Telegram cuando el servidor reinicia
+# ============================================================================
+# Instalar:
+#   sudo cp systemd/boot-alert.service /etc/systemd/system/
+#   sudo systemctl daemon-reload
+#   sudo systemctl enable boot-alert
+# ============================================================================
+
+[Unit]
+Description=Boot Alert Notifier — Telegram notification on reboot
+After=network-online.target
+Wants=network-online.target
+DefaultDependencies=no
+Before=shutdown.target reboot.target halt.target
+
+[Service]
+Type=oneshot
+User=skynet
+Group=skynet
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python /mnt/ssd_trabajo/hermes-agent/scripts/boot_alert.py
+TimeoutSec=30
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/tmp
+ProtectKernelTunables=true
+ProtectKernelModules=true
+RestrictNamespaces=true
+LockPersonality=true
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=boot-alert
+
+[Install]
+WantedBy=multi-user.target

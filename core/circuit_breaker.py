@@ -15,15 +15,17 @@ Integración: WorkloadRouter.execute() envuelve llamadas LLM con circuit breaker
 
 import asyncio
 import time
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any
+from typing import Any, TypeVar
 
 from core.config import get_settings
 from core.logger import get_logger
 
 logger = get_logger("circuit_breaker")
+
+T = TypeVar("T")
 
 
 class CircuitState(StrEnum):
@@ -87,7 +89,7 @@ class CircuitBreaker:
         """Verificar si pasó el timeout para ir a HALF_OPEN."""
         return (time.monotonic() - self.stats.last_failure_time) >= self.config.recovery_timeout_sec
 
-    async def call(self, func: Callable[..., Any], *args: Any, **kwargs: Any) -> Any:
+    async def call(self, func: Callable[..., Awaitable[T]], *args: Any, **kwargs: Any) -> T:
         """Ejecutar función protegida por el circuit breaker.
 
         Args:
@@ -172,7 +174,7 @@ class CircuitBreaker:
                     failures=self.stats.consecutive_failures,
                 )
 
-    def get_status(self) -> dict:
+    def get_status(self) -> dict[str, Any]:
         """Estado actual para métricas/debugging."""
         return {
             "name": self.name,
@@ -232,15 +234,15 @@ class CircuitBreakerRegistry:
     async def call(
         self,
         name: str,
-        func: Callable[..., Any],
+        func: Callable[..., Awaitable[T]],
         *args: Any,
         **kwargs: Any,
-    ) -> Any:
+    ) -> T:
         """Shortcut: get breaker + call en uno."""
         breaker = await self.get(name)
         return await breaker.call(func, *args, **kwargs)
 
-    def get_all_status(self) -> dict[str, dict]:
+    def get_all_status(self) -> dict[str, dict[str, Any]]:
         """Estado de todos los breakers."""
         return {name: cb.get_status() for name, cb in self._breakers.items()}
 

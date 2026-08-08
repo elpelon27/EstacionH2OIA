@@ -18,6 +18,7 @@ import asyncio
 import time
 from collections import defaultdict
 from dataclasses import dataclass, field
+from typing import Any
 
 from core.config import get_settings
 from core.logger import get_logger
@@ -124,7 +125,7 @@ class RateLimiter:
             # Reintentar después de esperar
             return bucket.try_consume(tokens)
 
-    def get_status(self, key: str) -> dict:
+    def get_status(self, key: str) -> dict[str, Any]:
         """Estado actual de un bucket (para debugging/métricas)."""
         bucket = self._buckets.get(key)
         if not bucket:

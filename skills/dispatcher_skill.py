@@ -109,7 +109,7 @@ class DispatcherSkill:
             return self._error(f"Acción desconocida: {action}")
 
         try:
-            result = await handler(**kwargs)
+            result: dict[str, Any] = await handler(**kwargs)
             return result
         except Exception as e:
             self.logger.exception("Error en action=%s: %s", action, e)
@@ -299,7 +299,7 @@ class DispatcherSkill:
     # ----------------------------------------------------------------------
     async def _get_heatmap_data(self) -> dict[str, Any]:
         """Datos para mapa de calor (Google Sheets Mapa_Calor)."""
-        data = await self.gps_tracker.get_heatmap_data()
+        data = self.gps_tracker.get_heatmap_data()
         return {"success": True, "message": "Datos heatmap", "data": data}
 
     # ----------------------------------------------------------------------

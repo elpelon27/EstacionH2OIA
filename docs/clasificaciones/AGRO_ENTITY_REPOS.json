@@ -1,0 +1,76 @@
+{
+  "entidad": "agro_entity",
+  "estado": "pendiente_h2o_operativo",
+  "descripcion": "Entidad futura para agricultura de precisión, geoespacial, IoT agrícola. Se activará cuando H2O esté SWAP OPERATIVO, hermes-agent sea full-stack operativo y trading_entity esté operativa.",
+  "repos_criticos": [
+    {
+      "repo": "brycejohnston/awesome-agriculture",
+      "score": 92,
+      "categoria": "Tech agricultura/farming open-source",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/brycejohnston/awesome-agriculture"
+    },
+    {
+      "repo": "px39n/Awesome-Precision-Agriculture",
+      "score": 83,
+      "categoria": "UAV, deep learning, agricultura precisión",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/px39n/Awesome-Precision-Agriculture"
+    },
+    {
+      "repo": "sacridini/Awesome-Geospatial",
+      "score": 94,
+      "categoria": "Herramientas GIS, cartografía, geoanálisis",
+      "prioridad": "CRITICO",
+      "url": "https://github.com/sacridini/Awesome-Geospatial"
+    },
+    {
+      "repo": "sshuair/awesome-gis",
+      "score": 87,
+      "categoria": "GIS, cartografía, geoanálisis",
+      "prioridad": "ALTA",
+      "url": "https://github.com/sshuair/awesome-gis"
+    },
+    {
+      "repo": "danlopez00/awesome-geospatial",
+      "score": 84,
+      "categoria": "Visualización 3D geoespacial",
+      "prioridad": "ALTA",
+      "url": "https://github.com/danlopez00/awesome-geospatial"
+    }
+  ],
+  "recursos_complementarios": [
+    {
+      "repo": "Awesome-Precision-Agriculture",
+      "score": 83,
+      "categoria": "UAV, deep learning, precisión",
+      "url": "https://github.com/px39n/Awesome-Precision-Agriculture"
+    },
+    {
+      "repo": "brycejohnston/awesome-agriculture",
+      "score": 92,
+      "categoria": "Tech agricultura open-source",
+      "url": "https://github.com/brycejohnston/awesome-agriculture"
+    },
+    {
+      "repo": "sacridini/Awesome-Geospatial",
+      "score": 94,
+      "categoria": "GIS, cartografía, geoanálisis",
+      "url": "https://github.com/sacridini/Awesome-Geospatial"
+    },
+    {
+      "repo": "sshuair/awesome-gis",
+      "score": 87,
+      "categoria": "GIS, cartografía, geoanálisis",
+      "url": "https://github.com/sshuair/awesome-gis"
+    },
+    {
+      "repo": "danlopez00/awesome-geospatial",
+      "score": 84,
+      "categoria": "Visualización 3D geoespacial",
+      "url": "https://github.com/danlopez00/awesome-geospatial"
+    }
+  ],
+  "condicion_activacion": "H2O SWAP OPERATIVO + hermes-agent full-stack operativo + trading_entity operativa",
+  "notas": "Activar solo cuando H2O esté SWAP OPERATIVO, hermes-agent sea full-stack operativo y trading_entity esté operativa. Esta entidad manejará agricultura de precisión, IoT agrícola, UAV/drones, geoespacial, cartografía, análisis de suelos, clima, cultivos."
+}

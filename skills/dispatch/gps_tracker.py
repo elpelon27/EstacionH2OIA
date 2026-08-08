@@ -342,7 +342,7 @@ def get_gps_tracker() -> GPSTracker:
 if __name__ == "__main__":
     import asyncio
 
-    async def test():
+    async def test() -> None:
         tracker = get_gps_tracker()
 
         # Punto dentro (Bella Vista)
