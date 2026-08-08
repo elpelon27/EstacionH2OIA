@@ -24,7 +24,7 @@ env:
 jobs:
   lint:
     name: Lint & Type Check
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -55,7 +55,7 @@ jobs:
 
   test:
     name: Test Suite
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: lint
     steps:
       - name: Checkout code
@@ -87,7 +87,7 @@ jobs:
 
   security:
     name: Security Scan
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -107,7 +107,7 @@ jobs:
 
   deploy-staging:
     name: Deploy Staging
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: [lint, test, security]
     if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
     environment: staging
@@ -147,7 +147,7 @@ asyncio.run(send())
 
   deploy-production:
     name: Deploy Production
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: [lint, test, security, deploy-staging]
     if: github.ref == 'refs/heads/main' and github.event_name != 'pull_request'
     environment: production
@@ -249,7 +249,7 @@ asyncio.run(send())
 
   notify:
     name: Notify Results
-    runs-on: self-hosted
+    runs-on: ubuntu-latest
     needs: [deploy-staging, deploy-production]
     if: always()
     steps:
