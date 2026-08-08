@@ -61,7 +61,7 @@ jobs:
         run: pip install -q pytest pytest-asyncio pytest-cov httpx fastapi uvicorn pydantic sqlalchemy aiosqlite python-dotenv
 
       - name: Run Tests
-        run: python -m pytest tests/ --ignore=tests/unit/test_bridge.py -x --tb=short -q
+        run: python -m pytest tests/unit/ -x --tb=short -q
 
       - name: Upload Coverage
         uses: actions/upload-artifact@v4
