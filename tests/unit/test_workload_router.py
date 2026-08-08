@@ -76,8 +76,9 @@ async def test_execute_qwen_local(router):
     mock_qwen.chat.assert_called_once()
 
 
-@pytest.mark.asyncio
-async def test_execute_fusion(router):
+@patch("core.workload_router.get_cost_guard")
+@patch("core.workload_router.get_fusion")
+async def test_execute_fusion(mock_get_fusion, mock_get_cost_guard, router):
     """execute() con trigger architect_request debe llamar a Fusion."""
     mock_fusion = MagicMock()
     mock_fusion.run = AsyncMock(return_value={
@@ -85,12 +86,22 @@ async def test_execute_fusion(router):
         "winner_model": "z-ai/glm-4.5",
         "score": 8.5,
     })
+    mock_get_fusion.return_value = mock_fusion
 
-    with patch("core.workload_router.get_fusion", return_value=mock_fusion):
-        result = await router.execute(
-            trigger="architect_request",
-            messages=[{"role": "user", "content": "diseña arquitectura"}],
-        )
+    # Mock cost_guard.check() to return "ok" status
+    mock_guard = MagicMock()
+    mock_guard.check = AsyncMock(return_value={
+        "status": "ok",
+        "alert_sent": False,
+        "block_active": False,
+        "spent_today": 0.0,
+    })
+    mock_get_cost_guard.return_value = mock_guard
+
+    result = await router.execute(
+        trigger="architect_request",
+        messages=[{"role": "user", "content": "diseña arquitectura"}],
+    )
 
     assert result["winner_response"] == "Mejor respuesta"
     mock_fusion.run.assert_called_once()
