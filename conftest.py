@@ -15,14 +15,15 @@ os.environ.setdefault("TELEGRAM_BOT_TOKEN_H2O", "test-token")
 os.environ.setdefault("TELEGRAM_CHAT_ID_HERMES", "1663148211")
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:////tmp/test.db")
 
-# Ensure config directory exists for settings loading
-os.makedirs("/mnt/ssd_trabajo/hermes-agent/config", exist_ok=True)
+# Ensure config directory exists for settings loading (solo en servidor local, no en CI)
+if not os.environ.get("CI") and not os.environ.get("GITHUB_ACTIONS"):
+    os.makedirs("/mnt/ssd_trabajo/hermes-agent/config", exist_ok=True)
 
-# Create minimal .env if not exists
-env_path = "/mnt/ssd_trabajo/hermes-agent/config/.env"
-if not os.path.exists(env_path):
-    with open(env_path, "w") as f:
-        f.write("""OPENROUTER_API_KEY=test-key-dummy
+    # Create minimal .env if not exists
+    env_path = "/mnt/ssd_trabajo/hermes-agent/config/.env"
+    if not os.path.exists(env_path):
+        with open(env_path, "w") as f:
+            f.write("""OPENROUTER_API_KEY=test-key-dummy
 OPENAI_API_KEY=test-key-dummy
 META_ACCESS_TOKEN=test-token
 META_PHONE_NUMBER_ID=123456789
