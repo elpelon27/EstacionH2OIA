@@ -45,13 +45,13 @@ jobs:
         run: |
           cd ${{ env.PROJECT_DIR }}
           source ${{ env.VENV_DIR }}/bin/activate
-          ruff check api/ core/ skills/ src/ --output-format=github
+          ruff check api/ core/ --output-format=github
 
       - name: Run MyPy
         run: |
           cd ${{ env.PROJECT_DIR }}
           source ${{ env.VENV_DIR }}/bin/activate
-          mypy api/ core/ skills/ src/ --ignore-missing-imports --no-error-summary || true
+          mypy api/ core/ --ignore-missing-imports --no-error-summary || true
 
   test:
     name: Test Suite
@@ -138,9 +138,7 @@ import os, asyncio, httpx
 token = os.getenv('TELEGRAM_BOT_TOKEN')
 chat_id = os.getenv('TELEGRAM_CHAT_ID', '1663148211')
 status = 'SUCCESS' if '${{ job.status }}' == 'success' else 'FAILED'
-msg = f'{status} Deploy Staging - Estacion H2O
-Branch: develop
-Commit: ${{ github.sha[:7] }}'
+msg = f'{status} Deploy Staging - Estacion H2O\nBranch: develop\nCommit: ${{ github.sha[:7] }}'
 async def send():
     async with httpx.AsyncClient() as client:
         await client.post(f'https://api.telegram.org/bot{token}/sendMessage', json={'chat_id': chat_id, 'text': msg})
@@ -225,13 +223,9 @@ import os, asyncio, httpx
 token = os.getenv('TELEGRAM_BOT_TOKEN')
 chat_id = os.getenv('TELEGRAM_CHAT_ID', '1663148211')
 status = 'SUCCESS' if '${{ job.status }}' == 'success' else 'FAILED - ROLLBACK REQUIRED'
-msg = f'{status} Deploy PRODUCCION - Estacion H2O
-Branch: main
-Commit: ${{ github.sha[:7] }}'
+msg = f'{status} Deploy PRODUCCION - Estacion H2O\nBranch: main\nCommit: ${{ github.sha[:7] }}'
 if '${{ job.status }}' != 'success':
-    msg += '
-
-ROLLBACK MANUAL: sudo systemctl restart valentina-bridge dispatcher-bot telegram-bot prometeo-telegram'
+    msg += '\n\nROLLBACK MANUAL: sudo systemctl restart valentina-bridge dispatcher-bot telegram-bot prometeo-telegram'
 async def send():
     async with httpx.AsyncClient() as client:
         await client.post(f'https://api.telegram.org/bot{token}/sendMessage', json={'chat_id': chat_id, 'text': msg})

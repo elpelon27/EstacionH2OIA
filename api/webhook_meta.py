@@ -49,7 +49,9 @@ def _is_duplicate(message_id: str) -> bool:
     return False
 
 
-def set_message_handler(handler: Callable[[dict[str, Any], dict[str, Any]], Awaitable[None]]) -> None:
+def set_message_handler(
+    handler: Callable[[dict[str, Any], dict[str, Any]], Awaitable[None]],
+) -> None:
     """Registra el handler de mensajes (llamado desde bridge.py al arrancar)."""
     global _message_handler
     _message_handler = handler
@@ -94,12 +96,12 @@ def register_webhook_meta_routes(app: FastAPI) -> None:
         # 2. Parsear payload
         try:
             data = await request.json()
-        except Exception:
+        except Exception as e:
             logger.error("webhook_parse_error")
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="JSON inválido",
-            )
+            ) from e
 
         # 3. Validar estructura básica
         if data.get("object") != "whatsapp_business_account":

@@ -49,9 +49,9 @@ class MetaClient:
             return False
         if not signature_header:
             return False
-        expected = "sha256=" + hmac.new(
-            self.app_secret.encode(), raw_body, hashlib.sha256
-        ).hexdigest()
+        expected = (
+            "sha256=" + hmac.new(self.app_secret.encode(), raw_body, hashlib.sha256).hexdigest()
+        )
         return hmac.compare_digest(expected, signature_header)
 
     @property
@@ -91,7 +91,10 @@ class MetaClient:
             resp = await client.post(url, headers=self._headers, json=payload, timeout=10)
             if resp.status_code == 200:
                 from api.bridge import _phone_hash  # import local para evitar ciclos
-                logger.info("Mensaje enviado a phone:%s (len=%d)", _phone_hash(phone)[:8], len(text))
+
+                logger.info(
+                    "Mensaje enviado a phone:%s (len=%d)", _phone_hash(phone)[:8], len(text)
+                )
                 return True
             logger.error("Meta send API error %d: %s", resp.status_code, resp.text[:200])
             return False
