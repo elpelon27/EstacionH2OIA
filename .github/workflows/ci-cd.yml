@@ -58,7 +58,7 @@ jobs:
           cache: 'pip'
 
       - name: Install test dependencies
-        run: pip install -q pytest pytest-asyncio pytest-cov
+        run: pip install -q pytest pytest-asyncio pytest-cov httpx
 
       - name: Run Tests
         run: python -m pytest tests/ --ignore=tests/unit/test_bridge.py -x --tb=short -q
