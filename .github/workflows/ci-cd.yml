@@ -18,8 +18,6 @@ on:
 
 env:
   PYTHON_VERSION: '3.12'
-  # Cache key includes requirements hash for automatic invalidation
-  PIP_CACHE_KEY: "pip-${{ runner.os }}-${{ hashFiles('requirements.txt', 'requirements-dev.txt', '.github/workflows/ci-cd.yml') }}"
 
 jobs:
   lint:
@@ -35,10 +33,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
-            requirements-dev.txt
-            .github/workflows/ci-cd.yml
 
       - name: Install lint dependencies
         run: |
@@ -64,10 +58,6 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
           cache: 'pip'
-          cache-dependency-path: |
-            requirements.txt
-            requirements-dev.txt
-            .github/workflows/ci-cd.yml
 
       - name: Install test dependencies (pinned from requirements.txt)
         run: |
