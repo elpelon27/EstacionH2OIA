@@ -1,0 +1,60 @@
+# ============================================================================
+# systemd unit — Cloudflared Tunnel (HARDENED)
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+
+[Unit]
+Description=Cloudflare Tunnel (cloudflared)
+After=network-online.target
+Wants=network-online.target
+StartLimitBurst=5
+StartLimitIntervalSec=60
+StartLimitAction=none
+
+[Service]
+Type=notify
+TimeoutStartSec=15
+ExecStart=/usr/bin/cloudflared --no-autoupdate --config /etc/cloudflared/config.yml tunnel run
+Restart=always
+RestartSec=5s
+WatchdogSec=60s
+
+# Hardening
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+LockPersonality=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+RemoveIPC=true
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE CAP_NET_RAW
+SystemCallFilter=@system-service
+SystemCallErrorNumber=EPERM
+
+# Límites de recursos
+MemoryMax=128M
+MemoryHigh=100M
+MemorySwapMax=0
+CPUQuota=25%
+CPUAccounting=yes
+MemoryAccounting=yes
+TasksMax=20
+LimitNOFILE=1024
+
+OOMScoreAdjust=-100
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=cloudflared
+
+# Usuario dedicado (crear con: sudo useradd -r -s /usr/sbin/nologin cloudflared)
+User=cloudflared
+Group=cloudflared
+
+[Install]
+WantedBy=multi-user.target
