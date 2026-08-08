@@ -1,6 +1,9 @@
 """Global pytest configuration for Hermes Agent tests."""
 
 import os
+from collections.abc import Generator
+
+import pytest
 
 # Set dummy API keys before any module imports that need them
 os.environ.setdefault("OPENROUTER_API_KEY", "test-key-dummy")
@@ -37,3 +40,13 @@ OLLAMA_HOST=http://localhost:11434
 OLLAMA_DEFAULT_MODEL=qwen2.5:7b
 LOG_LEVEL=DEBUG
 """)
+
+
+@pytest.fixture(autouse=True, scope="session")
+def init_memory_db():
+    """Inicializa schema de Financial Shield en :memory: para tests en CI."""
+    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+        from src.financial.database import init_database_v3
+
+        init_database_v3()
+    yield
