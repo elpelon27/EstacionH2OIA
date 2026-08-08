@@ -9,13 +9,11 @@ Comisión SOLO botellones, NO hielo.
  """
 
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Any, List
+from datetime import timedelta, timezone
 
 from . import database as db
+from .currency import convert_eur_to_ves, get_eur_ves_rate, get_tasa_display
 from .models import Empleado, Nomina
-from .currency import get_tasa_display, convert_eur_to_ves, get_eur_ves_rate
-import asyncio
 
 logger = logging.getLogger("financial_shield.nomina")
 
@@ -25,8 +23,8 @@ CARACAS_TZ = timezone(timedelta(hours=-4))
 async def calcular_nomina_periodo(
     fecha_inicio: str,
     fecha_fin: str,
-    empleados: List[Empleado] | None = None,
-) -> List[Nomina]:
+    empleados: list[Empleado] | None = None,
+) -> list[Nomina]:
     """
     Calcula nómina para un período dado.
 

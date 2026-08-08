@@ -21,21 +21,22 @@ Integración:
 - FS → Valentina: recordatorio de pago para cliente
 - FS → Telegram: alertas + reportes al Líder
 - Dispatcher → FS: entrega confirmada (trigger loop verificación)
- """
+"""
 
-import os
-import logging
 import asyncio
-from datetime import datetime, timezone, timedelta
-from typing import Any, Optional
+import logging
+import os
 
 # Configurar path para imports
 import sys
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from financial import cobranzas, currency, nomina, proveedores, reportes, verificacion
 from financial import database as db
-from financial import currency, cobranzas, nomina, proveedores, verificacion, reportes
-from financial.models import Producto, PedidoFinanciero, Pago
+from financial.models import PedidoFinanciero
 
 logger = logging.getLogger("financial_shield.agent")
 
@@ -98,7 +99,8 @@ class FinancialShieldAgent:
         if abs(total_calculado - total_eur) > 0.01:
             logger.warning(
                 "Total difiere: bridge=€%.2f fs=€%.2f (volumen aplicado)",
-                total_eur, total_calculado
+                total_eur,
+                total_calculado,
             )
             total_eur = total_calculado
 
@@ -124,7 +126,10 @@ class FinancialShieldAgent:
         fs_id = db.create_pedido_financiero(pedido_fin)
         logger.info(
             "Pedido financiero creado: fs_id=%d pedido=%d cliente=%s total=€%.2f",
-            fs_id, pedido_id, cliente_nombre, total_eur
+            fs_id,
+            pedido_id,
+            cliente_nombre,
+            total_eur,
         )
 
         return int(fs_id)
@@ -223,20 +228,24 @@ class FinancialShieldAgent:
 
             if result["accion"] == "recordatorio_enviado" and result.get("mensaje_cliente"):
                 # FS → Valentina: enviar recordatorio al cliente
-                resultados.append({
-                    "phone": pedido.cliente_telefono,
-                    "mensaje": result["mensaje_cliente"],
-                    "accion": "enviar_recordatorio",
-                    "fs_pedido_id": pedido.id,
-                    "intento": result.get("intento", 0),
-                })
+                resultados.append(
+                    {
+                        "phone": pedido.cliente_telefono,
+                        "mensaje": result["mensaje_cliente"],
+                        "accion": "enviar_recordatorio",
+                        "fs_pedido_id": pedido.id,
+                        "intento": result.get("intento", 0),
+                    }
+                )
             elif result["accion"] == "escalar_humano":
                 # FS → Telegram: alertar al Líder
-                resultados.append({
-                    "accion": "alertar_humano",
-                    "mensaje": result["mensaje"],
-                    "fs_pedido_id": pedido.id,
-                })
+                resultados.append(
+                    {
+                        "accion": "alertar_humano",
+                        "mensaje": result["mensaje"],
+                        "fs_pedido_id": pedido.id,
+                    }
+                )
 
         return resultados
 
@@ -253,6 +262,7 @@ class FinancialShieldAgent:
         if not pedido:
             # Buscar por fs_pedido_id directamente
             from .database import get_db  # type: ignore[import-not-found]
+
             with get_db() as conn:
                 row = conn.execute(
                     "SELECT * FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
@@ -268,14 +278,18 @@ class FinancialShieldAgent:
 
         # Actualizar pedido con tipo de crédito
         from .database import get_db
+
         now = datetime.now(CARACAS_TZ).isoformat()
         venc = cobranzas.calcular_fecha_vencimiento(tipo_credito)
         with get_db() as conn:
-            conn.execute("""
+            conn.execute(
+                """
                 UPDATE fs_pedidos
                 SET tipo_credito = ?, fecha_vencimiento_credito = ?, actualizado_at = ?
                 WHERE id = ?
-            """, (tipo_credito, venc, now, fs_pedido_id))
+            """,
+                (tipo_credito, venc, now, fs_pedido_id),
+            )
 
         logger.info("Crédito %s asignado a pedido %s", tipo_credito, fs_pedido_id)
         return int(cuenta_id)
@@ -302,8 +316,11 @@ class FinancialShieldAgent:
     # ========================================================================
 
     async def registrar_pago_proveedor(
-        self, proveedor_nombre: str, concepto: str,
-        monto_eur: float, metodo_pago: str = "efectivo_eur",
+        self,
+        proveedor_nombre: str,
+        concepto: str,
+        monto_eur: float,
+        metodo_pago: str = "efectivo_eur",
         referencia: str | None = None,
     ) -> int:
         """Registra pago a proveedor (solo contado)."""
@@ -338,7 +355,7 @@ class FinancialShieldAgent:
 # Singleton
 # ============================================================================
 
-_agent_instance: Optional[FinancialShieldAgent] = None
+_agent_instance: FinancialShieldAgent | None = None
 
 
 def get_agent() -> FinancialShieldAgent:
@@ -352,6 +369,7 @@ def get_agent() -> FinancialShieldAgent:
 # ============================================================================
 # Punto de entrada (para cron / systemd)
 # ============================================================================
+
 
 async def main() -> None:
     """Ejecuta tareas programadas del FS (loop recordatorios + reporte)."""

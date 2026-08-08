@@ -7,19 +7,18 @@
 Genera y envía reporte diario a las 6:30 PM (cierre 6pm + 30min buffer).
  """
 
-import os
 import logging
+import os
+from datetime import datetime, timedelta, timezone
+from typing import Any
+
 import httpx
-from datetime import datetime, timezone, timedelta
-from typing import Any, Optional
 
 from . import database as db
-from .models import ReporteDiario
-from .currency import get_eur_ves_rate, get_tasa_display, convert_eur_to_ves
 from .cobranzas import get_resumen_cobranzas
+from .currency import convert_eur_to_ves, get_eur_ves_rate, get_tasa_display
+from .models import ReporteDiario
 from .proveedores import get_total_egresos_periodo
-from .nomina import generar_reporte_nomina
-import asyncio
 
 logger = logging.getLogger("financial_shield.reportes")
 
@@ -111,18 +110,18 @@ def formatear_reporte_telegram(reporte: ReporteDiario, tasa_str: str) -> str:
     lineas = [
         f"📊 <b>REPORTE DIARIO — {reporte.fecha}</b>\n",
         f"💱 Tasa: {tasa_str}\n",
-        f"━━━━━━━━━━━━━━━━━━\n",
-        f"📦 <b>Ventas</b>\n",
+        "━━━━━━━━━━━━━━━━━━\n",
+        "📦 <b>Ventas</b>\n",
         f"  Pedidos: {reporte.num_pedidos}\n",
         f"  Pagados: {reporte.num_pagados}\n",
         f"  Pendientes: {reporte.num_pendientes}\n",
         f"  Morosos: {reporte.num_morosos}\n",
         f"  Total: €{reporte.ventas_total_eur:.2f} (Bs. {reporte.ventas_total_ves:.2f})\n",
-        f"━━━━━━━━━━━━━━━━━━\n",
-        f"💰 <b>Cobros del día</b>\n",
+        "━━━━━━━━━━━━━━━━━━\n",
+        "💰 <b>Cobros del día</b>\n",
         f"  €{reporte.cobros_total_eur:.2f} (Bs. {reporte.cobros_total_ves:.2f})\n",
-        f"━━━━━━━━━━━━━━━━━━\n",
-        f"⏳ <b>Por cobrar (total)</b>\n",
+        "━━━━━━━━━━━━━━━━━━\n",
+        "⏳ <b>Por cobrar (total)</b>\n",
         f"  €{reporte.por_cobrar_eur:.2f} (Bs. {reporte.por_cobrar_ves:.2f})\n",
     ]
 
@@ -130,7 +129,7 @@ def formatear_reporte_telegram(reporte: ReporteDiario, tasa_str: str) -> str:
     if (reporte.num_morosos or 0) > 0:
         lineas.append(f"\n🚨 <b>Clientes morosos: {reporte.num_morosos}</b>")
 
-    lineas.append(f"\n━━━━━━━━━━━━━━━━━━")
+    lineas.append("\n━━━━━━━━━━━━━━━━━━")
     lineas.append(f"💧 Estación H2O — {datetime.now(CARACAS_TZ).strftime('%H:%M')}")
 
     return "\n".join(lineas)

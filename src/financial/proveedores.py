@@ -8,12 +8,11 @@ Registro de egresos a proveedores. Solo contado, no hay crédito.
  """
 
 import logging
-from typing import Any, List, Optional
+from typing import Any
 
 from . import database as db
+from .currency import convert_eur_to_ves, get_eur_ves_rate
 from .models import ProveedorPago
-from .currency import get_eur_ves_rate, convert_eur_to_ves
-import asyncio
 
 logger = logging.getLogger("financial_shield.proveedores")
 
