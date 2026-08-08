@@ -81,6 +81,7 @@ CREATE TABLE IF NOT EXISTS fs_pedidos (
     monto_total_eur         REAL NOT NULL,
     monto_pagado_eur        REAL DEFAULT 0,                   -- v3.0: tracking parciales
     tasa_eur_ves_deuda      REAL NOT NULL,                   -- v3.0: tasa congelada al crear deuda
+    tasa_eur_ves            REAL DEFAULT 0,                  -- v3.0: tasa EUR/VES actual
     tasa_usd_ves_ref        REAL,
     botellones_cantidad     INTEGER DEFAULT 0,
     hielo_cantidad          INTEGER DEFAULT 0,
