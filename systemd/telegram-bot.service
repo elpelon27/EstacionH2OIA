@@ -1,46 +1,38 @@
 # ============================================================================
-# systemd unit — Telegram Bot (kill switch + alerts)
+# systemd unit — Telegram Bot Kill Switch + Alerts (OPERATIONAL — root, sin watchdog)
 # Estación H2O · Maracaibo, Venezuela
-# ============================================================================
-# Instalar:
-#   sudo cp systemd/telegram-bot.service /etc/systemd/system/
-#   sudo systemctl daemon-reload
-#   sudo systemctl enable telegram-bot
-#   sudo systemctl start telegram-bot
 # ============================================================================
 
 [Unit]
 Description=Telegram Bot — Kill Switch + Alerts para Valentina Bridge
 After=network-online.target valentina-bridge.service
-Wants=network-online.target
+Wants=network-online.target valentina-bridge.service
 StartLimitBurst=5
 StartLimitIntervalSec=60
+StartLimitAction=none
 
 [Service]
 Type=simple
-User=skynet
-Group=skynet
-
+User=root
+Group=root
 WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/skills
-EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
-ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python telegram_bot.py
-
+ExecStart=/bin/bash /mnt/ssd_trabajo/hermes-agent/start_telegram.sh
 Restart=always
-RestartSec=10
+RestartSec=10 20 30 60 120
 
-# Hardening
-NoNewPrivileges=true
-PrivateTmp=true
-ProtectSystem=strict
-ProtectHome=true
-ReadWritePaths=/tmp
-ProtectKernelTunables=true
-ProtectKernelModules=true
-RestrictNamespaces=true
-LockPersonality=true
-
+# Resource limits
 MemoryMax=256M
+MemoryHigh=200M
+MemorySwapMax=0
 CPUQuota=50%
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
+TasksMax=50
+LimitNOFILE=4096
+LimitNPROC=50
+
+OOMScoreAdjust=-100
 
 StandardOutput=journal
 StandardError=journal
