@@ -487,6 +487,48 @@ class DispatcherTelegramBot:
         )
 
     # ----------------------------------------------------------------------
+
+    async def cmd_health(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        """Health check endpoint."""
+        import sqlite3
+        from datetime import datetime, timedelta, timezone
+        CARACAS_TZ = timezone(timedelta(hours=-4))
+        
+        # Check dispatch DB connectivity
+        db_ok = False
+        pending_deliveries = 0
+        try:
+            conn = sqlite3.connect('/mnt/ssd_trabajo/hermes-agent/data/dispatch.db')
+            conn.execute('PRAGMA foreign_keys = ON')
+            row = conn.execute('SELECT COUNT(*) FROM deliveries WHERE status = "pending"').fetchone()
+            pending_deliveries = row[0] if row else 0
+            conn.close()
+            db_ok = True
+        except Exception as e:
+            logger.warning(f'Health check DB error: {e}')
+        
+        # Check bridge connectivity
+        bridge_ok = False
+        try:
+            import httpx
+            async with httpx.AsyncClient(timeout=3.0) as client:
+                resp = await client.get('http://localhost:8000/health')
+                if resp.status_code == 200:
+                    bridge_ok = True
+        except Exception:
+            pass
+        
+        status_emoji = '✅' if (db_ok and bridge_ok) else '⚠️'
+        health_text = (
+            f'{status_emoji} <b>Health Check - Dispatcher Bot</b>\n\n'
+            f'🤖 Bot: <b>ACTIVO</b>\n'
+            f'💾 Dispatch DB: {"✅ OK" if db_ok else "❌ ERROR"}\n'
+            f'📦 Entregas pendientes: {pending_deliveries}\n'
+            f'🌉 Bridge (puerto 8000): {"✅ OK" if bridge_ok else "❌ ERROR"}\n'
+            f'🕐 {datetime.now(CARACAS_TZ).strftime("%Y-%m-%d %H:%M:%S")}'
+        )
+        await update.message.reply_text(health_text, parse_mode='HTML')
+
     # Callbacks de acción (botones)
     # ----------------------------------------------------------------------
 
@@ -910,6 +952,7 @@ class DispatcherTelegramBot:
         self.app.add_handler(CommandHandler("siguiente", self.cmd_siguiente))
         self.app.add_handler(CommandHandler("status", self.cmd_status))
         self.app.add_handler(CommandHandler("help", self.cmd_help))
+        self.app.add_handler(CommandHandler("health", self.cmd_health))
 
         # Callbacks
         self.app.add_handler(CallbackQueryHandler(self.callback_registro, pattern="^reg_"))
