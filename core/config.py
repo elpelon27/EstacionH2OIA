@@ -98,6 +98,7 @@ class Settings(BaseSettings):
     dispatch_time_per_delivery_min: int = 8
     dispatch_max_insertion_deviation_min: int = 10
     dispatch_max_insertion_distance_km: float = 2.0
+    dispatch_route_compute_minutes_before_shift: int = 15
 
     # Swap
     dispatch_bottle_return_hours_residential: int = 36
@@ -109,11 +110,6 @@ class Settings(BaseSettings):
     dispatch_gps_interval_seconds: int = 300
     dispatch_geofence_alert_cooldown_seconds: int = 300
     dispatch_tasker_battery_threshold: int = 20
-
-    # Ruteo
-    dispatch_route_compute_minutes_before_shift: int = 15
-    dispatch_max_insertion_deviation_min: int = 10
-    dispatch_max_insertion_distance_km: float = 2.0
 
     # OSRM (Fase 2)
     dispatch_osrm_enabled: bool = False

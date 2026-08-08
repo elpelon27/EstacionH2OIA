@@ -29,7 +29,7 @@ from typing import Any
 
 from ortools.constraint_solver import (
     pywrapcp,
-    routing_enums_pb2,  # type: ignore[import-untyped]
+    routing_enums_pb2,
 )
 
 logger = logging.getLogger("dispatcher.route_engine")

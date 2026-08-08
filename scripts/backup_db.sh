@@ -11,7 +11,7 @@ BACKUP_DIR="${REPO}/backups"
 DATE=$(date +%Y%m%d)
 RETENTION_LOCAL_DAYS=14
 RETENTION_OFFSITE_DAYS=90
-RCLONE_REMOTE="offsite"  # Configurar: rclone config → nombre del remote
+RCLONE_REMOTE="gdrive-personal"  # Configurar: rclone config → nombre del remote
 RCLONE_PATH="estacion-h2o/backups"  # Path dentro del remote
 
 mkdir -p "${BACKUP_DIR}"

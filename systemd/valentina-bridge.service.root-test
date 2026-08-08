@@ -1,0 +1,44 @@
+# ============================================================================
+# systemd unit — Valentina Bridge (TEST — root para diagnosticar)
+# Estación H2O · Maracaibo, Venezuela
+# ============================================================================
+
+[Unit]
+Description=Valentina Bridge — FastAPI Meta Cloud API ↔ Dify (Estación H2O)
+Documentation=https://github.com/elpelon27/EstacionH2OIA
+After=network-online.target cloudflared.service
+Wants=network-online.target cloudflared.service
+StartLimitBurst=5
+StartLimitIntervalSec=60
+StartLimitAction=none
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/api
+ExecStart=/bin/bash /mnt/ssd_trabajo/hermes-agent/api/start_bridge.sh
+Restart=always
+RestartSec=5 10 20 30 60
+WatchdogSec=30
+
+# Resource limits
+MemoryMax=1G
+MemoryHigh=800M
+MemorySwapMax=0
+CPUQuota=150%
+CPUAccounting=yes
+MemoryAccounting=yes
+IOAccounting=yes
+TasksMax=512
+LimitNOFILE=4096
+LimitNPROC=512
+
+OOMScoreAdjust=-100
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=valentina-bridge
+
+[Install]
+WantedBy=multi-user.target

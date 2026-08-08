@@ -684,7 +684,7 @@ def get_bottle_tracker() -> BottleTracker:
 if __name__ == "__main__":
     import asyncio
 
-    async def test():
+    async def test() -> None:
         tracker = get_bottle_tracker()
 
         # Verificar inventario inicial

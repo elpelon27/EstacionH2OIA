@@ -9,7 +9,11 @@ from datetime import datetime, time
 from enum import StrEnum
 from typing import Any
 
-from core.circuit_breaker import CircuitOpenError, get_circuit_breaker_registry
+from core.circuit_breaker import (
+    CircuitBreakerRegistry,
+    CircuitOpenError,
+    get_circuit_breaker_registry,
+)
 from core.config import get_settings
 from core.cost_guard import get_cost_guard
 from core.fusion import get_fusion
@@ -219,7 +223,7 @@ class WorkloadRouter:
 
     async def _execute_with_circuit_breaker(
         self,
-        cb_registry,
+        cb_registry: CircuitBreakerRegistry,
         provider_key: str,
         route: Route,
         messages: list[dict[str, str]] | None,
@@ -235,7 +239,7 @@ class WorkloadRouter:
 
         if route == Route.FUSION:
 
-            async def _fusion_call():
+            async def _fusion_call() -> dict[str, Any]:
                 fusion = get_fusion()
                 return await fusion.run(
                     messages=messages or [], temperature=temperature, max_tokens=max_tokens
@@ -253,7 +257,7 @@ class WorkloadRouter:
         }
         model = model_map[route]
 
-        async def _or_call():
+        async def _or_call() -> dict[str, Any]:
             return await or_client.chat(
                 messages=messages or [], model=model, temperature=temperature, max_tokens=max_tokens
             )

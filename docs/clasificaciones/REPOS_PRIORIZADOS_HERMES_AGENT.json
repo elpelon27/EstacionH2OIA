@@ -1,0 +1,209 @@
+{
+  "entidad": "hermes-agent",
+  "version": "2.0-superpowers",
+  "objetivo": "Entidad aislada full-stack con superpoderes para Estación H2O y desarrollo autónomo",
+  "prioridad_absoluta": "hermes-agent full-stack con superpoderes",
+  "fases": {
+    "fase_1_memoria_unificada": {
+      "duracion": "semana_1-2",
+      "repos": [
+        {
+          "repo": "TencentCloud/TencentDB-Agent-Memory",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/memory/TencentDB-Agent-Memory",
+          "integracion": "Memoria semántica principal + RAG contextual",
+          "api_keys": ["TENCENT_DB_MEMORY_API_KEY"]
+        },
+        {
+          "repo": "mem0ai/mem0",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/memory/mem0",
+          "integracion": "Memoria persistente ligera + RAG",
+          "api_keys": ["MEM0_API_KEY"]
+        },
+        {
+          "repo": "letta-ai/letta",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/memory/letta",
+          "integracion": "Memoria episódica + agents con estado",
+          "api_keys": ["LETTA_API_KEY"]
+        },
+        {
+          "repo": "mem0ai/mem0",
+          "prioridad": "ALTA",
+          "carpeta": "external_repos/memory/mem0",
+          "integracion": "Memoria persistente ligera alternativa",
+          "api_keys": ["MEM0_API_KEY"]
+        }
+      ],
+      "entregable": "Memoria unificada (semántica + episódica + procedural + autobiográfica) funcionando"
+    },
+    "fase_2_orquestacion_skills": {
+      "duracion": "semana_2-3",
+      "repos": [
+        {
+          "repo": "VRSEN/OpenSwarm",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/orchestration/OpenSwarm",
+          "integracion": "Orquestación multi-agente + swarm intelligence"
+        },
+        {
+          "repo": "google/adk-python",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/orchestration/adk-python",
+          "integracion": "Agent Development Kit oficial Google",
+          "api_keys": ["OPENAI_API_KEY", "ANTHROPIC_API_KEY"]
+        },
+        {
+          "repo": "VoltAgent/voltagent",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/orchestration/voltagent",
+          "integracion": "Framework agentes con memoria + herramientas",
+          "api_keys": ["ANTHROPIC_API_KEY"]
+        },
+        {
+          "repo": "zjunlp/SkillNet",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/skills/SkillNet",
+          "integracion": "Auto-aprendizaje skills + few-shot acquisition"
+        },
+        {
+          "repo": "agentskills/agentskills",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/skills/agentskills",
+          "integracion": "Habilidades pre-definidas para agentes"
+        },
+        {
+          "repo": "addyosmani/agent-skills",
+          "prioridad": "ALTA",
+          "carpeta": "external_repos/skills/agent-skills",
+          "integracion": "Biblioteca skills (Addy Osmani)"
+        },
+        {
+          "repo": "google/skills",
+          "prioridad": "ALTA",
+          "carpeta": "external_repos/skills/skills",
+          "integracion": "Framework habilidades Google"
+        },
+        {
+          "repo": "wbh604/UZI-Skill",
+          "prioridad": "ALTA",
+          "carpeta": "external_repos/skills/UZI-Skill",
+          "integracion": "Framework habilidades modulares"
+        },
+        {
+          "repo": "ComposioHQ/agent-orchestrator",
+          "prioridad": "ALTA",
+          "carpeta": "external_repos/orchestration/agent-orchestrator",
+          "integracion": "Orquestador con integraciones herramientas"
+        }
+      ],
+      "entregable": "Orquestación multi-agente + Skills ecosystem con auto-aprendizaje"
+    },
+    "fase_3_percepcion_multimodal": {
+      "duracion": "semana_3-4",
+      "repos": [
+        {
+          "repo": "baidu/Unlimited-OCR",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/perception/Unlimited-OCR",
+          "integracion": "OCR 99%+ bancario venezolano",
+          "api_keys": ["BAIDU_OCR_API_KEY"]
+        },
+        {
+          "repo": "opendatalab/MinerU",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/perception/MinerU",
+          "integracion": "Document Understanding (PDFs, tablas, fórmulas)",
+          "api_keys": ["MINERU_API_KEY"]
+        },
+        {
+          "repo": "tesseract-ocr/tesseract",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/perception/tesseract",
+          "integracion": "OCR base fallback"
+        },
+        {
+          "repo": "microsoft/markitdown",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/perception/markitdown",
+          "integracion": "Conversión docs → Markdown (ingesta conocimiento)"
+        },
+        {
+          "repo": "bytedance/UI-TARS-desktop",
+          "prioridad": "ALTA",
+          "carpeta": "external_repos/perception/UI-TARS-desktop",
+          "integracion": "Vision-Language + UI automation"
+        }
+      ],
+      "entregable": "OCR 99%+ + Document Understanding + Vision-Language"
+    },
+    "fase_4_razonamiento_automejora": {
+      "duracion": "semana_4-5",
+      "repos": [
+        {
+          "repo": "ardhaecosystem/fable-method",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/reasoning/fable-method",
+          "integracion": "Planificación jerárquica (HRL) + HTN"
+        },
+        {
+          "repo": "google/adk-python",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/reasoning/adk-python",
+          "integracion": "Agent Development Kit + planificación"
+        },
+        {
+          "repo": "VoltAgent/voltagent",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/reasoning/voltagent",
+          "integracion": "Razonamiento + herramientas + memoria"
+        },
+        {
+          "repo": "zjunlp/SkillNet",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/skills/SkillNet",
+          "integracion": "Auto-mejora continua + few-shot skill acquisition"
+        },
+        {
+          "repo": "agentskills/agentskills",
+          "prioridad": "CRITICO",
+          "carpeta": "external_repos/skills/agentskills",
+          "integracion": "Habilidades pre-definidas + auto-mejora"
+        }
+      ],
+      "entregable": "Razonamiento jerárquico + auto-mejora continua"
+    },
+    "fase_5_integracion_completa": {
+      "duracion": "semana_5-6",
+      "entregable": "hermes-agent entidad aislada full-stack 100% operativo",
+      "integraciones_nativas_h2o": [
+        "bridge_skill",
+        "dispatcher_skill",
+        "financial_skill",
+        "bottle_tracker_skill",
+        "gps_tracker_skill",
+        "route_engine_skill",
+        "sheets_sync_skill"
+      ]
+    }
+  },
+  "repos_h2o_produccion": {
+    "ya_operativos": [
+      "langgenius/dify",
+      "tesseract-ocr/tesseract",
+      "n8n-io/n8n"
+    ],
+    "integrar_para_produccion": [
+      "baidu/Unlimited-OCR",
+      "opendatalab/MinerU",
+      "microsoft/markitdown",
+      "n8n-io/n8n",
+      "Enriquefft/openclaw-kapso-whatsapp"
+    ]
+  },
+  "entidades_futuras": {
+    "trading_entity": "docs/clasificaciones/TRADING_ENTITY_REPOS.json",
+    "agro_entity": "docs/clasificaciones/AGRO_ENTITY_REPOS.json"
+  }
+}

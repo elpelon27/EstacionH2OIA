@@ -107,7 +107,7 @@ def _find_or_create_client(
                 "UPDATE clients SET lat=?, lng=?, address_text=?, updated_at=? WHERE id=?",
                 (lat, lng, address, datetime.now(CARACAS_TZ).timestamp(), row["id"]),
             )
-        return row["id"]
+        return int(row["id"])
 
     conn.execute(
         """INSERT INTO clients (phone, phone_hash, name, address_text, lat, lng,
@@ -124,10 +124,10 @@ def _find_or_create_client(
             datetime.now(CARACAS_TZ).timestamp(),
         ),
     )
-    return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
+    return int(conn.execute("SELECT last_insert_rowid()").fetchone()[0])
 
 
-def _get_active_vehicles_with_load(conn: sqlite3.Connection) -> list[dict]:
+def _get_active_vehicles_with_load(conn: sqlite3.Connection) -> list[dict[str, Any]]:
     """Retorna vehicles activos con su carga actual (deliveries pending)."""
     today_start = (
         datetime.now(CARACAS_TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
@@ -426,25 +426,80 @@ def _mark_order_status(order_id: int, status: str) -> None:
 # FastAPI Endpoint
 # ============================================================================
 
-# In-process event para notificar al consumer inmediatamente
+# ============================================================================
+# Notificación cross-process via SQLite (DT-05)
+# ============================================================================
+
+# In-process event para notificación instantánea (híbrido con SQLite)
 _consumer_event: asyncio.Event | None = None
 
+
 def get_consumer_event() -> asyncio.Event:
-    """Retorna el evento global para notificar al consumer."""
+    """Retorna el evento global para notificar al consumer (in-process)."""
     global _consumer_event
     if _consumer_event is None:
         _consumer_event = asyncio.Event()
     return _consumer_event
 
 
+def _init_notification_table() -> None:
+    """Crea tabla de notificaciones si no existe (idempotente)."""
+    conn = _get_dispatch_db()
+    conn.execute(
+        """CREATE TABLE IF NOT EXISTS dispatch_notifications (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            created_at REAL NOT NULL,
+            processed INTEGER DEFAULT 0
+        )"""
+    )
+    conn.commit()
+    conn.close()
+
+
 def notify_consumer() -> None:
-    """Señala al consumer que hay nuevos pedidos (no-bloqueante)."""
+    """Señala al consumer que hay nuevos pedidos (cross-process via SQLite + in-process Event)."""
     try:
+        _init_notification_table()
+        conn = _get_dispatch_db()
+        conn.execute(
+            "INSERT INTO dispatch_notifications (created_at) VALUES (?)",
+            (datetime.now(CARACAS_TZ).timestamp(),),
+        )
+        conn.commit()
+        conn.close()
+        # También activar event in-process para respuesta instantánea
         event = get_consumer_event()
         event.set()
-        event.clear()  # Auto-reset para siguiente notificación
+        event.clear()
     except Exception:
         pass  # Fail silently
+
+
+def _check_notifications_db() -> bool:
+    """Verifica si hay notificaciones pendientes en BD (para cross-process)."""
+    try:
+        _init_notification_table()
+        conn = _get_dispatch_db()
+        row = conn.execute(
+            "SELECT COUNT(*) FROM dispatch_notifications WHERE processed = 0"
+        ).fetchone()
+        conn.close()
+        return (row[0] if row else 0) > 0
+    except Exception:
+        return False
+
+
+def _mark_notifications_processed() -> None:
+    """Marca notificaciones como procesadas."""
+    try:
+        conn = _get_dispatch_db()
+        conn.execute(
+            "UPDATE dispatch_notifications SET processed = 1 WHERE processed = 0"
+        )
+        conn.commit()
+        conn.close()
+    except Exception:
+        pass
 
 
 async def process_queue_endpoint(max_orders: int = 20) -> dict[str, Any]:
@@ -455,22 +510,28 @@ async def process_queue_endpoint(max_orders: int = 20) -> dict[str, Any]:
 async def consumer_loop(poll_interval: int = 5) -> None:
     """
     Loop persistente que procesa pedidos en tiempo real.
-    Espera notificaciones via Event (instantáneo) o hace polling cada poll_interval segundos.
+    Híbrido: Event in-process (instantáneo) + polling SQLite (cross-process).
 
     Uso:
         - En background task al arrancar bridge: asyncio.create_task(consumer_loop())
-        - Cada inserción en dispatch_queue llama notify_consumer()
+        - Cada inserción en dispatch_queue llama notify_consumer() → SQLite + Event
     """
     import contextlib
 
     event = get_consumer_event()
-    logger.info("🔄 Consumer loop iniciado (poll_interval=%ds)", poll_interval)
+    logger.info("🔄 Consumer loop iniciado (poll_interval=%ds, hybrid=SQLite+Event)", poll_interval)
 
     while True:
         try:
-            # Esperar evento o timeout de polling
+            # Híbrido: esperar Event O timeout, PERO siempre verificar BD al despertar
+            # (cubre cross-process: cron, otros workers, etc.)
             with contextlib.suppress(TimeoutError):
                 await asyncio.wait_for(event.wait(), timeout=poll_interval)
+
+            # Verificar notificaciones cross-process en BD
+            has_db_notifications = _check_notifications_db()
+            if has_db_notifications:
+                _mark_notifications_processed()
 
             # Procesar pedidos pendientes
             result = await consume_pending_orders(max_orders=20)
