@@ -46,7 +46,6 @@ from telegram.ext import (
     MessageHandler,
     filters,
 )
-from typing import Any
 
 from skills.dispatch.route_engine import check_operation_perimeter
 
@@ -65,7 +64,10 @@ DISPATCH_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
 
 if not DISPATCHER_TOKEN:
     logger.error("DISPATCHER_BOT_TOKEN no configurado")
-    sys.exit(1)
+    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+        logger.warning("En CI - saltando exit para permitir tests")
+    else:
+        sys.exit(1)
 
 
 def now_iso() -> str:
@@ -494,33 +496,37 @@ class DispatcherTelegramBot:
         """Health check endpoint."""
         import sqlite3
         from datetime import datetime, timedelta, timezone
+
         CARACAS_TZ = timezone(timedelta(hours=-4))
-        
+
         # Check dispatch DB connectivity
         db_ok = False
         pending_deliveries = 0
         try:
-            conn = sqlite3.connect('/mnt/ssd_trabajo/hermes-agent/data/dispatch.db')
-            conn.execute('PRAGMA foreign_keys = ON')
-            row = conn.execute('SELECT COUNT(*) FROM deliveries WHERE status = "pending"').fetchone()
+            conn = sqlite3.connect("/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
+            conn.execute("PRAGMA foreign_keys = ON")
+            row = conn.execute(
+                'SELECT COUNT(*) FROM deliveries WHERE status = "pending"'
+            ).fetchone()
             pending_deliveries = row[0] if row else 0
             conn.close()
             db_ok = True
         except Exception as e:
-            logger.warning(f'Health check DB error: {e}')
-        
+            logger.warning(f"Health check DB error: {e}")
+
         # Check bridge connectivity
         bridge_ok = False
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=3.0) as client:
-                resp = await client.get('http://localhost:8000/health')
+                resp = await client.get("http://localhost:8000/health")
                 if resp.status_code == 200:
                     bridge_ok = True
         except Exception:
             pass
-        
-        status_emoji = '✅' if (db_ok and bridge_ok) else '⚠️'
+
+        status_emoji = "✅" if (db_ok and bridge_ok) else "⚠️"
         health_text = (
             f'{status_emoji} <b>Health Check - Dispatcher Bot</b>\n\n'
             f'🤖 Bot: <b>ACTIVO</b>\n'
@@ -530,7 +536,7 @@ class DispatcherTelegramBot:
             f'🕐 {datetime.now(CARACAS_TZ).strftime("%Y-%m-%d %H:%M:%S")}'
         )
         if update.message:
-            await update.message.reply_text(health_text, parse_mode='HTML')
+            await update.message.reply_text(health_text, parse_mode="HTML")
 
     # Callbacks de acción (botones)
     # ----------------------------------------------------------------------
