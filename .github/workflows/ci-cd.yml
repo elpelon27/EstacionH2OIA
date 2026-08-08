@@ -58,7 +58,7 @@ jobs:
           cache: 'pip'
 
       - name: Install test dependencies
-        run: pip install -q pytest pytest-asyncio pytest-cov httpx fastapi uvicorn pydantic sqlalchemy aiosqlite python-dotenv prometheus_client
+        run: pip install -q pytest pytest-asyncio pytest-cov httpx fastapi uvicorn pydantic pydantic_settings sqlalchemy aiosqlite python-dotenv prometheus_client
 
       - name: Run Tests
         run: python -m pytest tests/unit/ -x --tb=short -q
