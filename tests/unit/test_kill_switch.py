@@ -62,7 +62,7 @@ def test_kill_switch_file_operations():
             os.remove(kill_switch_path)
 
 
-# Test bridge health endpoint reflects kill switch state
+# Test that bridge health endpoint reflects kill switch state
 def test_bridge_health_kill_switch(reset_prometheus):
     """Test that _is_kill_switch_active correctly reports kill switch state."""
     import sys
@@ -78,6 +78,11 @@ def test_bridge_health_kill_switch(reset_prometheus):
     if "api.bridge" in sys.modules:
         importlib.reload(sys.modules["api.bridge"])
     from api.bridge import KILL_SWITCH_FILE, _is_kill_switch_active
+
+    # En CI, usar temp path porque /mnt/ssd_trabajo no existe
+    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+        import tempfile
+        KILL_SWITCH_FILE = tempfile.mktemp(suffix="_valentina.kill")
 
     # Test with no kill switch
     if os.path.exists(KILL_SWITCH_FILE):
@@ -110,6 +115,11 @@ def test_bridge_startup_clears_kill_switch(reset_prometheus):
     if "api.bridge" in sys.modules:
         importlib.reload(sys.modules["api.bridge"])
     from api.bridge import KILL_SWITCH_FILE
+
+    # En CI, usar temp path porque /mnt/ssd_trabajo no existe
+    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+        import tempfile
+        KILL_SWITCH_FILE = tempfile.mktemp(suffix="_valentina.kill")
 
     # Create kill switch file
     with open(KILL_SWITCH_FILE, "w") as f:
@@ -162,6 +172,11 @@ async def test_meta_webhook_respects_kill_switch(reset_prometheus):
     if "api.bridge" in sys.modules:
         importlib.reload(sys.modules["api.bridge"])
     from api.bridge import KILL_SWITCH_FILE, _is_kill_switch_active
+
+    # En CI, usar temp path porque /mnt/ssd_trabajo no existe
+    if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
+        import tempfile
+        KILL_SWITCH_FILE = tempfile.mktemp(suffix="_valentina.kill")
 
     # Activate kill switch
     with open(KILL_SWITCH_FILE, "w") as f:
