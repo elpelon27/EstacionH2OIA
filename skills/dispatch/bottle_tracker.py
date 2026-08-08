@@ -29,15 +29,15 @@ import logging
 import sqlite3
 import time
 from dataclasses import dataclass
-from enum import Enum
-from typing import Any, Optional
+from enum import StrEnum
+from typing import Any
 
 logger = logging.getLogger("dispatch.bottle_tracker")
 
 DISPATCH_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
 
 
-class BottleStatus(str, Enum):
+class BottleStatus(StrEnum):
     AVAILABLE = "available"
     IN_TRANSIT_FULL = "in_transit_full"
     WITH_CLIENT = "with_client"
@@ -46,7 +46,7 @@ class BottleStatus(str, Enum):
     RETIRED = "retired"
 
 
-class MovementType(str, Enum):
+class MovementType(StrEnum):
     ASSIGN_TO_CLIENT = "assign_to_client"
     CONFIRM_DELIVERY = "confirm_delivery"
     RETURN_FROM_CLIENT = "return_from_client"
@@ -58,11 +58,29 @@ class MovementType(str, Enum):
 
 
 VALID_TRANSITIONS = {
-    BottleStatus.AVAILABLE: {BottleStatus.IN_TRANSIT_FULL, BottleStatus.MAINTENANCE, BottleStatus.RETIRED},
-    BottleStatus.IN_TRANSIT_FULL: {BottleStatus.WITH_CLIENT, BottleStatus.AVAILABLE, BottleStatus.RETIRED},
-    BottleStatus.WITH_CLIENT: {BottleStatus.IN_TRANSIT_EMPTY, BottleStatus.RETIRED},
-    BottleStatus.IN_TRANSIT_EMPTY: {BottleStatus.MAINTENANCE, BottleStatus.AVAILABLE, BottleStatus.RETIRED},
-    BottleStatus.MAINTENANCE: {BottleStatus.AVAILABLE, BottleStatus.RETIRED},
+    BottleStatus.AVAILABLE: {
+        BottleStatus.IN_TRANSIT_FULL,
+        BottleStatus.MAINTENANCE,
+        BottleStatus.RETIRED,
+    },
+    BottleStatus.IN_TRANSIT_FULL: {
+        BottleStatus.WITH_CLIENT,
+        BottleStatus.AVAILABLE,
+        BottleStatus.RETIRED,
+    },
+    BottleStatus.WITH_CLIENT: {
+        BottleStatus.IN_TRANSIT_EMPTY,
+        BottleStatus.RETIRED,
+    },
+    BottleStatus.IN_TRANSIT_EMPTY: {
+        BottleStatus.MAINTENANCE,
+        BottleStatus.AVAILABLE,
+        BottleStatus.RETIRED,
+    },
+    BottleStatus.MAINTENANCE: {
+        BottleStatus.AVAILABLE,
+        BottleStatus.RETIRED,
+    },
     BottleStatus.RETIRED: set(),
 }
 
@@ -83,11 +101,11 @@ class Bottle:
     """Representa un botellón loaner."""
     bottle_code: str
     status: str
-    client_id: Optional[int] = None
-    dispatch_delivery_id: Optional[int] = None
-    assigned_at: Optional[float] = None
-    expected_return_at: Optional[float] = None
-    returned_at: Optional[float] = None
+    client_id: int | None = None
+    dispatch_delivery_id: int | None = None
+    assigned_at: float | None = None
+    expected_return_at: float | None = None
+    returned_at: float | None = None
     created_at: float = 0
     updated_at: float = 0
 
@@ -109,13 +127,13 @@ class Bottle:
 class BottleMovement:
     """Registro de movimiento/auditoría de botellón."""
     bottle_code: str
-    from_status: Optional[str]
+    from_status: str | None
     to_status: str
-    from_client_id: Optional[int]
-    to_client_id: Optional[int]
-    delivery_id: Optional[int]
-    location_lat: Optional[float]
-    location_lng: Optional[float]
+    from_client_id: int | None
+    to_client_id: int | None
+    delivery_id: int | None
+    location_lat: float | None
+    location_lng: float | None
     performed_by: str  # 'operator' | 'plant' | 'system'
     notes: str
     created_at: float
@@ -128,10 +146,10 @@ class BottleAlert:
     alert_type: str  # 'overdue_return' | 'maintenance_due' | 'lost' | 'damaged'
     severity: str  # 'info' | 'warning' | 'critical'
     acknowledged: int = 0
-    acknowledged_by: Optional[str] = None
-    acknowledged_at: Optional[float] = None
+    acknowledged_by: str | None = None
+    acknowledged_at: float | None = None
     created_at: float = 0
-    resolved_at: Optional[float] = None
+    resolved_at: float | None = None
 
 
 class BottleTracker:
@@ -154,7 +172,7 @@ class BottleTracker:
         allowed = VALID_TRANSITIONS.get(BottleStatus(from_status), set())
         return BottleStatus(to_status) in allowed
 
-    def _get_bottle(self, bottle_code: str) -> Optional[Bottle]:
+    def _get_bottle(self, bottle_code: str) -> Bottle | None:
         conn = get_db()
         row = conn.execute(
             "SELECT * FROM bottles WHERE bottle_code = ?", (bottle_code,)
@@ -178,12 +196,12 @@ class BottleTracker:
         self,
         bottle_code: str,
         new_status: str,
-        client_id: Optional[int] = None,
-        delivery_id: Optional[int] = None,
+        client_id: int | None = None,
+        delivery_id: int | None = None,
         performed_by: str = "system",
         notes: str = "",
-        location_lat: Optional[float] = None,
-        location_lng: Optional[float] = None,
+        location_lat: float | None = None,
+        location_lng: float | None = None,
     ) -> Bottle:
         """Actualiza estado del botellón y registra movimiento."""
         bottle = self._get_bottle(bottle_code)
@@ -309,8 +327,8 @@ class BottleTracker:
         client_id: int,
         delivery_id: int,
         performed_by: str = "operator",
-        location_lat: Optional[float] = None,
-        location_lng: Optional[float] = None,
+        location_lat: float | None = None,
+        location_lng: float | None = None,
     ) -> dict[str, Any]:
         """
         Asigna botellón lleno a cliente (salida de planta).
@@ -322,7 +340,7 @@ class BottleTracker:
             return {"success": False, "error": f"Botellón {bottle_code} no encontrado", "bottle": None}
         if bottle.status != BottleStatus.AVAILABLE:
             return {"success": False, "error": f"Botellón {bottle_code} no está disponible (estado: {bottle.status})", "bottle": None}
-        
+
         try:
             bottle = self._update_bottle_status(
                 bottle_code=bottle_code,
@@ -343,8 +361,8 @@ class BottleTracker:
         bottle_code: str,
         client_id: int,
         performed_by: str = "operator",
-        location_lat: Optional[float] = None,
-        location_lng: Optional[float] = None,
+        location_lat: float | None = None,
+        location_lng: float | None = None,
     ) -> dict[str, Any]:
         """
         Confirma entrega al cliente (botón 'Entregado' en app chofer).
@@ -353,10 +371,21 @@ class BottleTracker:
         # Verificar que el botellón esté en tránsito lleno
         bottle = self._get_bottle(bottle_code)
         if not bottle:
-            return {"success": False, "error": f"Botellón {bottle_code} no encontrado", "bottle": None}
+            return {
+                "success": False,
+                "error": f"Botellón {bottle_code} no encontrado",
+                "bottle": None,
+            }
         if bottle.status != BottleStatus.IN_TRANSIT_FULL:
-            return {"success": False, "error": f"Botellón {bottle_code} no está en tránsito lleno (estado: {bottle.status})", "bottle": None}
-        
+            return {
+                "success": False,
+                "error": (
+                    f"Botellón {bottle_code} no está en tránsito lleno "
+                    f"(estado: {bottle.status})"
+                ),
+                "bottle": None,
+            }
+
         try:
             bottle = self._update_bottle_status(
                 bottle_code=bottle_code,
@@ -377,8 +406,8 @@ class BottleTracker:
         client_id: int,
         delivery_id: int,
         performed_by: str = "operator",
-        location_lat: Optional[float] = None,
-        location_lng: Optional[float] = None,
+        location_lat: float | None = None,
+        location_lng: float | None = None,
     ) -> dict[str, Any]:
         """
         Recibe botellón vacío del cliente (recogida).
@@ -390,7 +419,7 @@ class BottleTracker:
             return {"success": False, "error": f"Botellón {bottle_code} no encontrado", "bottle": None}
         if bottle.client_id != client_id:
             return {"success": False, "error": f"Cliente {client_id} no coincide con el dueño del botellón ({bottle.client_id})", "bottle": None}
-        
+
         try:
             bottle = self._update_bottle_status(
                 bottle_code=bottle_code,
@@ -482,7 +511,7 @@ class BottleTracker:
     # Consultas
     # ----------------------------------------------------------------------
 
-    async def get_bottle(self, bottle_code: str) -> Optional[dict[str, Any]]:
+    async def get_bottle(self, bottle_code: str) -> dict[str, Any] | None:
         """Obtiene estado actual de un botellón."""
         bottle = self._get_bottle(bottle_code)
         return bottle.to_dict() if bottle else None
@@ -528,7 +557,7 @@ class BottleTracker:
         conn.close()
         return [dict(r) for r in rows]
 
-    async def get_available_bottle(self) -> Optional[dict[str, Any]]:
+    async def get_available_bottle(self) -> dict[str, Any] | None:
         """Obtiene un botellón disponible para asignar (status = 'available')."""
         conn = get_db()
         row = conn.execute(
@@ -637,7 +666,7 @@ class BottleTracker:
 # Factory / Singleton
 # ============================================================================
 
-_bottle_tracker_instance: Optional[BottleTracker] = None
+_bottle_tracker_instance: BottleTracker | None = None
 
 
 def get_bottle_tracker() -> BottleTracker:

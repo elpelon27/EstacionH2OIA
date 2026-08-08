@@ -21,14 +21,15 @@ Diferencia con run_route_planner.py (7:45am):
 """
 
 import asyncio
-import sys
+import logging
 import os
 import sqlite3
-import logging
-import httpx
-from datetime import datetime, timezone, timedelta
+import sys
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
+
+import httpx
 
 # Cargar .env
 env_path = Path("/mnt/ssd_trabajo/hermes-agent/config/.env")
@@ -68,7 +69,8 @@ def _get_dispatch_db() -> sqlite3.Connection:
 
 def _haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     """Distancia en km entre dos puntos."""
-    from math import radians, sin, cos, sqrt, atan2
+    from math import atan2, cos, radians, sin, sqrt
+
     R = 6371.0
     dlat = radians(lat2 - lat1)
     dlng = radians(lng2 - lng1)
@@ -84,21 +86,21 @@ def _fetch_pending_orders(limit: int = 20) -> list[Any]:
                   total_eur, metodo_pago, gps_lat, gps_lng, direccion
            FROM dispatch_queue WHERE estado = 'pending'
            ORDER BY creado_at ASC LIMIT ?""",
-        (limit,)
+        (limit,),
     ).fetchall()
     conn.close()
     return rows
 
 
-def _find_or_create_client(conn: sqlite3.Connection, name: str, phone: str,
-                           lat: float, lng: float, address: str) -> int:
+def _find_or_create_client(
+    conn: sqlite3.Connection, name: str, phone: str, lat: float, lng: float, address: str
+) -> int:
     """Busca client por phone, o lo crea si no existe. Retorna client_id."""
     import hashlib
+
     phone_hash = hashlib.sha256(phone.encode()).hexdigest()[:16] if phone else ""
 
-    row = conn.execute(
-        "SELECT id FROM clients WHERE phone = ?", (phone,)
-    ).fetchone()
+    row = conn.execute("SELECT id FROM clients WHERE phone = ?", (phone,)).fetchone()
     if row:
         if lat is not None and lng is not None:
             conn.execute(
@@ -111,16 +113,26 @@ def _find_or_create_client(conn: sqlite3.Connection, name: str, phone: str,
         """INSERT INTO clients (phone, phone_hash, name, address_text, lat, lng,
            client_type, priority, active, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, 'retail', 5, 1, ?, ?)""",
-        (phone, phone_hash, name or phone, address, lat, lng,
-         datetime.now(CARACAS_TZ).timestamp(), datetime.now(CARACAS_TZ).timestamp()),
+        (
+            phone,
+            phone_hash,
+            name or phone,
+            address,
+            lat,
+            lng,
+            datetime.now(CARACAS_TZ).timestamp(),
+            datetime.now(CARACAS_TZ).timestamp(),
+        ),
     )
     return conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
 
 def _get_active_vehicles_with_load(conn: sqlite3.Connection) -> list[dict]:
     """Retorna vehicles activos con su carga actual (deliveries pending)."""
-    today_start = datetime.now(CARACAS_TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
-    today_end = today_start + 86400
+    today_start = (
+        datetime.now(CARACAS_TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    )
+    today_start + 86400
 
     # Query vehicles with pending deliveries count, using date filter for today's sessions
     # but also include vehicles with no sessions for today (active vehicles)
@@ -150,6 +162,7 @@ def _get_active_vehicles_with_load(conn: sqlite3.Connection) -> list[dict]:
 def _extract_bottles(producto_desc: str) -> int:
     """Extrae cantidad de botellones del producto_desc (ej '3 botellones de agua')."""
     import re
+
     m = re.search(r"(\d+)\s*botell", producto_desc or "", re.IGNORECASE)
     return int(m.group(1)) if m else 1
 
@@ -170,7 +183,7 @@ async def _notify_chofer_direct(
     """Envía notificación directa a chofer via endpoint /dispatch/notify-driver con retry."""
     max_retries = 3
     base_delay = 0.5
-    
+
     for attempt in range(1, max_retries + 1):
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
@@ -187,18 +200,29 @@ async def _notify_chofer_direct(
                         "total_eur": total_eur,
                         "total_bs": total_bs,
                         "metodo_pago": metodo_pago,
-                    }
+                    },
                 )
                 if resp.status_code == 200:
                     return True
                 else:
-                    logger.warning("Notificación chofer status %d (intento %d/%d)", resp.status_code, attempt, max_retries)
+                    logger.warning(
+                        "Notificación chofer status %d (intento %d/%d)",
+                        resp.status_code,
+                        attempt,
+                        max_retries,
+                    )
         except Exception as e:
-            logger.warning("Error notificando chofer %s (intento %d/%d): %s", operator_name, attempt, max_retries, e)
-        
+            logger.warning(
+                "Error notificando chofer %s (intento %d/%d): %s",
+                operator_name,
+                attempt,
+                max_retries,
+                e,
+            )
+
         if attempt < max_retries:
             await asyncio.sleep(base_delay * (2 ** (attempt - 1)))
-    
+
     logger.error("❌ Notificación a chofer %s falló tras %d intentos", operator_name, max_retries)
     return False
 
@@ -242,7 +266,11 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
 
             # Validar perímetro de operación
             if _haversine(lat, lng, DEPOT_LAT, DEPOT_LNG) > OPERATION_RADIUS_KM:
-                logger.warning("Pedido %d fuera de perímetro (%.1f km) — skip", order_id, _haversine(lat, lng, DEPOT_LAT, DEPOT_LNG))
+                logger.warning(
+                    "Pedido %d fuera de perímetro (%.1f km) — skip",
+                    order_id,
+                    _haversine(lat, lng, DEPOT_LAT, DEPOT_LNG),
+                )
                 stats["skipped"] += 1
                 _mark_order_status(order_id, "fuera_perimetro")
                 continue
@@ -251,7 +279,9 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
 
             # Buscar/crear client en dispatch.db
             dispatch_conn = _get_dispatch_db()
-            client_id = _find_or_create_client(dispatch_conn, client_name, client_phone, lat, lng, address)
+            client_id = _find_or_create_client(
+                dispatch_conn, client_name, client_phone, lat, lng, address
+            )
 
             # Asignar a vehicle con menos carga
             vehicles = _get_active_vehicles_with_load(dispatch_conn)
@@ -264,11 +294,15 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
             vehicle = vehicles[0]  # El que tiene menos pending_deliveries
             vehicle_id = vehicle["id"]
             operator_name = vehicle["operator_name"] or f"Vehículo {vehicle_id}"
-            max_capacity = vehicle["max_full_bottles"]
+            vehicle["max_full_bottles"]
 
             # Verificar capacidad
             if vehicle["pending_deliveries"] >= 10:  # Límite razonable
-                logger.warning("Vehicle %s saturado (%d pendientes) — skip", operator_name, vehicle["pending_deliveries"])
+                logger.warning(
+                    "Vehicle %s saturado (%d pendientes) — skip",
+                    operator_name,
+                    vehicle["pending_deliveries"],
+                )
                 dispatch_conn.close()
                 stats["skipped"] += 1
                 continue
@@ -282,7 +316,7 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
                 """SELECT id FROM dispatch_sessions
                    WHERE vehicle_id = ? AND date = ? AND status IN ('planning', 'in_progress')
                    ORDER BY created_at DESC LIMIT 1""",
-                (vehicle_id, today_str)
+                (vehicle_id, today_str),
             ).fetchone()
 
             if session_row:
@@ -295,7 +329,7 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
                         total_distance_km, total_duration_minutes, route_algorithm,
                         route_computed_at, created_at)
                        VALUES (?, 'realtime', ?, 'in_progress', 1, ?, 0, 0, 'realtime', ?, ?)""",
-                    (vehicle_id, today_str, bottles, now_ts, now_ts)
+                    (vehicle_id, today_str, bottles, now_ts, now_ts),
                 )
                 session_id = dispatch_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
@@ -305,7 +339,7 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
                    (dispatch_session_id, client_id, vehicle_id, order_sequence,
                     status, bottles_full, created_at, updated_at)
                    VALUES (?, ?, ?, 1, 'pending', ?, ?, ?)""",
-                (session_id, client_id, vehicle_id, bottles, now_ts, now_ts)
+                (session_id, client_id, vehicle_id, bottles, now_ts, now_ts),
             )
             delivery_id = dispatch_conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
@@ -337,26 +371,39 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
             try:
                 conv_conn.execute(
                     "UPDATE dispatch_queue SET estado='enviado', enviado_at=?, delivery_id=? WHERE id=?",
-                    (datetime.now(CARACAS_TZ).isoformat(), delivery_id, order_id)
+                    (datetime.now(CARACAS_TZ).isoformat(), delivery_id, order_id),
                 )
             except sqlite3.OperationalError:
                 # Column delivery_id doesn't exist, update without it
                 conv_conn.execute(
                     "UPDATE dispatch_queue SET estado='enviado', enviado_at=? WHERE id=?",
-                    (datetime.now(CARACAS_TZ).isoformat(), order_id)
+                    (datetime.now(CARACAS_TZ).isoformat(), order_id),
                 )
             conv_conn.commit()
             conv_conn.close()
 
             stats["processed"] += 1
-            logger.info("Pedido %d → vehicle %s (%s), delivery #%d", order_id, vehicle["name"], operator_name, delivery_id)
+            logger.info(
+                "Pedido %d → vehicle %s (%s), delivery #%d",
+                order_id,
+                vehicle["name"],
+                operator_name,
+                delivery_id,
+            )
 
         except Exception as e:
-            logger.exception("Error procesando pedido %s: %s", order["id"] if "id" in order.keys() else "?", e)
+            logger.exception(
+                "Error procesando pedido %s: %s", order.get("id", "?"), e
+            )
             stats["errors"] += 1
 
-    logger.info("Consumer stats: processed=%d notified=%d errors=%d skipped=%d",
-                stats["processed"], stats["notified"], stats["errors"], stats["skipped"])
+    logger.info(
+        "Consumer stats: processed=%d notified=%d errors=%d skipped=%d",
+        stats["processed"],
+        stats["notified"],
+        stats["errors"],
+        stats["skipped"],
+    )
     return stats
 
 
@@ -365,7 +412,7 @@ def _mark_order_status(order_id: int, status: str) -> None:
     conv_conn = _get_conv_db()
     conv_conn.execute(
         "UPDATE dispatch_queue SET estado=?, enviado_at=? WHERE id=?",
-        (status, datetime.now(CARACAS_TZ).isoformat(), order_id)
+        (status, datetime.now(CARACAS_TZ).isoformat(), order_id),
     )
     conv_conn.commit()
     conv_conn.close()
