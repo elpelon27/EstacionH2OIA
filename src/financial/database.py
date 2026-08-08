@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS fs_pedidos (
     cliente_nombre          TEXT,
     operador_id             INTEGER,
     monto_total_eur         REAL NOT NULL,
+    monto_total_ves         REAL DEFAULT 0,
     monto_pagado_eur        REAL DEFAULT 0,                   -- v3.0: tracking parciales
     tasa_eur_ves_deuda      REAL NOT NULL,                   -- v3.0: tasa congelada al crear deuda
     tasa_eur_ves            REAL DEFAULT 0,                  -- v3.0: tasa EUR/VES actual
