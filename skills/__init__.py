@@ -1,1 +1,1 @@
-"""Skills modulares de Hermes Agent."""
+from skills.payment_skill import PaymentSkill
