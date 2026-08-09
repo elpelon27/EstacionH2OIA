@@ -261,9 +261,7 @@ class FinancialShieldAgent:
         pedido = db.get_pedido_financiero_by_pedido_id(fs_pedido_id)
         if not pedido:
             # Buscar por fs_pedido_id directamente
-            from .database import get_db  # type: ignore[import-not-found]
-
-            with get_db() as conn:
+            with db.get_db() as conn:
                 row = conn.execute(
                     "SELECT * FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
                 ).fetchone()

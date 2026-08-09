@@ -14,7 +14,7 @@ Features:
 from typing import Any
 
 from openai import AsyncOpenAI
-
+from openai.types.chat import ChatCompletionMessageParam
 from core.config import get_settings
 from core.logger import get_logger
 
@@ -49,7 +49,7 @@ class OpenRouterClient:
 
     async def chat(
         self,
-        messages: list[dict[str, str]],
+        messages: list[ChatCompletionMessageParam],
         model: str | None = None,
         temperature: float = 0.3,
         max_tokens: int = 1024,
@@ -71,7 +71,7 @@ class OpenRouterClient:
         try:
             response = await self.client.chat.completions.create(
                 model=model,
-                messages=messages,  # type: ignore[arg-type]
+                messages=messages,
                 temperature=temperature,
                 max_tokens=max_tokens,
             )
