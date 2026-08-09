@@ -219,7 +219,8 @@ BOTELLAS_HEADERS = [
     "Fecha",
     "Hora",
     "Bottle_Code",
-    "Status",  # available | in_transit_full | with_client | in_transit_empty | maintenance | retired
+    "Status",  # available | in_transit_full | with_client |
+               # in_transit_empty | maintenance | retired
     "Client_ID",
     "Client_Name",
     "Delivery_ID",

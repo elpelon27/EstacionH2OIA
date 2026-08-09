@@ -307,7 +307,8 @@ def init_vehicles(conn: sqlite3.Connection) -> None:
     for v in VEHICLES:
         conn.execute(
             """
-            INSERT OR IGNORE INTO vehicles (id, name, operator_name, telegram_chat_id, max_full_bottles, max_empty_bottles)
+            INSERT OR IGNORE INTO vehicles
+            (id, name, operator_name, telegram_chat_id, max_full_bottles, max_empty_bottles)
             VALUES (?, ?, ?, ?, ?, ?)
             """,
             (

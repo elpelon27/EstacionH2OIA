@@ -4,11 +4,11 @@ Health check script for watchdog.
 Returns 0 if all critical systems are healthy, non-zero otherwise.
 Used by watchdog via test-binary directive.
 """
-import sys
-import subprocess
-import socket
 import os
-from pathlib import Path
+import socket
+import subprocess
+import sys
+
 
 def check_service_active(name: str) -> bool:
     try:
@@ -47,63 +47,63 @@ def check_sqlite_accessible(path: str) -> bool:
 
 def main():
     checks = []
-    
+
     # 1. Servicios críticos
     critical_services = [
         "valentina-bridge",
         "dispatcher-bot",
-        "telegram-bot", 
+        "telegram-bot",
         "cloudflared",
     ]
-    
+
     for svc in critical_services:
         ok = check_service_active(svc)
         checks.append((f"service:{svc}", ok))
         if not ok:
             print(f"FAIL: service {svc} not active", file=sys.stderr)
-    
+
     # 2. Puertos críticos
     critical_ports = [
         (8000, "valentina-bridge HTTP"),
     ]
-    
+
     for port, desc in critical_ports:
         ok = check_port_listening(port)
         checks.append((f"port:{port}", ok))
         if not ok:
             print(f"FAIL: port {port} ({desc}) not listening", file=sys.stderr)
-    
+
     # 3. Espacio en disco
     ok = check_disk_space("/mnt/ssd_trabajo", min_percent=5.0)
     checks.append(("disk:/mnt/ssd_trabajo", ok))
     if not ok:
         print("FAIL: disk space < 5%", file=sys.stderr)
-    
+
     ok = check_disk_space("/", min_percent=5.0)
     checks.append(("disk:/", ok))
     if not ok:
         print("FAIL: root disk space < 5%", file=sys.stderr)
-    
+
     # 4. SQLite accesible
     ok = check_sqlite_accessible("/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
     checks.append(("sqlite:conversations.db", ok))
     if not ok:
         print("FAIL: conversations.db not accessible", file=sys.stderr)
-    
+
     ok = check_sqlite_accessible("/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
     checks.append(("sqlite:dispatch.db", ok))
     if not ok:
         print("FAIL: dispatch.db not accessible", file=sys.stderr)
-    
+
     # Resumen
     failed = [name for name, ok in checks if not ok]
     passed = [name for name, ok in checks if ok]
-    
+
     print(f"Health check: {len(passed)}/{len(checks)} passed")
     if failed:
         print(f"FAILED: {', '.join(failed)}", file=sys.stderr)
         return 1
-    
+
     print("All checks passed")
     return 0
 

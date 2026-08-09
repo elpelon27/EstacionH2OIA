@@ -60,7 +60,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     Calcula distancia en km entre dos puntos GPS.
     Fórmula de Haversine — precisa para distancias cortas (<50km).
     """
-    R = 6371  # Radio de la Tierra en km
+    r = 6371  # Radio de la Tierra en km
     dlat = math.radians(lat2 - lat1)
     dlon = math.radians(lon2 - lon1)
     a = (
@@ -68,7 +68,7 @@ def haversine(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         + math.cos(math.radians(lat1)) * math.cos(math.radians(lat2)) * math.sin(dlon / 2) ** 2
     )
     c = 2 * math.asin(math.sqrt(a))
-    return round(R * c, 3)
+    return round(r * c, 3)
 
 
 def build_distance_matrix(locations: list[tuple[float, float]]) -> list[list[int]]:

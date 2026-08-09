@@ -99,6 +99,7 @@ def now_epoch() -> float:
 @dataclass
 class Bottle:
     """Representa un botellón loaner."""
+
     bottle_code: str
     status: str
     client_id: int | None = None
@@ -126,6 +127,7 @@ class Bottle:
 @dataclass
 class BottleMovement:
     """Registro de movimiento/auditoría de botellón."""
+
     bottle_code: str
     from_status: str | None
     to_status: str
@@ -142,6 +144,7 @@ class BottleMovement:
 @dataclass
 class BottleAlert:
     """Alerta de botellón (overdue, maintenance, lost)."""
+
     bottle_code: str
     alert_type: str  # 'overdue_return' | 'maintenance_due' | 'lost' | 'damaged'
     severity: str  # 'info' | 'warning' | 'critical'
@@ -174,9 +177,7 @@ class BottleTracker:
 
     def _get_bottle(self, bottle_code: str) -> Bottle | None:
         conn = get_db()
-        row = conn.execute(
-            "SELECT * FROM bottles WHERE bottle_code = ?", (bottle_code,)
-        ).fetchone()
+        row = conn.execute("SELECT * FROM bottles WHERE bottle_code = ?", (bottle_code,)).fetchone()
         conn.close()
         if not row:
             return None
@@ -238,7 +239,8 @@ class BottleTracker:
                 ).fetchone()
                 if client:
                     hours = client["bottle_return_hours"] or (
-                        self.RETURN_HOURS_ENTERPRISE if client["client_type"] == "b2b"
+                        self.RETURN_HOURS_ENTERPRISE
+                        if client["client_type"] == "b2b"
                         else self.RETURN_HOURS_RESIDENTIAL
                     )
                     update_fields.append("expected_return_at = ?")
@@ -281,7 +283,12 @@ class BottleTracker:
 
         self.logger.info(
             "🔄 Botellón %s: %s → %s (by=%s, client=%s, delivery=%s)",
-            bottle_code, old_status, new_status, performed_by, client_id, delivery_id
+            bottle_code,
+            old_status,
+            new_status,
+            performed_by,
+            client_id,
+            delivery_id,
         )
 
         return self._get_bottle(bottle_code)  # type: ignore[return-value]
@@ -337,9 +344,17 @@ class BottleTracker:
         # Verificar que el botellón esté disponible
         bottle = self._get_bottle(bottle_code)
         if not bottle:
-            return {"success": False, "error": f"Botellón {bottle_code} no encontrado", "bottle": None}
+            return {
+                "success": False,
+                "error": f"Botellón {bottle_code} no encontrado",
+                "bottle": None,
+            }
         if bottle.status != BottleStatus.AVAILABLE:
-            return {"success": False, "error": f"Botellón {bottle_code} no está disponible (estado: {bottle.status})", "bottle": None}
+            return {
+                "success": False,
+                "error": f"Botellón {bottle_code} no está disponible (estado: {bottle.status})",
+                "bottle": None,
+            }
 
         try:
             bottle = self._update_bottle_status(
@@ -416,9 +431,20 @@ class BottleTracker:
         # Verificar que el botellón pertenece al cliente
         bottle = self._get_bottle(bottle_code)
         if not bottle:
-            return {"success": False, "error": f"Botellón {bottle_code} no encontrado", "bottle": None}
+            return {
+                "success": False,
+                "error": f"Botellón {bottle_code} no encontrado",
+                "bottle": None,
+            }
         if bottle.client_id != client_id:
-            return {"success": False, "error": f"Cliente {client_id} no coincide con el dueño del botellón ({bottle.client_id})", "bottle": None}
+            return {
+                "success": False,
+                "error": (
+                    f"Cliente {client_id} no coincide con el "
+                    f"dueño del botellón ({bottle.client_id})"
+                ),
+                "bottle": None,
+            }
 
         try:
             bottle = self._update_bottle_status(
@@ -521,9 +547,7 @@ class BottleTracker:
         conn = get_db()
         # Conteo por estado
         status_counts = dict(
-            conn.execute(
-                "SELECT status, COUNT(*) as cnt FROM bottles GROUP BY status"
-            ).fetchall()
+            conn.execute("SELECT status, COUNT(*) as cnt FROM bottles GROUP BY status").fetchall()
         )
         # Total
         total = sum(status_counts.values())

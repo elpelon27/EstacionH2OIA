@@ -142,7 +142,7 @@ class HybridLLM:
             response = self._try_provider(i, messages, **kwargs)
             if response:
                 logger.info(f"OK fallback: {PROVIDERS[i]['display']}")
-                old_idx = self.current_provider_idx
+                _old_idx = self.current_provider_idx
                 self.current_provider_idx = i
 
                 # Post-trabajo: ping al primario original
@@ -199,7 +199,8 @@ if __name__ == "__main__":
     print(f"{'='*60}\n")
 
     response = llm.chat(
-        "Confirma que recibes el mensaje. Eres Prometeo, asistente de Luis Martinez. Saluda brevemente.",
+        "Confirma que recibes el mensaje. Eres Prometeo, "
+        "asistente de Luis Martinez. Saluda brevemente.",
         system="Eres Prometeo, ingeniero senior. Tono venezolano, firma 💧.",
         max_tokens=200,
         temperature=0.7,
