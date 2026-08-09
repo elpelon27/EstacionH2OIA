@@ -279,6 +279,7 @@ def _is_within_business_hours() -> bool:
 # Métricas Prometheus — Lazy initialization para evitar duplicados en tests
 # ============================================================================
 
+
 def _get_prometheus_metrics():
     """Crear o retornar métricas Prometheus existentes (lazy singleton).
 
@@ -1325,6 +1326,7 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         # Notificar al consumer loop para procesamiento inmediato (sub-segundo)
         try:
             from skills.dispatch.consumer import notify_consumer
+
             notify_consumer()
         except Exception:
             pass  # Fail silently si consumer no está corriendo
@@ -2592,6 +2594,7 @@ async def _watchdog_loop() -> None:
 # Meta webhook message processor — core business logic
 # ============================================================================
 
+
 async def _process_meta_message(msg: dict[str, Any], value: dict[str, Any]) -> None:
     """
     Procesa un mensaje de Meta Cloud API ya validado y parseado.
@@ -2611,6 +2614,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Importar y registrar webhook Meta
     from api.webhook_meta import register_webhook_meta_routes, set_message_handler
+
     register_webhook_meta_routes(app)
     set_message_handler(_process_meta_message)
 
@@ -2666,6 +2670,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # Iniciar consumer loop en background (procesa dispatch_queue en tiempo real)
     from skills.dispatch.consumer import consumer_loop
+
     _consumer_task = asyncio.create_task(consumer_loop(poll_interval=5))
     logger.info("🔄 Consumer loop task creado")
 
@@ -2684,12 +2689,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
             await _recovery_task
 
     # Cancelar consumer loop
-    if '_consumer_task' in globals() and _consumer_task and not _consumer_task.done():
+    if "_consumer_task" in globals() and _consumer_task and not _consumer_task.done():
         _consumer_task.cancel()
         with suppress(asyncio.CancelledError):
             await _consumer_task
 
-    # Graceful shutdown
+        # Graceful shutdown
         logger.info("Cerrando conexiones...")
         if _telegram_bot:
             await _send_telegram(

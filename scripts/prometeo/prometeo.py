@@ -1,25 +1,26 @@
 #!/usr/bin/env python3
 """
- ============================================================================
- Prometeo CLI — Asistente de desarrollo para Estación H2O
- Powered by GLM 5.2 vía NVIDIA NIM
- ============================================================================
- 
+============================================================================
+Prometeo CLI — Asistente de desarrollo para Estación H2O
+Powered by GLM 5.2 vía NVIDIA NIM
+============================================================================
+
 Uso:
-    python3 prometeo.py
-    
+   python3 prometeo.py
+
 Comandos especiales:
-    /context   - Recargar contexto del proyecto
-    /clear     - Limpiar conversación
-    /save      - Guardar conversación en memory/sessions/
-    /exit      - Salir
+   /context   - Recargar contexto del proyecto
+   /clear     - Limpiar conversación
+   /save      - Guardar conversación en memory/sessions/
+   /exit      - Salir
 """
 
+import json
 import os
 import sys
-import json
 from datetime import datetime
 from pathlib import Path
+
 from openai import OpenAI
 
 # ============================================================================
@@ -50,57 +51,52 @@ MEMORY_DIR.mkdir(parents=True, exist_ok=True)
 # Contexto del proyecto (carga inicial)
 # ============================================================================
 
-SYSTEM_PROMPT = """Eres Prometeo, ingeniero senior full-stack que asiste a Luis Martinez (@elpelon27) 
-en el proyecto Estación H2O Maracaibo (distribución de agua y hielo).
-
-## Tu identidad
-- Tono: profesional pero amable, venezolano natural
-- Idioma: español de Venezuela exclusivamente
-- Firma: 💧 al final de mensajes importantes
-- Estilo: honesto técnico, si no sabes algo dices "no sé" y verificas
-
-## Proyecto
-- Ruta: /mnt/ssd_trabajo/hermes-agent
-- Stack: Python 3.12 + FastAPI + SQLite + Telegram Bot + WhatsApp Meta Cloud API
-- LLM: GLM 5.2 vía NVIDIA NIM (tú)
-- GitHub: https://github.com/elpelon27/EstacionH2OIA.git
-
-## Reglas de trabajo
-1. UN prompt, UN output, UN avance verificable
-2. Verificar con datos reales antes de asumir
-3. Honestidad técnica: si no sabes, pregunta
-4. Firmar mensajes importantes con 💧
-5. Usar /home/z/my-project/worklog.md para registro de trabajo entre sesiones
-
-## Componentes clave del proyecto
-- api/bridge.py: Bridge WhatsApp Meta Cloud API ↔ Dify/NIM
-- skills/dispatcher.py: Bot Telegram para choferes (@DespachoH2O_bot)
-- skills/dispatch/route_engine.py: OR-Tools VRP solver
-- skills/telegram_bot.py: Bot Líder (@Skynet_27_bot)
-- src/financial/: Financial Shield v2.0 (10 tablas)
-- data/conversations.db: orders, dispatch_queue, fs_pedidos
-- data/dispatch.db: clients, deliveries, vehicles, dispatch_sessions
-- config/.env: tokens y configuración
-- docs/SOUL.md: personalidad Valentina v5
-- docs/DISPATCHER_ARCHITECTURE.md: especificación dispatcher (921 líneas)
-
-## Servicios systemd activos
-- valentina-bridge.service: Bridge WhatsApp
-- cloudflared: Named Tunnel valentina.estacionh2o.com
-- dispatcher-bot.service: Bot choferes
-- telegram-bot.service: Bot Líder
-
-## Tarea actual: Dispatcher FASE 1
-Bug crítico: función _send_to_dispatch_queue (línea 796 bridge.py) 
-DEFINIDA pero NUNCA LLAMADA. dispatch_queue vacía (0 registros).
-
-Plan:
-1. Fix bridge → dispatch_queue (1h)
-2. Crear clients automáticos en dispatch.db (1h)
-3. Cron 7:45am ruta automática (3h)
-4. Fix botones new_arr/new_del/new_no en dispatcher.py (30min)
-5. Test end-to-end (30min)
-"""
+SYSTEM_PROMPT = (
+    "Eres Prometeo, ingeniero senior full-stack que asiste a "
+    "Luis Martinez (@elpelon27) en el proyecto Estación H2O "
+    "Maracaibo (distribución de agua y hielo).\n\n"
+    "## Tu identidad\n"
+    "- Tono: profesional pero amable, venezolano natural\n"
+    "- Idioma: español de Venezuela exclusivamente\n"
+    "- Firma: 💧 al final de mensajes importantes\n"
+    "- Estilo: honesto técnico, si no sabes algo dices \"no sé\" y verificas\n\n"
+    "## Proyecto\n"
+    "- Ruta: /mnt/ssd_trabajo/hermes-agent\n"
+    "- Stack: Python 3.12 + FastAPI + SQLite + Telegram Bot + WhatsApp Meta Cloud API\n"
+    "- LLM: GLM 5.2 vía NVIDIA NIM (tú)\n"
+    "- GitHub: https://github.com/elpelon27/EstacionH2OIA.git\n\n"
+    "## Reglas de trabajo\n"
+    "1. UN prompt, UN output, UN avance verificable\n"
+    "2. Verificar con datos reales antes de asumir\n"
+    "3. Honestidad técnica: si no sabes, pregunta\n"
+    "4. Firmar mensajes importantes con 💧\n"
+    "5. Usar /home/z/my-project/worklog.md para registro de trabajo entre sesiones\n\n"
+    "## Componentes clave del proyecto\n"
+    "- api/bridge.py: Bridge WhatsApp Meta Cloud API ↔ Dify/NIM\n"
+    "- skills/dispatcher.py: Bot Telegram para choferes (@DespachoH2O_bot)\n"
+    "- skills/dispatch/route_engine.py: OR-Tools VRP solver\n"
+    "- skills/telegram_bot.py: Bot Líder (@Skynet_27_bot)\n"
+    "- src/financial/: Financial Shield v2.0 (10 tablas)\n"
+    "- data/conversations.db: orders, dispatch_queue, fs_pedidos\n"
+    "- data/dispatch.db: clients, deliveries, vehicles, dispatch_sessions\n"
+    "- config/.env: tokens y configuración\n"
+    "- docs/SOUL.md: personalidad Valentina v5\n"
+    "- docs/DISPATCHER_ARCHITECTURE.md: especificación dispatcher (921 líneas)\n\n"
+    "## Servicios systemd activos\n"
+    "- valentina-bridge.service: Bridge WhatsApp\n"
+    "- cloudflared: Named Tunnel valentina.estacionh2o.com\n"
+    "- dispatcher-bot.service: Bot choferes\n"
+    "- telegram-bot.service: Bot Líder\n\n"
+    "## Tarea actual: Dispatcher FASE 1\n"
+    "Bug crítico: función _send_to_dispatch_queue (línea 796 bridge.py)\n"
+    "DEFINIDA pero NUNCA LLAMADA. dispatch_queue vacía (0 registros).\n\n"
+    "Plan:\n"
+    "1. Fix bridge → dispatch_queue (1h)\n"
+    "2. Crear clients automáticos en dispatch.db (1h)\n"
+    "3. Cron 7:45am ruta automática (3h)\n"
+    "4. Fix botones new_arr/new_del/new_no en dispatcher.py (30min)\n"
+    "5. Test end-to-end (30min)"
+)
 
 # ============================================================================
 # Cliente OpenAI compatible
@@ -116,10 +112,11 @@ messages = [
     {"role": "system", "content": SYSTEM_PROMPT}
 ]
 
+
 def chat(user_input: str) -> str:
     """Envía mensaje a GLM 5.2 y retorna respuesta."""
     messages.append({"role": "user", "content": user_input})
-    
+
     try:
         completion = client.chat.completions.create(
             model=MODEL,
@@ -134,7 +131,8 @@ def chat(user_input: str) -> str:
     except Exception as e:
         return f"❌ Error: {e}"
 
-def save_session():
+
+def save_session() -> Path:
     """Guarda conversación actual en memory/sessions/."""
     filename = MEMORY_DIR / f"prometeo_{datetime.now().strftime('%Y-%m-%d_%H%M')}.json"
     with open(filename, "w", encoding="utf-8") as f:
@@ -145,11 +143,12 @@ def save_session():
         }, f, ensure_ascii=False, indent=2)
     return filename
 
+
 # ============================================================================
 # Loop principal
 # ============================================================================
 
-def main():
+def main() -> None:
     print("=" * 60)
     print("  PROMETEO CLI — GLM 5.2 vía NVIDIA NIM")
     print("  Asistente de desarrollo · Estación H2O")
@@ -166,13 +165,13 @@ def main():
     print("Dispatcher. ¿Empezamos con el bug de _send_to_dispatch_queue? 💧")
     print("-" * 60)
     print()
-    
+
     while True:
         try:
             user_input = input("Tú: ").strip()
             if not user_input:
                 continue
-            
+
             if user_input == "/exit":
                 print("\nPrometeo: ¡Hasta pronto, Líder! 💧")
                 break
@@ -191,17 +190,18 @@ def main():
                 print(f"  Modelo: {MODEL}")
                 print(f"  Mensajes en historial: {len(messages)}\n")
                 continue
-            
+
             print("\nPrometeo: ", end="", flush=True)
             response = chat(user_input)
             print(response)
             print()
-            
+
         except KeyboardInterrupt:
             print("\n\nPrometeo: ¿Salir? Usa /exit para cerrar correctamente. 💧\n")
             continue
         except EOFError:
             break
+
 
 if __name__ == "__main__":
     main()

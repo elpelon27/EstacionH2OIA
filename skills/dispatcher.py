@@ -1,8 +1,8 @@
 """
- ============================================================================
- Dispatcher Bot — Sistema de Despacho Inteligente
- Estación H2O · Maracaibo, Venezuela
- ============================================================================
+============================================================================
+Dispatcher Bot — Sistema de Despacho Inteligente
+Estación H2O · Maracaibo, Venezuela
+============================================================================
 
 Bot de Telegram para operadores (YORDANIS + EVERT).
 
@@ -22,11 +22,20 @@ import sqlite3
 import sys
 import time
 from datetime import datetime, timedelta, timezone
-
-# Cargar .env
 from pathlib import Path
 from typing import Any
 
+from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
+from telegram.ext import (
+    Application,
+    CallbackQueryHandler,
+    CommandHandler,
+    ContextTypes,
+)
+
+from skills.dispatch.route_engine import check_operation_perimeter
+
+# Cargar .env
 env_path = Path("/mnt/ssd_trabajo/hermes-agent/config/.env")
 if env_path.exists():
     for line in env_path.read_text().splitlines():
@@ -36,18 +45,6 @@ if env_path.exists():
             os.environ.setdefault(key.strip(), val.strip())
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
-
-from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
-from telegram.ext import (
-    Application,
-    CallbackQueryHandler,
-    CommandHandler,
-    ContextTypes,
-    MessageHandler,
-    filters,
-)
-
-from skills.dispatch.route_engine import check_operation_perimeter
 
 logging.basicConfig(
     level=logging.INFO,
@@ -102,7 +99,7 @@ def register_chofer(chat_id: int, empleado_id: int, nombre: str) -> None:
     conn.execute(
         """
         UPDATE vehicles SET telegram_chat_id = ? WHERE id = ?
-    """,
+        """,
         (chat_id, empleado_id),
     )
     conn.commit()
@@ -141,7 +138,7 @@ def get_pending_deliveries_for_chofer(vehicle_id: int) -> list[dict[str, Any]]:
         JOIN clients c ON d.client_id = c.id
         WHERE d.vehicle_id = ? AND d.status = 'pending'
         ORDER BY d.order_sequence ASC
-    """,
+        """,
         (vehicle_id,),
     ).fetchall()
     conn.close()
@@ -155,25 +152,29 @@ def update_delivery_status(delivery_id: int, status: str, notes: str = "") -> No
     if status == "delivered":
         conn.execute(
             """
-            UPDATE deliveries SET status = ?, actual_departure = ?, operator_notes = ?, updated_at = ?
+            UPDATE deliveries
+            SET status = ?, actual_departure = ?,
+                operator_notes = ?, updated_at = ?
             WHERE id = ?
-        """,
+            """,
             (status, now, notes, now, delivery_id),
         )
     elif status == "arrived":
         conn.execute(
             """
-            UPDATE deliveries SET status = ?, actual_arrival = ?, updated_at = ?
+            UPDATE deliveries
+            SET status = ?, actual_arrival = ?, updated_at = ?
             WHERE id = ?
-        """,
+            """,
             (status, now, now, delivery_id),
         )
     else:
         conn.execute(
             """
-            UPDATE deliveries SET status = ?, operator_notes = ?, updated_at = ?
+            UPDATE deliveries
+            SET status = ?, operator_notes = ?, updated_at = ?
             WHERE id = ?
-        """,
+            """,
             (status, notes, now, delivery_id),
         )
     conn.commit()
@@ -195,9 +196,10 @@ def save_gps_track(
     conn = get_dispatch_db()
     conn.execute(
         """
-        INSERT INTO gps_tracks (vehicle_id, lat, lng, accuracy, speed_kmh, source, delivery_id, track_type, created_at)
+        INSERT INTO gps_tracks
+        (vehicle_id, lat, lng, accuracy, speed_kmh, source, delivery_id, track_type, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """,
+        """,
         (vehicle_id, lat, lng, accuracy, speed, source, delivery_id, track_type, now_epoch()),
     )
     conn.commit()
@@ -216,7 +218,7 @@ def check_geofence(vehicle_id: int, lat: float, lng: float) -> bool:
             """
             INSERT INTO geofence_events (vehicle_id, event_type, lat, lng, created_at)
             VALUES (?, 'exit', ?, ?, ?)
-        """,
+            """,
             (vehicle_id, lat, lng, now_epoch()),
         )
         conn.commit()
@@ -278,7 +280,8 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(
-        "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n" "¿Quién eres?",
+        "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n"
+        "¿Quién eres?",
         reply_markup=reply_markup,
     )
 
@@ -458,7 +461,8 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                     InlineKeyboardButton("❌ No responde", callback_data=f"no_{next_d['id']}"),
                 ],
             ]
-            await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
+            reply_markup = InlineKeyboardMarkup(keyboard)
+            await query.edit_message_text(msg, reply_markup=reply_markup)
         else:
             await query.edit_message_text(
                 "✅ Entrega completada.\n\n"
@@ -510,10 +514,13 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             # informativa para que chofer sepa que su ack no generó acción.
             await query.edit_message_text(
                 "ℹ️ Pedido notificado. La ruta oficial se planifica a las 7:45 AM.\n"
-                "Si ya lo entregaste/completaste, el sistema lo procesará en la siguiente ruta.\n"
+                "Si ya lo entregaste/completaste, el sistema lo procesará en la "
+                "siguiente ruta.\n"
                 "💧 Estación H2O"
             )
-            logger.info("new_%s ack sin delivery asociado (vehicle_id=%d)", action_kind, vehicle_id)
+            logger.info(
+                "new_%s ack sin delivery asociado (vehicle_id=%d)", action_kind, vehicle_id
+            )
             return
 
         delivery_id = delivery["id"]
@@ -526,68 +533,80 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             )
         elif action_kind == "del":
             update_delivery_status(delivery_id, "delivered")
+
+            # SWAP: Notificar WorkloadRouter para asignar
+            # botellón loaner (available -> in_transit_full)
+            try:
+                from core.workload_router import get_router
+
+                router = get_router()
+                result = await router.execute(
+                    trigger="dispatch_request",
+                    action="assign_loaner_bottle",
+                    params={"vehicle_id": vehicle_id, "delivery_id": delivery_id},
+                )
+                if result.get("success"):
+                    logger.info(
+                        "SWAP: loaner bottle asignado a vehicle_id=%d, delivery_id=%d",
+                        vehicle_id,
+                        delivery_id,
+                    )
+                else:
+                    logger.warning(
+                        "SWAP: failed to assign loaner: %s", result.get("error", "unknown")
+                    )
+            except Exception as e:
+                logger.warning("SWAP: error notificando WorkloadRouter: %s", e)
+
             await query.edit_message_text(
-                "✅ Entrega completada.\n\n🏁 ¡Buen trabajo!\n💧 Estación H2O"
+                "✅ Llegada registrada.\n\n"
+                "📍 Por favor, envía tu ubicación actual por GPS.\n"
+                "(Toca el clip 📎 → Ubicación → Enviar mi ubicación actual)"
+            )
+        elif action_kind == "del":
+            update_delivery_status(delivery_id, "delivered")
+
+            # SWAP: Notificar al WorkloadRouter para tracking
+            # de botellón (available -> in_transit_full -> with_client)
+            try:
+                from core.workload_router import get_router
+
+                router = get_router()
+                result = await router.execute(
+                    trigger="dispatch_request",
+                    action="track_loaner_bottle",
+                    params={"vehicle_id": vehicle_id, "delivery_id": delivery_id},
+                )
+                if result.get("success"):
+                    logger.info(
+                        "SWAP: loaner bottle tracking OK vehicle_id=%d, delivery_id=%d",
+                        vehicle_id,
+                        delivery_id,
+                    )
+                else:
+                    logger.warning(
+                        "SWAP: tracking failed: %s", result.get("error", "unknown")
+                    )
+            except Exception as e:
+                logger.warning("SWAP: error notificando WorkloadRouter: %s", e)
+
+            await query.edit_message_text(
+                "✅ Entrega completada. ✅ Botellón loaner tracking activado.\n"
+                "━━━━━━━━━━━━━━━━\n"
+                "💧 Estación H2O"
             )
         elif action_kind == "no":
             update_delivery_status(delivery_id, "no_answer", "Cliente no responde")
+
             await query.edit_message_text(
-                "❌ Marcado como 'No responde'.\n\n" "El administrador será notificado."
+                "❌ Marcado como 'No responde'.\n\n"
+                "El administrador será notificado.\n"
+                "Usa /siguiente para ver la próxima parada."
             )
 
 
-async def handle_location(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Recibe ubicación GPS del chofer vía Telegram."""
-    chat = update.effective_chat
-    message = update.message
-
-    # Guard clause - handle edge cases where Telegram sends update without chat/message
-    if chat is None or message is None:
-        logger.warning("handle_location: update sin chat o message (edge case Telegram)")
-        return
-
-    chat_id = chat.id
-    chofer = get_chofer_by_chat_id(chat_id)
-
-    if not chofer:
-        return
-
-    location = message.location
-    if location is None:
-        logger.warning("handle_location: message sin location")
-        return
-    lat = location.latitude
-    lng = location.longitude
-
-    # Guardar GPS (DATOS = ORO para mapa de calor)
-    save_gps_track(
-        vehicle_id=chofer["id"],
-        lat=lat,
-        lng=lng,
-        accuracy=location.horizontal_accuracy if hasattr(location, "horizontal_accuracy") else None,
-        source="telegram",
-        track_type="checkin_arrive",
-    )
-
-    # Verificar geofencing
-    in_perimeter = check_geofence(chofer["id"], lat, lng)
-
-    if in_perimeter:
-        await message.reply_text(
-            "📍 Ubicación registrada.\n"
-            "✅ Dentro del perímetro de operación.\n\n"
-            "Entrega en proceso. Toca ✅ Entregado cuando completes."
-        )
-    else:
-        await message.reply_text(
-            "📍 Ubicación registrada.\n"
-            "⚠️ Estás fuera del perímetro de operación (13km).\n"
-            "Verifica que la ubicación sea correcta."
-        )
-
-
 async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Estado del chofer."""
+    """Estado actual del chofer."""
     chat = update.effective_chat
     message = update.message
     assert chat is not None and message is not None
@@ -598,207 +617,112 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await message.reply_text("❌ No estás registrado. Envía /start")
         return
 
-    deliveries = get_pending_deliveries_for_chofer(chofer["id"])
-    total = len(deliveries)
-    delivered = len([d for d in deliveries if d["status"] == "delivered"])
-    pending = total - delivered
+    conn = get_dispatch_db()
+    deliveries = conn.execute(
+        """
+        SELECT status, COUNT(*) as count FROM deliveries
+        WHERE vehicle_id = ? GROUP BY status
+        """,
+        (chofer["id"],),
+    ).fetchall()
+    conn.close()
 
-    await message.reply_text(
-        f"📊 ESTADO — {chofer['operator_name']}\n"
-        f"━━━━━━━━━━━━━━━━\n"
-        f"🚚 {chofer['name']}\n"
-        f"📦 Capacidad: {chofer['current_full_load']}/{chofer['max_full_bottles']} llenos\n\n"
-        f"📋 Entregas hoy:\n"
-        f"  Total: {total}\n"
-        f"  Completadas: {delivered}\n"
-        f"  Pendientes: {pending}"
-    )
+    msg = f"📊 ESTADO — {chofer['operator_name']}\n"
+    msg += "━━━━━━━━━━━━━━━━\n"
+    for d in deliveries:
+        emoji = "✅" if d["status"] == "delivered" else "⏳"
+        msg += f"{emoji} {d['status']}: {d['count']}\n"
+    msg += "━━━━━━━━━━━━━━━━\n"
+    msg += "💧 Estación H2O"
+
+    await message.reply_text(msg)
 
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    message = update.message
-    assert message is not None
-    await message.reply_text(
-        "🚚 Sistema de Despacho — Estación H2O\n"
+    """Ayuda."""
+    await update.message.reply_text(
+        "🤖 COMANDOS DISPATCHER\n"
         "━━━━━━━━━━━━━━━━\n"
-        "Comandos:\n"
-        "/start — Registrarse\n"
+        "/start — Registro inicial\n"
         "/ruta — Ver ruta completa del día\n"
-        "/siguiente — Ver próxima parada\n"
-        "/status — Ver tu estado\n"
-        "/help — Esta ayuda\n\n"
-        "💡 Envía tu ubicación GPS en cada parada\n"
-        "💧 Estación H2O — #FastAndFurious"
+        "/siguiente — Próxima parada con botones\n"
+        "/status — Tu estado actual\n"
+        "/help — Esta ayuda\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "BOTONES:\n"
+        "📍 Llegué — Confirmar llegada a cliente\n"
+        "✅ Entregado — Confirmar entrega + SWAP\n"
+        "❌ No responde — Cliente no contesta\n"
+        "━━━━━━━━━━━━━━━━\n"
+        "💧 Estación H2O"
     )
 
 
-# ============================================================================
-# Envío de pedidos a choferes (llamado por bridge)
-# ============================================================================
+async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Health check endpoint para kill-switch bot."""
+    import sqlite3
 
-
-async def send_delivery_to_chofer(
-    app: "Application[Any, Any, Any, Any, Any, Any]",
-    vehicle_id: int,
-    client_name: str,
-    client_phone: str,
-    bottles_full: int,
-    lat: float,
-    lng: float,
-    address: str,
-    total_eur: float = 0,
-    total_bs: float = 0,
-    metodo_pago: str = "",
-) -> bool:
-    """Envía un pedido al chofer por Telegram."""
-
-    conn = get_dispatch_db()
-    vehicle = conn.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
-    conn.close()
-
-    if not vehicle or not vehicle["telegram_chat_id"]:
-        logger.warning("Vehículo %d no tiene chat_id de Telegram", vehicle_id)
-        return False
-
-    chat_id = vehicle["telegram_chat_id"]
-    gps_url = format_gps_url(lat, lng) if lat and lng else ""
-
-    # Construir mensaje según método de pago
-    if metodo_pago and ("efectivo" in metodo_pago.lower()):
-        bs_str = f" (Bs. {total_bs:.2f})" if total_bs and total_bs > 0 else ""
-        msg = (
-            f"🚚 NUEVO PEDIDO\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"👤 {client_name}\n"
-            f"📱 {client_phone}\n"
-            f"📦 {bottles_full} botellones de agua\n"
-            f"💰 Total: €{total_eur:.2f}{bs_str}\n"
-        )
-        if gps_url:
-            msg += f"📍 {gps_url}\n"
-        msg += "⚠️ PAGO EN EFECTIVO — Cobrar al entregar\n"
-        msg += "━━━━━━━━━━━━━━━━"
-    else:
-        msg = (
-            f"🚚 NUEVO PEDIDO\n"
-            f"━━━━━━━━━━━━━━━━\n"
-            f"👤 {client_name}\n"
-            f"📱 {client_phone}\n"
-            f"📦 {bottles_full} botellones de agua\n"
-        )
-        if gps_url:
-            msg += f"📍 {gps_url}\n"
-        msg += "━━━━━━━━━━━━━━━━"
-
-    keyboard = [
-        [
-            InlineKeyboardButton("📍 Llegué", callback_data=f"new_arr_{vehicle_id}"),
-            InlineKeyboardButton("✅ Entregado", callback_data=f"new_del_{vehicle_id}"),
-        ],
-        [
-            InlineKeyboardButton("❌ No responde", callback_data=f"new_no_{vehicle_id}"),
-        ],
-    ]
-    reply_markup = InlineKeyboardMarkup(keyboard)
-
+    # Check dispatch DB connectivity
+    db_ok = False
+    pending_deliveries = 0
     try:
-        await app.bot.send_message(
-            chat_id=chat_id,
-            text=msg,
-            reply_markup=reply_markup,
-        )
-        logger.info("📦 Pedido enviado a %s (vehicle=%d)", vehicle["operator_name"], vehicle_id)
-        return True
+        conn = sqlite3.connect("/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
+        conn.execute("PRAGMA foreign_keys = ON")
+        row = conn.execute(
+            'SELECT COUNT(*) FROM deliveries WHERE status = "pending"'
+        ).fetchone()
+        pending_deliveries = row[0] if row else 0
+        conn.close()
+        db_ok = True
     except Exception as e:
-        logger.error("Error enviando a chofer %s: %s", vehicle["operator_name"], e)
-        return False
+        logger.error("Health check DB error: %s", e)
 
+    # Check bridge HTTP
+    bridge_ok = False
+    try:
+        import httpx
 
-# ============================================================================
-# Check-in 8:00 AM
-# ============================================================================
+        async with httpx.AsyncClient() as client:
+            resp = await client.get("http://localhost:8000/health", timeout=3.0)
+            bridge_ok = resp.status_code == 200
+    except Exception:
+        pass
 
-
-async def enviar_checkin_manana(app: "Application[Any, Any, Any, Any, Any, Any]") -> None:
-    """Envía check-in a todos los choferes a las 8am."""
-    choferes = get_all_choferes()
-
-    for chofer in choferes:
-        keyboard = [
-            [
-                InlineKeyboardButton("✅ Sí, llegué", callback_data=f"checkin_yes_{chofer['id']}"),
-                InlineKeyboardButton("❌ No puedo hoy", callback_data=f"checkin_no_{chofer['id']}"),
-            ]
-        ]
-        try:
-            await app.bot.send_message(
-                chat_id=chofer["telegram_chat_id"],
-                text=f"🌅 Buenos días {chofer['operator_name']}\n¿Confirmas tu llegada hoy?",
-                reply_markup=InlineKeyboardMarkup(keyboard),
-            )
-            logger.info("🌅 Check-in enviado a %s", chofer["operator_name"])
-        except Exception as e:
-            logger.error("Error check-in %s: %s", chofer["operator_name"], e)
-
-
-async def callback_checkin(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    query = update.callback_query
-    assert query is not None
-    await query.answer()
-
-    data = query.data
-    assert data is not None
-    if data.startswith("checkin_yes_"):
-        vehicle_id = int(data.replace("checkin_yes_", ""))
-        conn = get_dispatch_db()
-        v = conn.execute(
-            "SELECT operator_name FROM vehicles WHERE id = ?", (vehicle_id,)
-        ).fetchone()
-        conn.close()
-        nombre = v["operator_name"] if v else "?"
-        await query.edit_message_text(f"✅ Check-in confirmado: {nombre}\n¡Buen día! 💧")
-        logger.info("🌅 Check-in OK: %s", nombre)
-    elif data.startswith("checkin_no_"):
-        vehicle_id = int(data.replace("checkin_no_", ""))
-        conn = get_dispatch_db()
-        v = conn.execute(
-            "SELECT operator_name FROM vehicles WHERE id = ?", (vehicle_id,)
-        ).fetchone()
-        conn.close()
-        nombre = v["operator_name"] if v else "?"
-        await query.edit_message_text(
-            f"❌ {nombre} no puede hoy.\nEl administrador será notificado."
-        )
-        logger.warning("⚠️ Check-in negativo: %s", nombre)
-
-
-# ============================================================================
-# Aplicación principal
-# ============================================================================
+    status = "🟢 HEALTHY" if (db_ok and bridge_ok) else "🔴 DEGRADED"
+    msg = (
+        f"🏥 HEALTH CHECK — {status}\n"
+        f"━━━━━━━━━━━━━━━━\n"
+        f"DB: {'🟢' if db_ok else '🔴'}\n"
+        f"Bridge: {'🟢' if bridge_ok else '🔴'}\n"
+        f"Pending deliveries: {pending_deliveries}\n"
+        f"━━━━━━━━━━━━━━━━"
+    )
+    await update.message.reply_text(msg)
 
 
 def main() -> None:
-    logger.info("🚚 Dispatcher Bot iniciando...")
+    """Entry point para systemd."""
+    if not DISPATCHER_TOKEN:
+        logger.error("DISPATCHER_BOT_TOKEN no configurado")
+        sys.exit(1)
 
-    app = Application.builder().token(DISPATCHER_TOKEN).build()
+    application = Application.builder().token(DISPATCHER_TOKEN).build()
 
     # Comandos
-    app.add_handler(CommandHandler("start", cmd_start))
-    app.add_handler(CommandHandler("ruta", cmd_ruta))
-    app.add_handler(CommandHandler("siguiente", cmd_siguiente))
-    app.add_handler(CommandHandler("status", cmd_status))
-    app.add_handler(CommandHandler("help", cmd_help))
+    application.add_handler(CommandHandler("start", cmd_start))
+    application.add_handler(CommandHandler("ruta", cmd_ruta))
+    application.add_handler(CommandHandler("siguiente", cmd_siguiente))
+    application.add_handler(CommandHandler("status", cmd_status))
+    application.add_handler(CommandHandler("help", cmd_help))
+    application.add_handler(CommandHandler("health", cmd_health))
 
     # Callbacks
-    app.add_handler(CallbackQueryHandler(callback_registro, pattern="^reg_"))
-    app.add_handler(CallbackQueryHandler(callback_accion, pattern="^(arr_|del_|no_|new_)"))
-    app.add_handler(CallbackQueryHandler(callback_checkin, pattern="^checkin_"))
+    application.add_handler(CallbackQueryHandler(callback_registro, pattern="^reg_"))
+    application.add_handler(CallbackQueryHandler(callback_accion, pattern="^(arr_|del_|no_|new_)"))
+    application.add_handler(CallbackQueryHandler(callback_registro, pattern="^reg_"))
 
-    # Location handler (GPS del chofer)
-    app.add_handler(MessageHandler(filters.LOCATION, handle_location))
-
-    logger.info("🚚 Dispatcher Bot listo — esperando choferes...")
-    app.run_polling(allowed_updates=Update.ALL_TYPES)
+    logger.info("🚀 Dispatcher Bot iniciado — %s", datetime.now().isoformat())
+    application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 
 if __name__ == "__main__":

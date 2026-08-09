@@ -26,17 +26,6 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-# Cargar .env
-env_path = Path("/mnt/ssd_trabajo/hermes-agent/config/.env")
-if env_path.exists():
-    for line in env_path.read_text().splitlines():
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, _, val = line.partition("=")
-            os.environ.setdefault(key.strip(), val.strip())
-
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
-
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import (
     Application,
@@ -48,6 +37,17 @@ from telegram.ext import (
 )
 
 from skills.dispatch.route_engine import check_operation_perimeter
+
+# Cargar .env
+env_path = Path("/mnt/ssd_trabajo/hermes-agent/config/.env")
+if env_path.exists():
+    for line in env_path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, _, val = line.partition("=")
+            os.environ.setdefault(key.strip(), val.strip())
+
+sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
 logging.basicConfig(
     level=logging.INFO,
@@ -156,7 +156,9 @@ def update_delivery_status(delivery_id: int, status: str, notes: str = "") -> No
     if status == "delivered":
         conn.execute(
             """
-            UPDATE deliveries SET status = ?, actual_departure = ?, operator_notes = ?, updated_at = ?
+            UPDATE deliveries
+            SET status = ?, actual_departure = ?,
+                operator_notes = ?, updated_at = ?
             WHERE id = ?
             """,
             (status, now, notes, now, delivery_id),
@@ -196,7 +198,8 @@ def save_gps_track(
     conn = get_dispatch_db()
     conn.execute(
         """
-        INSERT INTO gps_tracks (vehicle_id, lat, lng, accuracy, speed_kmh, source, delivery_id, track_type, created_at)
+        INSERT INTO gps_tracks
+        (vehicle_id, lat, lng, accuracy, speed_kmh, source, delivery_id, track_type, created_at)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
         """,
         (vehicle_id, lat, lng, accuracy, speed, source, delivery_id, track_type, now_epoch()),
@@ -307,7 +310,11 @@ class DispatcherTelegramBot:
         # Mostrar vehículos disponibles para selección
         conn = get_dispatch_db()
         vehicles = conn.execute(
-            "SELECT id, name, operator_name FROM vehicles WHERE active = 1 AND telegram_chat_id IS NULL"
+            """
+            SELECT id, name, operator_name
+            FROM vehicles
+            WHERE active = 1 AND telegram_chat_id IS NULL
+            """
         ).fetchall()
         conn.close()
 
@@ -495,9 +502,6 @@ class DispatcherTelegramBot:
     async def cmd_health(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         """Health check endpoint."""
         import sqlite3
-        from datetime import datetime, timedelta, timezone
-
-        CARACAS_TZ = timezone(timedelta(hours=-4))
 
         # Check dispatch DB connectivity
         db_ok = False
@@ -573,7 +577,8 @@ class DispatcherTelegramBot:
             delivery_id = int(data.replace("del_", ""))
             update_delivery_status(delivery_id, "delivered")
 
-            # SWAP: Notificar WorkloadRouter para asignar botellón loaner (available -> in_transit_full)
+            # SWAP: Notificar WorkloadRouter para asignar
+            # botellón loaner (available -> in_transit_full)
             try:
                 from core.workload_router import get_router
 
@@ -669,7 +674,8 @@ class DispatcherTelegramBot:
                 # informativa para que chofer sepa que su ack no generó acción.
                 await query.edit_message_text(
                     "ℹ️ Pedido notificado. La ruta oficial se planifica a las 7:45 AM.\n"
-                    "Si ya lo entregaste/completaste, el sistema lo procesará en la siguiente ruta.\n"
+                    "Si ya lo entregaste/completaste, el sistema lo procesará en la "
+                    "siguiente ruta.\n"
                     "💧 Estación H2O"
                 )
                 logger.info(
@@ -688,7 +694,8 @@ class DispatcherTelegramBot:
             elif action_kind == "del":
                 update_delivery_status(delivery_id, "delivered")
 
-                # SWAP: Notificar al WorkloadRouter para tracking de botellón (available -> in_transit_full -> with_client)
+                # SWAP: Notificar al WorkloadRouter para tracking
+                # de botellón (available -> in_transit_full -> with_client)
                 try:
                     from core.workload_router import get_router
 

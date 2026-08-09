@@ -396,9 +396,7 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
             )
 
         except Exception as e:
-            logger.exception(
-                "Error procesando pedido %s: %s", order.get("id", "?"), e
-            )
+            logger.exception("Error procesando pedido %s: %s", order.get("id", "?"), e)
             stats["errors"] += 1
 
     logger.info(
@@ -493,9 +491,7 @@ def _mark_notifications_processed() -> None:
     """Marca notificaciones como procesadas."""
     try:
         conn = _get_dispatch_db()
-        conn.execute(
-            "UPDATE dispatch_notifications SET processed = 1 WHERE processed = 0"
-        )
+        conn.execute("UPDATE dispatch_notifications SET processed = 1 WHERE processed = 0")
         conn.commit()
         conn.close()
     except Exception:

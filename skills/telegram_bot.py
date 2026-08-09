@@ -260,9 +260,9 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not _is_authorized(update):
         return await _unauthorized(update)
     import httpx
-    from datetime import datetime, timedelta, timezone
-    CARACAS_TZ = timezone(timedelta(hours=-4))
-    
+    # CARACAS_TZ not used in this function, removed
+    # caracas_tz = timezone(timedelta(hours=-4))
+
     # Check bridge health
     bridge_ok = False
     bridge_details = {}
@@ -274,7 +274,7 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 bridge_details = resp.json()
     except Exception as e:
         logger.warning(f'Health check bridge error: {e}')
-    
+
     # Check SQLite connectivity
     sqlite_ok = False
     try:
@@ -286,10 +286,10 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         sqlite_ok = True
     except Exception as e:
         logger.warning(f'Health check SQLite error: {e}')
-    
+
     # Check kill switch status
     kill_active = os.path.exists(KILL_SWITCH_FILE)
-    
+
     status_emoji = '✅' if (bridge_ok and sqlite_ok and not kill_active) else '⚠️'
     health_text = (
         f'{status_emoji} <b>Health Check - Kill Switch Bot</b>\n\n'
