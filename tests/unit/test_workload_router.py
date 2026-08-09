@@ -78,6 +78,7 @@ async def test_execute_inventory_skill(router):
 @pytest.mark.asyncio
 async def test_execute_payment_skill(router):
     """execute() con trigger payment_received debe llamar a PaymentSkill."""
+    # Patch the class where it's used in workload_router
     with patch("skills.payment_skill.PaymentSkill") as mock_skill_class:
         mock_skill_instance = AsyncMock()
         mock_skill_instance.execute = AsyncMock(return_value={"success": True, "amount": 100})

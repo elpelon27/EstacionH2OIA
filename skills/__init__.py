@@ -1,1 +1,2 @@
-from skills.payment_skill import PaymentSkill
+"""Skills modulares de Hermes Agent."""
+# PaymentSkill importado lazy en tests para evitar dependencia de ollama en CI
