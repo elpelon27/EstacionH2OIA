@@ -78,10 +78,16 @@ async def test_execute_inventory_skill(router):
 @pytest.mark.asyncio
 async def test_execute_payment_skill(router):
     """execute() con trigger payment_received debe llamar a PaymentSkill."""
-    with patch("skills.payment_skill.PaymentSkill.execute", new=AsyncMock(return_value={"success": True, "amount": 100})):
+    with patch("skills.payment_skill.PaymentSkill") as mock_skill_class:
+        mock_skill_instance = AsyncMock()
+        mock_skill_instance.execute = AsyncMock(return_value={"success": True, "amount": 100})
+        mock_skill_class.return_value = mock_skill_instance
+
         result = await router.execute(trigger="payment_received", amount=100)
+
     assert result["success"] is True
     assert result["amount"] == 100
+    mock_skill_instance.execute.assert_called_once_with(amount=100)
 
 
 @pytest.mark.asyncio
