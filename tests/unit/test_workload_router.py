@@ -1,4 +1,17 @@
 """Tests para core/workload_router.py."""
+import sys
+from unittest.mock import MagicMock
+
+# Mock skills.payment_skill module before any imports (ollama not in CI)
+mock_payment_skill = MagicMock()
+mock_payment_skill.PaymentSkill = MagicMock()
+sys.modules["skills.payment_skill"] = mock_payment_skill
+
+# Also mock parent skills module
+mock_skills = MagicMock()
+mock_skills.payment_skill = mock_payment_skill
+sys.modules["skills"] = mock_skills
+
 import pytest
 from datetime import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -78,8 +91,9 @@ async def test_execute_inventory_skill(router):
 @pytest.mark.asyncio
 async def test_execute_payment_skill(router):
     """execute() con trigger payment_received debe llamar a PaymentSkill."""
-    # Patch the class where it's used in workload_router
-    with patch("skills.payment_skill.PaymentSkill") as mock_skill_class:
+    # Patch the mocked module's PaymentSkill class
+    import skills.payment_skill
+    with patch.object(skills.payment_skill, "PaymentSkill") as mock_skill_class:
         mock_skill_instance = AsyncMock()
         mock_skill_instance.execute = AsyncMock(return_value={"success": True, "amount": 100})
         mock_skill_class.return_value = mock_skill_instance
