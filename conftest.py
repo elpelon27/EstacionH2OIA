@@ -43,7 +43,7 @@ LOG_LEVEL=DEBUG
 
 
 @pytest.fixture(autouse=True, scope="session")
-def init_memory_db():
+def init_memory_db() -> Generator[None, None, None]:
     """Inicializa schema de Financial Shield en :memory: para tests en CI."""
     if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
         from src.financial.database import init_database_v3

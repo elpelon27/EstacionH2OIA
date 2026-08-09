@@ -5,6 +5,7 @@ Endpoints:
 - POST /webhook/banco/R4consulta   - Consulta/validación cliente (banco → nosotros)
 """
 import logging
+from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel
@@ -290,7 +291,7 @@ async def webhook_mb_consulta(
 
 
 @router.get("/health", summary="Health check R4 Banco")
-async def health_check():
+async def health_check() -> dict[str, Any]:
     return {
         "service": "R4 Banco Webhooks",
         "status": "healthy",
