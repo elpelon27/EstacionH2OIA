@@ -60,7 +60,7 @@ ROUTE_TABLE: dict[str, Route] = {
     "code_generation_critical": Route.FUSION,
     "rag_history_query": Route.OPENROUTER_GEMINI,
     "log_summary_daily": Route.OPENROUTER_GLM,
-    "prompt_validation": Route.FUSION,
+    "prompt_validation": Route.OPENROUTER_CLAUDE,
     "bug_diagnosis": Route.FUSION,
 }
 
