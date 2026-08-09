@@ -15,6 +15,7 @@ from typing import Any
 
 from openai import AsyncOpenAI
 from openai.types.chat import ChatCompletionMessageParam
+
 from core.config import get_settings
 from core.logger import get_logger
 
