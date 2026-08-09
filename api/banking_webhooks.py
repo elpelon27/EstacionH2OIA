@@ -16,7 +16,7 @@ from src.banking.r4_models import (
     R4NotificaRequest,
     R4NotificaResponse,
 )
-from src.financial import verificacion  # type: ignore[import-not-found]
+from src.financial import verificacion
 from src.financial.database import (
     buscar_pedidos_por_telefono_monto,
     seleccionar_mejor_match,

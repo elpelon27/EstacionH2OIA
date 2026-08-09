@@ -85,7 +85,7 @@ except ImportError:
 
 # P1-2: sdnotify para watchdog systemd
 try:
-    import sdnotify  # type: ignore[import-untyped]
+    import sdnotify
 except ImportError:
     sdnotify = None
 
@@ -118,8 +118,8 @@ try:
         global _fs_agent
         if _fs_agent is None:
             _fs_agent = get_fs_agent()
-            _fs_agent.init()  # type: ignore[no-untyped-call]
-        return _fs_agent
+            _fs_agent.init()
+            return _fs_agent
 except Exception:
     _fs_agent = None
 
@@ -129,7 +129,7 @@ except Exception:
 
 # P1-2: sdnotify para watchdog systemd
 try:
-    import sdnotify  # type: ignore[import-untyped]
+    import sdnotify
 except ImportError:
     sdnotify = None
 

@@ -29,6 +29,11 @@ disallow_incomplete_defs = false
 module = "ortools.*"
 ignore_missing_imports = true
 
+# sdnotify - no tiene stubs tipados
+[[tool.mypy.overrides]]
+module = "sdnotify"
+ignore_missing_imports = true
+
 # Financial module - relax some strict settings for now
 [[tool.mypy.overrides]]
 module = "financial.*"
