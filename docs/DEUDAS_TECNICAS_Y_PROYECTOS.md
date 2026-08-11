@@ -1,5 +1,5 @@
 # 📋 DEUDAS TÉCNICAS Y PROYECTOS - Estación H2O / Valentina
-**Última actualización:** 2026-08-08 | **Commit:** `42bde4f` | **Estado CI:** ✅ GREEN
+**Última actualización:** 2026-08-11 | **Commit:** `003d43e` | **Estado CI:** ✅ GREEN
 
 ---
 
@@ -14,6 +14,9 @@
 | **DT-06** | prometeo-telegram sin hardening systemd | MemoryMax, CPUQuota, RestartSec exponencial, sandboxing | `9d6cdf9` |
 | **DT-07** | cloudflared sin watchdog | `cloudflared-watchdog.timer` (cada 60s, HTTP health) | `c7889b5` |
 | **DT-08** | Logs NVIDIA/GDM spam journalctl | `/etc/modprobe.d/nvidia.conf` con `NVreg_LogLevel=0` | `ae83637` |
+| **DT-09** | Ruff errors en skills/ y src/ | `skills/`, `src/financial/`, `src/integrations/` — E501, N806, B904, SIM117, F841, unused imports, SIM102, SIM118, SIM401, E722, F402, B007, W291/W293 | `003d43e` |
+| **DT-10** | mypy `unused-ignore` en 6 ubicaciones | `core/logger.py`, `skills/dispatcher.py`, `core/openrouter_client.py`, `skills/dispatch/telegram_bot.py` — limpieza type ignores | `003d43e` |
+| **FASE 7 Seguridad** | Hardening bridge.py + infra | Rate limiting dual (IP + teléfono), payload validation, input sanitization, logrotate, backup_daily.sh, fail2ban script | `f30037c` |
 
 ---
 
@@ -29,13 +32,20 @@
 
 | ID | Deuda | Archivos afectados | Descripción | Esfuerzo estimado |
 |---|---|---|---|---|
-| **DT-09** | Ruff errors en skills/ y src/ | `skills/dispatch/telegram_bot.py`, `integrate_memory.py`, `scripts/boot_alert.py`, `src/financial/database.py` | E501, N806, B904, SIM117, F841, unused imports | ~2-4h |
-| **DT-10** | mypy `unused-ignore` en 6 ubicaciones | `core/logger.py`, `skills/dispatcher.py`, `core/openrouter_client.py`, `skills/dispatch/telegram_bot.py` | Type ignores innecesarios tras fixes | ~30min |
 | **DT-11** | `conftest.py` mypy `no-untyped-def` | `conftest.py` | Fixture sin type hint | ~15min |
 | **DT-12** | Cobertura de tests < 35% | `core/`, `agents/`, `api/` | Solo 28% coverage; falta tests unitarios para lógica crítica | ~8-16h |
 | **DT-13** | Tests de integración no corren en CI | `tests/integration/` | Requieren BD real, services, secrets | ~4h (mock infra) |
 | **DT-14** | `requirements.txt` vs `pyproject.toml` drift | Ambos archivos | `pyproject.toml` no tiene `[project.dependencies]` | ~30min |
 | **DT-15** | Secrets hardcodeados en tests | `tests/unit/test_kill_switch.py`, `tests/unit/test_api.py` | Paths `/mnt/ssd_trabajo/...` hardcoded | ~1h |
+| **DT-16** | `UP042` str+Enum en r4/codigos.py y hmac_auth.py | `src/integrations/r4/codigos.py:13`, `src/integrations/r4/hmac_auth.py:18` | Migrar a `StrEnum` (Python 3.11+) | ~30min |
+| **DT-17** | `E402` module imports en r4/webhooks.py | `src/integrations/r4/webhooks.py:97,98` | Mover imports al top | ~15min |
+| **DT-18** | `N805`/`B904`/`B008` en r4/webhooks.py | `src/integrations/r4/webhooks.py` | self naming, raise from, Depends defaults | ~1h |
+| **DT-19** | `F821` Undefined `Orchestrator` en memory_aware_agent | `src/orchestration/memory_aware_agent.py:41` | Import o TYPE_CHECKING guard | ~15min |
+| **DT-20** | `W291` trailing whitespace en orchestrator.py | `src/orchestration/orchestrator.py:408` | ruff format | ~5min |
+| **DT-21** | `SIM118` key in dict.keys() en external_skills.py | `src/orchestration/external_skills.py:651` | ruff fix | ~5min |
+| **DT-22** | `B007` unused loop var en external_skills.py | `src/orchestration/external_skills.py:662` | `_` convention | ~5min |
+| **DT-23** | `E501` long lines en unified_memory.py | `src/memory/unified_memory.py:243,253` | Refactor strings | ~30min |
+| **DT-24** | `E501` long lines en external_skills.py | `src/orchestration/external_skills.py:223` | Refactor | ~15min |
 
 ---
 
@@ -84,18 +94,20 @@
 
 ### Inmediato (Esta semana)
 1. **DT-01** → Obtener chat_ids de Yordanis y Evert → Desbloquear Sprint 3
-2. **DT-09/DT-10** → Limpiar Ruff/mypy en skills/ y src/ (CI pass en todo el repo)
+2. **DT-11/DT-14/DT-15** → conftest.py, requirements sync, secrets en tests (quick wins ~2h)
 3. **Runbook CI/CD** → Documentar workflow actual
 
 ### Corto plazo (2-3 semanas)
-4. **DT-12** → Subir coverage a >60% en core/ (prioridad: `workload_router`, `cost_guard`, `circuit_breaker`)
-5. **DT-13** → Tests integración con testcontainers o mocks
-6. **Activar Unified Memory** → Qdrant + Redis + mem0 para memoria semántica persistente
+4. **DT-16/DT-17/DT-18** → UP042 StrEnum, E402 imports, N805/B904/B008 en r4/webhooks
+5. **DT-19/DT-20/DT-21/DT-22** → Limpieza orchestration/memory (F821, W291, SIM118, B007)
+6. **DT-12** → Subir coverage a >60% en core/ (prioridad: `workload_router`, `cost_guard`, `circuit_breaker`)
+7. **DT-13** → Tests integración con testcontainers o mocks
+8. **Activar Unified Memory** → Qdrant + Redis + mem0 para memoria semántica persistente
 
 ### Mediano plazo (1-2 meses)
-7. **Prometheus + Grafana + Loki** → Observabilidad completa
-8. **Swap bottles migración** → Ejecutar plan 3-semanas
-9. **Runbooks completos** → Deploy, rollback, swap, disaster recovery
+9. **Prometheus + Grafana + Loki** → Observabilidad completa
+10. **Swap bottles migración** → Ejecutar plan 3-semanas
+11. **Runbooks completos** → Deploy, rollback, swap, disaster recovery
 
 ---
 
@@ -104,10 +116,11 @@
 | Métrica | Actual | Objetivo |
 |---|---|---|
 | **CI/CD Status** | ✅ GREEN | GREEN |
-| **Tests passing** | 222/222 | 100% |
-| **Coverage (core/)** | ~28% | >60% |
+| **Tests passing** | 149/149 (core/bridge/financial) | 100% |
+| **Coverage (core)** | ~28% | >60% |
 | **Mypy errors (core/api)** | 0 | 0 |
 | **Ruff errors (core/api)** | 0 | 0 |
+| **Ruff errors (skills/src financial/r4/odoo)** | 0 | 0 |
 | **Ruff errors (todo repo)** | ~20 | 0 |
 | **Mypy warnings (todo repo)** | ~6 | 0 |
 | **Deploy frequency** | Manual | Weekly |
@@ -126,4 +139,4 @@
 
 ---
 
-*Documento vivo - Actualizar tras cada sprint o cambio significativo*
+*Documento vivo - Actualizar tras cada sprint o cambio significativo* 💧
