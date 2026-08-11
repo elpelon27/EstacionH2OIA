@@ -67,7 +67,8 @@ def test_bridge_health_kill_switch(reset_prometheus):
     """Test that _is_kill_switch_active correctly reports kill switch state."""
     import sys
 
-    sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+    project_root = os.environ.get("HERMES_PROJECT_ROOT", "/mnt/ssd_trabajo/hermes-agent")
+    sys.path.insert(0, project_root)
 
     # Set env var to allow insecure salt for tests
     os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = "1"
@@ -106,7 +107,8 @@ def test_bridge_startup_clears_kill_switch(reset_prometheus):
     """Test that bridge lifespan clears kill switch on startup."""
     import sys
 
-    sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+    project_root = os.environ.get("HERMES_PROJECT_ROOT", "/mnt/ssd_trabajo/hermes-agent")
+    sys.path.insert(0, project_root)
 
     os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = "1"
 
@@ -163,7 +165,8 @@ async def test_meta_webhook_respects_kill_switch(reset_prometheus):
     """Test that meta_webhook checks kill switch state."""
     import sys
 
-    sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+    project_root = os.environ.get("HERMES_PROJECT_ROOT", "/mnt/ssd_trabajo/hermes-agent")
+    sys.path.insert(0, project_root)
 
     os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = "1"
 
