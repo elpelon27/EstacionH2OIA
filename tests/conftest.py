@@ -78,11 +78,11 @@ if hasattr(gps_module_test, 'tracker'):
 _test_db_path = None
 
 
-@pytest.fixture(autouse=True)
+@pytest.fixture
 def patch_dispatch_db(monkeypatch):
     """Patch DISPATCH_DB in all modules that use it to use a temp database per test.
     
-    This fixture is autouse so it runs for every test automatically.
+    This fixture is NOT autouse - tests must explicitly request it.
     Each test gets a fresh temp database with the correct schema.
     """
     global _test_db_path

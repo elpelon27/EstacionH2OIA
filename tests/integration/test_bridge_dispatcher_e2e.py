@@ -99,9 +99,9 @@ def clean_dispatch_queue():
     # Also clean deliveries for test clients to avoid vehicle saturation
     conn = sqlite3.connect("/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
     conn.execute(
-        'DELETE FROM deliveries WHERE client_id IN (SELECT id FROM clients WHERE phone LIKE "+58412%")'
+        'DELETE FROM deliveries WHERE client_id IN (SELECT id FROM clients WHERE phone LIKE "+584%")'
     )
-    conn.execute('DELETE FROM clients WHERE phone LIKE "+58412%"')
+    conn.execute('DELETE FROM clients WHERE phone LIKE "+584%"')
     conn.commit()
     conn.close()
     yield
