@@ -1,6 +1,7 @@
 """pytest configuration and fixtures for test isolation."""
 import os
 import sys
+from typing import Generator
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -68,7 +69,7 @@ _test_db_path = None
 
 
 @pytest.fixture
-def patch_dispatch_db(monkeypatch):
+def patch_dispatch_db(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, None]:
     """Patch DISPATCH_DB in all modules that use it to use a temp database per test.
     
     This fixture is NOT autouse - tests must explicitly request it.
