@@ -18,6 +18,8 @@ NO se conecta a bridge.py aquí - integración en FASE 6.
 import hmac
 import logging
 import os
+import time
+from collections import defaultdict
 from dataclasses import dataclass
 from typing import Any
 
@@ -94,9 +96,6 @@ def reset_webhook_config():
 # Rate Limiting simple en memoria
 # ============================================================
 
-import time
-from collections import defaultdict
-
 _rate_limit_store: dict[str, list] = defaultdict(list)
 
 
@@ -131,6 +130,7 @@ class R4ConsultaRequest(BaseModel):
     )
 
     @validator("Monto")
+    @classmethod
     def validate_monto(cls, v):
         # Validar formato decimal con 2 decimales
         try:
@@ -139,8 +139,8 @@ class R4ConsultaRequest(BaseModel):
                 decimals = len(v.split(".")[1])
                 if decimals != 2:
                     raise ValueError("Monto debe tener 2 decimales")
-        except ValueError:
-            raise ValueError("Monto inválido")
+        except ValueError as e:
+            raise ValueError("Monto inválido") from e
         return v
 
 
@@ -160,6 +160,7 @@ class R4NotificaRequest(BaseModel):
     CodigoRed: str = Field(..., min_length=2, max_length=2, description="Código red interbancaria")
 
     @validator("Monto")
+    @classmethod
     def validate_monto(cls, v):
         try:
             float(v)
@@ -167,11 +168,12 @@ class R4NotificaRequest(BaseModel):
                 decimals = len(v.split(".")[1])
                 if decimals != 2:
                     raise ValueError("Monto debe tener 2 decimales")
-        except ValueError:
-            raise ValueError("Monto inválido")
+        except ValueError as e:
+            raise ValueError("Monto inválido") from e
         return v
 
     @validator("CodigoRed")
+    @classmethod
     def validate_codigo_red(cls, v):
         if not v.isdigit() or len(v) != 2:
             raise ValueError("CodigoRed debe ser 2 dígitos")
@@ -276,11 +278,8 @@ async def verify_hmac_signature_webhook(
     # El banco puede enviar la firma en header separado
     signature = request.headers.get("X-Signature") or request.headers.get("X-Hmac-Signature")
 
-    if not signature:
-        # Intentar extraer del Authorization si viene combinado
-        # Formato alternativo: "HMAC <signature>"
-        if auth_header.startswith("HMAC "):
-            signature = auth_header[5:]
+    if not signature and auth_header.startswith("HMAC "):
+        signature = auth_header[5:]
 
     if not signature:
         logger.warning(f"R4 Webhook {endpoint.value} sin firma HMAC")
@@ -463,7 +462,7 @@ async def r4_consulta_webhook(
     request: Request,
     payload: R4ConsultaRequest,
     authorization: str | None = Header(None),
-    config: R4WebhookConfig = Depends(lambda: get_webhook_config()),
+    config: R4WebhookConfig = Depends(get_webhook_config),
 ) -> R4ConsultaResponse:
     """
     Webhook R4consulta - Validación de cliente.
@@ -505,7 +504,7 @@ async def r4_notifica_webhook(
     request: Request,
     payload: R4NotificaRequest,
     authorization: str | None = Header(None),
-    config: R4WebhookConfig = Depends(lambda: get_webhook_config()),
+    config: R4WebhookConfig = Depends(get_webhook_config),
 ) -> R4NotificaResponse:
     """
     Webhook R4notifica - Notificación de pago entrante.
