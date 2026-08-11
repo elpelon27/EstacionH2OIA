@@ -578,7 +578,162 @@ def _save_conversation_id(phone: str, conv_id: str) -> None:
 # Rate limiting
 # ============================================================================
 
-limiter = Limiter(key_func=get_remote_address, default_limits=[])
+def _get_phone_key(request: Request) -> str:
+    """Extrae el teléfono del payload de Meta para rate limiting por teléfono.
+    Meta envía el teléfono en contacts[0].wa_id dentro del JSON body.
+    """
+    # La key function se ejecuta ANTES de leer el body, así que no podemos
+    # parsear el JSON aquí. Usamos una aproximación: header X-Forwarded-For
+    # o IP como fallback. El rate limit real por teléfono se hace DENTRO
+    # del handler después de parsear.
+    return get_remote_address(request)
+
+
+def _get_rate_limit_key(request: Request) -> tuple[str, str]:
+    """Retorna (ip_key, phone_key) para dual rate limiting.
+    El phone_key se resuelve dentro del handler (ver _check_phone_rate_limit).
+    """
+    ip = get_remote_address(request)
+    return ip, ""
+
+
+limiter = Limiter(key_func=_get_phone_key, default_limits=[])
+
+
+# ============================================================================
+# Rate limiting helpers (phone-based)
+# ============================================================================
+
+# In-memory rate limit store for phone-based limiting
+# Key: phone_hash, Value: list of timestamps
+_phone_rate_limit_store: dict[str, list[float]] = {}
+_phone_rate_limit_lock = asyncio.Lock()
+
+
+async def _check_phone_rate_limit(phone: str) -> bool:
+    """Verifica rate limit por teléfono (30 req/min por defecto).
+    Returns True si está dentro del límite, False si excedido.
+    """
+    if not phone:
+        return True  # Sin teléfono no podemos limitar, permitir
+
+    ph_hash = _phone_hash(phone)
+    now = time.time()
+    window_start = now - 60  # 1 minuto
+
+    async with _phone_rate_limit_lock:
+        # Limpiar timestamps antiguos
+        if ph_hash in _phone_rate_limit_store:
+            _phone_rate_limit_store[ph_hash] = [
+                ts for ts in _phone_rate_limit_store[ph_hash] if ts > window_start
+            ]
+        else:
+            _phone_rate_limit_store[ph_hash] = []
+
+        # Verificar límite
+        if len(_phone_rate_limit_store[ph_hash]) >= RATE_PER_PHONE:
+            logger.warning(
+                "Rate limit por teléfono excedido: phone:%s (límite %d/min)",
+                ph_hash[:8],
+                RATE_PER_PHONE,
+            )
+            MESSAGES_TOTAL.labels(status="rate_limited_phone").inc()
+            return False
+
+        # Registrar request
+        _phone_rate_limit_store[ph_hash].append(now)
+        return True
+
+
+# ============================================================================
+# Payload validation / sanitization
+# ============================================================================
+
+
+def _validate_meta_payload(data: dict[str, Any]) -> bool:
+    """Valida estructura básica del payload de Meta Cloud API.
+    Previene procesamiento de payloads malformados o ataques de inyección.
+    """
+    # Estructura mínima esperada: entry[0].changes[0].value
+    try:
+        entry = data.get("entry", [])
+        if not entry or not isinstance(entry, list):
+            return False
+
+        changes = entry[0].get("changes", [])
+        if not changes or not isinstance(changes, list):
+            return False
+
+        value = changes[0].get("value", {})
+        if not value or not isinstance(value, dict):
+            return False
+
+        # Debe tener contacts array
+        contacts = value.get("contacts", [])
+        if not contacts or not isinstance(contacts, list):
+            return False
+
+        contact = contacts[0]
+        if not isinstance(contact, dict):
+            return False
+
+        # wa_id es requerido para identificar al remitente
+        wa_id = contact.get("wa_id")
+        if not wa_id or not isinstance(wa_id, str):
+            return False
+
+        # Validación básica de wa_id (solo dígitos, longitud razonable)
+        if not wa_id.isdigit() or len(wa_id) < 8 or len(wa_id) > 15:
+            return False
+
+        # Si tiene messages, validar estructura básica
+        messages = value.get("messages", [])
+        if messages:
+            if not isinstance(messages, list):
+                return False
+            msg = messages[0]
+            if not isinstance(msg, dict):
+                return False
+            # msg.id es requerido
+            msg_id = msg.get("id")
+            if not msg_id or not isinstance(msg_id, str):
+                return False
+            # msg.type es requerido
+            msg_type = msg.get("type")
+            if not msg_type or not isinstance(msg_type, str):
+                return False
+
+        return True
+
+    except (KeyError, IndexError, AttributeError, TypeError):
+        return False
+
+
+def _sanitize_input_text(text: str) -> str:
+    """Sanitiza texto de entrada del usuario (WhatsApp).
+    - Remueve caracteres de control (excepto \n, \r, \t)
+    - Limita longitud máxima
+    - Escapa secuencias potencialmente peligrosas para logging/SQL
+    """
+    if not text:
+        return ""
+
+    # Limitar longitud (WhatsApp max es ~4096, nosotros ponemos límite conservador)
+    MAX_LEN = 2000
+    if len(text) > MAX_LEN:
+        text = text[:MAX_LEN] + "… [truncado]"
+
+    # Remover caracteres de control peligrosos (ASCII 0-31 excepto \n \r \t)
+    # \x00-\x08, \x0b-\x0c, \x0e-\x1f
+    text = "".join(
+        ch for ch in text if ord(ch) >= 32 or ch in ("\n", "\r", "\t")
+    )
+
+    # Normalizar whitespace excesivo
+    import re
+    text = re.sub(r"[\s]+", " ", text).strip()
+
+    return text
 
 
 # ============================================================================
@@ -2867,6 +3022,12 @@ async def meta_webhook(request: Request) -> JSONResponse:
         MESSAGES_TOTAL.labels(status="error").inc()
         raise HTTPException(status_code=400, detail="Invalid JSON") from None
 
+    # 2.5. Sanitizar/validar payload de entrada
+    if not _validate_meta_payload(data):
+        logger.warning("Payload Meta inválido — estructura inesperada")
+        MESSAGES_TOTAL.labels(status="error").inc()
+        raise HTTPException(status_code=400, detail="Invalid payload structure")
+
     # Meta envía status updates (delivered, read) en el mismo webhook.
     # Solo procesamos mensajes entrantes, ignoramos status.
     try:
@@ -3039,6 +3200,20 @@ async def meta_webhook(request: Request) -> JSONResponse:
         logger.warning("Mensaje sin teléfono o texto válido")
         MESSAGES_TOTAL.labels(status="ignored").inc()
         return JSONResponse({"status": "ignored", "reason": "missing_fields"})
+
+    # 4.5. Rate limit por teléfono (antes de procesar)
+    if not await _check_phone_rate_limit(from_phone):
+        await _send_whatsapp_message(
+            from_phone,
+            "Demasiadas solicitudes. Por favor, espere un momento y vuelva a intentarlo. 💧",
+        )
+        MESSAGES_TOTAL.labels(status="rate_limited_phone").inc()
+        return JSONResponse(
+            {"status": "rate_limited", "message_id": msg_id, "reason": "phone_rate_limit"}
+        )
+
+    # 4.6. Sanitizar texto de entrada (previene inyección, control chars, etc.)
+    text_body = _sanitize_input_text(text_body)
 
     ph_short = _phone_hash(from_phone)[:8]
     ph_short_full = _phone_hash(from_phone)

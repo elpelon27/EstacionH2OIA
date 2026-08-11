@@ -1,0 +1,7 @@
+# Cron job para backup diario
+# Ejecuta a las 03:00 AM cada día
+
+0 3 * * * /mnt/ssd_trabajo/hermes-agent/scripts/backup_daily.sh >> /mnt/ssd_trabajo/backups/backup_cron.log 2>&1
+
+# Cron job para limpieza semanal de logs antiguos (domingo 04:00)
+0 4 * * 0 find /mnt/ssd_trabajo/hermes-agent/logs -name "*.log" -mtime +30 -delete 2>/dev/null

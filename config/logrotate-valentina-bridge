@@ -1,0 +1,47 @@
+# /etc/logrotate.d/valentina-bridge
+# Log rotation for valentina-bridge application logs
+# If the app writes to files (not just journald)
+
+/mnt/ssd_trabajo/hermes-agent/logs/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 skynet valentina
+    sharedscripts
+    postrotate
+        systemctl reload valentina-bridge > /dev/null 2>&1 || true
+    endscript
+}
+
+# Dispatcher bot logs
+/mnt/ssd_trabajo/hermes-agent/logs/dispatcher/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 skynet valentina
+    sharedscripts
+    postrotate
+        systemctl reload dispatcher-bot > /dev/null 2>&1 || true
+    endscript
+}
+
+# Telegram bot logs
+/mnt/ssd_trabajo/hermes-agent/logs/telegram/*.log {
+    daily
+    missingok
+    rotate 30
+    compress
+    delaycompress
+    notifempty
+    create 0640 skynet valentina
+    sharedscripts
+    postrotate
+        systemctl reload telegram-bot > /dev/null 2>&1 || true
+    endscript
+}
