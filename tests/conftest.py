@@ -30,21 +30,7 @@ skills.dispatcher = mock_dispatcher
 
 import importlib.util
 
-# Disable test_bottle_tracker.py's fixtures at import time
-spec = importlib.util.spec_from_file_location(
-    "tests.unit.test_bottle_tracker", 
-    "/mnt/ssd_trabajo/hermes-agent/tests/unit/test_bottle_tracker.py"
-)
-bt_module = importlib.util.module_from_spec(spec)
-sys.modules["tests.unit.test_bottle_tracker"] = bt_module
-spec.loader.exec_module(bt_module)
-
-# Delete the test file's fixtures entirely so pytest uses ours
-del bt_module.reset_bottle_tracker_singleton
-del bt_module.test_db
-# del bt_module.tracker  # tracker is a function, not a fixture
-
-# Same for dispatch_telegram_bot
+# Disable test_dispatch_telegram_bot.py's fixtures at import time
 spec2 = importlib.util.spec_from_file_location(
     "tests.unit.test_dispatch_telegram_bot",
     "/mnt/ssd_trabajo/hermes-agent/tests/unit/test_dispatch_telegram_bot.py"
@@ -55,7 +41,7 @@ spec2.loader.exec_module(tbot_module)
 
 del tbot_module.patch_bot_db
 
-# Same for gps_tracker
+# Disable test_gps_tracker.py's fixtures at import time
 spec3 = importlib.util.spec_from_file_location(
     "tests.unit.test_gps_tracker",
     "/mnt/ssd_trabajo/hermes-agent/tests/unit/test_gps_tracker.py"
@@ -69,6 +55,9 @@ if hasattr(gps_module_test, 'test_db'):
     del gps_module_test.test_db
 if hasattr(gps_module_test, 'tracker'):
     del gps_module_test.tracker
+
+# NOTE: test_bottle_tracker.py is NOT disabled - it uses its own test_db fixture
+# with proper schema at /tmp/test_bottle_tracker.db
 
 
 # =============================================================================
@@ -138,7 +127,7 @@ def patch_dispatch_db(monkeypatch):
             acknowledged INTEGER DEFAULT 0,
             acknowledged_by TEXT,
             acknowledged_at REAL,
-            created_at REAL NOT_NULL DEFAULT (strftime('%s','now')),
+            created_at REAL NOT NULL DEFAULT (strftime('%s','now')),
             resolved_at REAL,
             FOREIGN KEY (bottle_code) REFERENCES bottles(bottle_code)
         )
@@ -165,17 +154,17 @@ def patch_dispatch_db(monkeypatch):
             current_empty_load INTEGER DEFAULT 0,
             shift TEXT,
             active INTEGER DEFAULT 1,
-            created_at REAL NOT_NULL DEFAULT (strftime('%s','now'))
+            created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
         )
     """)
     conn.execute("""
         CREATE TABLE deliveries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            dispatch_session_id INTEGER NOT_NULL,
-            client_id INTEGER NOT_NULL,
-            vehicle_id INTEGER NOT_NULL,
-            order_sequence INTEGER NOT_NULL,
-            status TEXT NOT_NULL DEFAULT 'pending',
+            dispatch_session_id INTEGER NOT NULL,
+            client_id INTEGER NOT NULL,
+            vehicle_id INTEGER NOT NULL,
+            order_sequence INTEGER NOT NULL,
+            status TEXT NOT NULL DEFAULT 'pending',
             bottles_full INTEGER DEFAULT 0,
             bottles_empty_pickup INTEGER DEFAULT 0,
             bottles_on_site_refill INTEGER DEFAULT 0,
@@ -183,8 +172,8 @@ def patch_dispatch_db(monkeypatch):
             actual_arrival REAL,
             actual_departure REAL,
             duration_seconds INTEGER,
-            created_at REAL NOT_NULL DEFAULT (strftime('%s','now')),
-            updated_at REAL NOT_NULL DEFAULT (strftime('%s','now')),
+            created_at REAL NOT NULL DEFAULT (strftime('%s','now')),
+            updated_at REAL NOT NULL DEFAULT (strftime('%s','now')),
             FOREIGN KEY (client_id) REFERENCES clients(id),
             FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
         )
@@ -192,27 +181,27 @@ def patch_dispatch_db(monkeypatch):
     conn.execute("""
         CREATE TABLE gps_tracks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vehicle_id INTEGER NOT_NULL,
-            lat REAL NOT_NULL,
-            lng REAL NOT_NULL,
+            vehicle_id INTEGER NOT NULL,
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
             accuracy REAL,
             speed_kmh REAL,
-            source TEXT NOT_NULL DEFAULT 'telegram',
+            source TEXT NOT NULL DEFAULT 'telegram',
             delivery_id INTEGER,
             track_type TEXT DEFAULT 'periodic',
-            created_at REAL NOT_NULL DEFAULT (strftime('%s','now')),
+            created_at REAL NOT NULL DEFAULT (strftime('%s','now')),
             FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
         )
     """)
     conn.execute("""
         CREATE TABLE geofence_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            vehicle_id INTEGER NOT_NULL,
-            event_type TEXT NOT_NULL,
+            vehicle_id INTEGER NOT NULL,
+            event_type TEXT NOT NULL,
             zone_id INTEGER,
-            lat REAL NOT_NULL,
-            lng REAL NOT_NULL,
-            created_at REAL NOT_NULL DEFAULT (strftime('%s','now')),
+            lat REAL NOT NULL,
+            lng REAL NOT NULL,
+            created_at REAL NOT NULL DEFAULT (strftime('%s','now')),
             FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
         )
     """)
@@ -221,7 +210,7 @@ def patch_dispatch_db(monkeypatch):
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             route_data TEXT,
             status TEXT DEFAULT 'active',
-            created_at REAL NOT_NULL DEFAULT (strftime('%s','now')),
+            created_at REAL NOT NULL DEFAULT (strftime('%s','now')),
             completed_at REAL
         )
     """)
@@ -243,19 +232,19 @@ def patch_dispatch_db(monkeypatch):
             estado TEXT DEFAULT 'pending',
             enviado_at TEXT,
             respondido_at TEXT,
-            creado_at TEXT NOT_NULL
+            creado_at TEXT NOT NULL
         )
     """)
     conn.execute("""
         CREATE TABLE zones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT_NULL,
+            name TEXT NOT NULL,
             description TEXT,
             center_lat REAL,
             center_lng REAL,
             radius_km REAL,
             color TEXT DEFAULT '#3B82F6',
-            created_at REAL NOT_NULL DEFAULT (strftime('%s','now'))
+            created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
         )
     """)
     
@@ -330,28 +319,11 @@ def patch_dispatch_db(monkeypatch):
 # OVERRIDE TEST FILE'S FIXTURES - as proper pytest fixtures
 # =============================================================================
 
-@pytest.fixture(autouse=True)
-def reset_bottle_tracker_singleton():
-    """Override test file's fixture - our autouse fixture handles singleton reset."""
-    pass
+# NOTE: test_bottle_tracker.py uses its own test_db fixture with proper schema
+# at /tmp/test_bottle_tracker.db - do NOT override it here
 
-
-@pytest.fixture
-def test_db(patch_dispatch_db):
-    """Override test file's test_db fixture - yield the temp DB path.
-    
-    Depends on patch_dispatch_db to ensure DB is created first.
-    """
-    yield patch_dispatch_db
-
-
-@pytest.fixture
-def tracker(test_db):
-    """Override test file's tracker fixture - use our patched DB."""
-    import skills.dispatch.bottle_tracker as bt_module
-    from skills.dispatch.bottle_tracker import get_bottle_tracker
-    tracker = get_bottle_tracker()
-    yield tracker
+# NOTE: test_dispatch_telegram_bot.py and test_gps_tracker.py fixtures are 
+# disabled at import time above
 
 
 def pytest_configure(config):
