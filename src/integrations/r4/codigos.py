@@ -213,18 +213,32 @@ class CodigosRedInterbancaria(StrEnum):
             "11": "ERROR DE RESPUESTA / ERROR EN FORMATO",
             "12": "TRANSACCIÓN INVÁLIDA",
             "13": "MONTO INVÁLIDO",
-            "14": "NÚMERO TELÉFONO RECEPTOR ERRADO / AFILIACIÓN NO REGISTRADA / COMBO CELULAR-CÉDULA NO REGISTRADO",
+            "14": (
+                "NÚMERO TELÉFONO RECEPTOR ERRADO / "
+                "AFILIACIÓN NO REGISTRADA / "
+                "COMBO CELULAR-CÉDULA NO REGISTRADO"
+            ),
             "15": "LLAVE ERRÓNEA",
             "30": "ERROR DE FORMATO / ERROR EN FORMATO:30",
-            "41": "SERVICIO NO ACTIVO / BANCO FUERA DE SERVICIO / OPERACIÓN NO PERMITIDA / SERVICIO NO ACTIVO O NEGADO POR EL BANCO",
+            "41": (
+                "SERVICIO NO ACTIVO / BANCO FUERA DE SERVICIO / "
+                "OPERACIÓN NO PERMITIDA / SERVICIO NO ACTIVO O NEGADO POR EL BANCO"
+            ),
             "43": "SERVICIO NO ACTIVO",
             "51": "SIN FONDOS DISPONIBLES / INSUFICIENCIA DE FONDOS",
             "55": "TOKEN INVÁLIDO / TELÉFONO ORIGEN NO EXISTE",
-            "56": "CELULAR NO COINCIDE / NO COINCIDE NÚMERO DEL CELULAR CON EL AFILIADO A LA CÉDULA",
+            "56": (
+                "CELULAR NO COINCIDE / "
+                "NO COINCIDE NÚMERO DEL CELULAR CON EL AFILIADO A LA CÉDULA"
+            ),
             "57": "NEGADA POR EL RECEPTOR",
             "62": "CUENTA RESTRINGIDA",
             "68": "RESPUESTA TARDÍA, PROCEDE REVERSO",
-            "80": "CÉDULA O PASAPORTE ERRADO / CÉDULA RECEPTOR INVÁLIDA / DOCUMENTO DE IDENTIFICACIÓN ERRADO",
+            "80": (
+                "CÉDULA O PASAPORTE ERRADO / "
+                "CÉDULA RECEPTOR INVÁLIDA / "
+                "DOCUMENTO DE IDENTIFICACIÓN ERRADO"
+            ),
             "87": "TIME OUT",
             "90": "CIERRE BANCARIO EN PROCESO",
             "91": "INSTITUCIÓN NO DISPONIBLE",
@@ -459,9 +473,10 @@ if __name__ == "__main__":
         success = is_success(code)
         retryable = is_retryable(code)
         client_err = is_client_error(code)
-        print(
-            f"  {code:12} | {'✓' if success else '✗'} | {'⟳' if retryable else '  '} | {'!' if client_err else ' '} | {desc}"
-        )
+        status = "✓" if success else "✗"
+        retry = "⟳" if retryable else "  "
+        client = "!" if client_err else " "
+        print(f"  {code:12} | {status} | {retry} | {client} | {desc}")
 
     print(f"\nTotal códigos en enum: {len(CodigosRedInterbancaria)}")
     print(f"Total en dict CODIGOS_RED: {len(CODIGOS_RED)}")

@@ -415,8 +415,10 @@ if __name__ == "__main__":
     print(f"Sign string: {sign_str}")
     print(f"Expected HMAC: {expected}")
     print(
-        f"Verify OK: {verify_hmac_signature(payload_bcv, R4Endpoint.R4BCV, expected, COMMERCE_TOKEN)}"
+        f"Verify OK: "
+        f"{verify_hmac_signature(payload_bcv, R4Endpoint.R4BCV, expected, COMMERCE_TOKEN)}"
     )
     print(
-        f"Verify FAIL: {verify_hmac_signature(payload_bcv, R4Endpoint.R4BCV, 'INVALID', COMMERCE_TOKEN)}"
+        f"Verify FAIL: "
+        f"{verify_hmac_signature(payload_bcv, R4Endpoint.R4BCV, 'INVALID', COMMERCE_TOKEN)}"
     )

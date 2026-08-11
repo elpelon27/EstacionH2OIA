@@ -159,8 +159,9 @@ class MemoryAwareAgent(BaseAgent):
     def _store_execution_memories(self, task: str, result: TaskResult, context: dict[str, Any]):
         """Store memories from task execution"""
         # Store episodic memory of this execution
+        status = "success" if result.success else "failed"
         self.memory.add(
-            content=f"Executed task: {task}. Result: {'success' if result.success else 'failed'} - {result.output}",
+            content=f"Executed task: {task}. Result: {status} - {result.output}",
             memory_type=MemoryType.EPISODIC,
             metadata={
                 "agent": self.config.name,
@@ -222,10 +223,14 @@ class DispatcherAgent(MemoryAwareAgent):
             return await self.handoff(AgentType.VALENTINA, task, context)
 
         # Default: store as episodic and return guidance
+        msg = (
+            "Task noted: {task}. Use specific keywords for "
+            "route planning, driver assignment, delivery tracking, or vehicle management."
+        )
         return TaskResult(
             success=True,
             agent_name=self.config.name,
-            output=f"Task noted: {task}. Use specific keywords for route planning, driver assignment, delivery tracking, or vehicle management.",
+            output=msg,
             metadata={"task_type": "general", "needs_specific_action": True},
         )
 
@@ -280,12 +285,16 @@ class DispatcherAgent(MemoryAwareAgent):
         )
 
     async def _manage_vehicles(self, context: dict[str, Any]) -> TaskResult:
+        msg = (
+            "Vehicle management - 2 triciclos with Honor X7b phones "
+            "(Digitel+Movilnet)"
+        )
         return TaskResult(
             success=True,
             agent_name=self.config.name,
             output={
                 "action": "vehicle_management",
-                "message": "Vehicle management - 2 triciclos with Honor X7b phones (Digitel+Movilnet)",
+                "message": msg,
                 "vehicles": ["TRICICLO-001", "TRICICLO-002"],
             },
             metadata={"task_type": "vehicle_management"},
@@ -328,7 +337,10 @@ class FinancialAgent(MemoryAwareAgent):
         return TaskResult(
             success=True,
             agent_name=self.config.name,
-            output=f"Financial task noted: {task}. Specify: payment, collections, r4_banco, reconciliation.",
+            output=(
+                "Financial task noted: {task}. Specify: payment, "
+                "collections, r4_banco, reconciliation."
+            ),
             metadata={"task_type": "general"},
         )
 
@@ -412,7 +424,10 @@ class InventoryAgent(MemoryAwareAgent):
         return TaskResult(
             success=True,
             agent_name=self.config.name,
-            output=f"Inventory task noted: {task}. Specify: bottle tracking, SWAP management, cycle count.",
+            output=(
+                "Inventory task noted: {task}. Specify: bottle tracking, "
+                "SWAP management, cycle count."
+            ),
             metadata={"task_type": "general"},
         )
 
@@ -486,7 +501,7 @@ class ValentinaAgent(MemoryAwareAgent):
         return TaskResult(
             success=True,
             agent_name=self.config.name,
-            output=f"Valentina task noted: {task}. Handles orders, status, complaints via WhatsApp.",
+            output="Valentina task noted: {task}. Handles orders, status, complaints via WhatsApp.",
             metadata={"task_type": "general"},
         )
 

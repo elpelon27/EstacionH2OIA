@@ -155,7 +155,10 @@ class Orchestrator:
             AgentConfig(
                 name="dispatcher",
                 agent_type=AgentType.DISPATCHER,
-                description="Route planning, driver assignment, vehicle tracking, delivery optimization",
+                description=(
+                    "Route planning, driver assignment, vehicle tracking, "
+                    "delivery optimization"
+                ),
                 instructions=self._get_dispatcher_instructions(),
                 tools=[
                     "route_optimizer",
@@ -174,7 +177,10 @@ class Orchestrator:
             AgentConfig(
                 name="financial",
                 agent_type=AgentType.FINANCIAL,
-                description="Payments processing, collections, reconciliation, banking integration (R4 Banco)",
+                description=(
+                    "Payments processing, collections, reconciliation, "
+                    "banking integration (R4 Banco)"
+                ),
                 instructions=self._get_financial_instructions(),
                 tools=[
                     "payment_processor",
@@ -193,7 +199,10 @@ class Orchestrator:
             AgentConfig(
                 name="inventory",
                 agent_type=AgentType.INVENTORY,
-                description="Bottle tracking, SWAP management (165 loaners), stock levels, cycle counts",
+                description=(
+                    "Bottle tracking, SWAP management (165 loaners), "
+                    "stock levels, cycle counts"
+                ),
                 instructions=self._get_inventory_instructions(),
                 tools=["bottle_tracker", "swap_manager", "stock_monitor", "cycle_counter"],
                 skills=["bottle_lifecycle", "swap_migration", "inventory_audit"],
