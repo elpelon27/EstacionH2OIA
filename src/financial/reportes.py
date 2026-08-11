@@ -5,7 +5,7 @@
  ============================================================================
 
 Genera y envía reporte diario a las 6:30 PM (cierre 6pm + 30min buffer).
- """
+"""
 
 import logging
 import os
@@ -42,23 +42,32 @@ async def generar_reporte_diario() -> ReporteDiario:
     # Consultar pedidos del día
     with db.get_db() as conn:
         # Ventas del día
-        ventas = conn.execute("""
+        ventas = conn.execute(
+            """
             SELECT
                 COUNT(*) as num_pedidos,
                 SUM(monto_total_eur) as total_eur,
                 SUM(CASE WHEN estado_pago = 'pagado' THEN 1 ELSE 0 END) as num_pagados,
-                SUM(CASE WHEN estado_pago IN ('pendiente', 'verificando', 'parcial') THEN 1 ELSE 0 END) as num_pendientes,
+                SUM(
+                    CASE WHEN estado_pago IN ('pendiente', 'verificando', 'parcial')
+                    THEN 1 ELSE 0 END
+                ) as num_pendientes,
                 SUM(CASE WHEN estado_pago = 'moroso' THEN 1 ELSE 0 END) as num_morosos
             FROM fs_pedidos
             WHERE DATE(creado_at) = ?
-        """, (today,)).fetchone()
+        """,
+            (today,),
+        ).fetchone()
 
         # Cobros del día (pagos verificados)
-        cobros = conn.execute("""
+        cobros = conn.execute(
+            """
             SELECT SUM(monto_eur) as total_cobros_eur
             FROM fs_pagos
             WHERE DATE(verificado_at) = ? AND verificado = 1
-        """, (today,)).fetchone()
+        """,
+            (today,),
+        ).fetchone()
 
         # Por cobrar (pendiente + vencido)
         por_cobrar = conn.execute("""
@@ -68,10 +77,10 @@ async def generar_reporte_diario() -> ReporteDiario:
         """).fetchone()
 
     # Egresos a proveedores del día
-    egresos = get_total_egresos_periodo(today, today)
+    get_total_egresos_periodo(today, today)
 
     # Resumen cobranzas
-    cobranzas = get_resumen_cobranzas()
+    get_resumen_cobranzas()
 
     # Construir reporte
     ventas_eur = (ventas["total_eur"] or 0) if ventas else 0

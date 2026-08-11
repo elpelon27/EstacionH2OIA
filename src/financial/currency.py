@@ -10,7 +10,7 @@
 3. Manual (Líder envía /tasa por Telegram)
 
 Cada tasa se guarda en fs_tasas_cambio (inmutable).
- """
+"""
 
 import logging
 from datetime import timedelta, timezone

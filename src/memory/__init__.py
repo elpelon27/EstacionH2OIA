@@ -13,10 +13,10 @@ from .unified_memory import (
 )
 
 __all__ = [
-    'UnifiedMemory',
-    'MemoryType',
-    'MemoryEntry',
-    'SearchResult',
-    'create_unified_memory',
-    'demo'
+    "UnifiedMemory",
+    "MemoryType",
+    "MemoryEntry",
+    "SearchResult",
+    "create_unified_memory",
+    "demo",
 ]

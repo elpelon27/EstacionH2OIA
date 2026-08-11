@@ -70,9 +70,7 @@ def _get_client() -> Any:
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
-        creds = Credentials.from_service_account_file(
-            GOOGLE_CREDENTIALS_PATH, scopes=scopes
-        )
+        creds = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_PATH, scopes=scopes)
         # gspread v6+: authorize() es la forma recomendada
         _sheets_client = gspread.authorize(creds)
         _spreadsheet = _sheets_client.open_by_key(GOOGLE_SPREADSHEET_ID)
@@ -124,6 +122,7 @@ MAPA_CALOR_HEADERS = [
 
 async def _save_mapa_calor_async(data: list[dict[str, Any]]) -> None:
     """Guarda puntos GPS en hoja Mapa_Calor (fire-and-forget)."""
+
     def _sync():
         spreadsheet = _get_client()
         if not spreadsheet:
@@ -136,19 +135,21 @@ async def _save_mapa_calor_async(data: list[dict[str, Any]]) -> None:
 
         rows = []
         for d in data:
-            rows.append([
-                fecha,
-                hora,
-                d.get("vehicle_id", ""),
-                d.get("operator", ""),
-                d.get("lat", ""),
-                d.get("lng", ""),
-                d.get("sector", ""),
-                d.get("calle", ""),
-                d.get("pasadas", 1),
-                d.get("source", "tasker"),
-                d.get("track_type", "periodic"),
-            ])
+            rows.append(
+                [
+                    fecha,
+                    hora,
+                    d.get("vehicle_id", ""),
+                    d.get("operator", ""),
+                    d.get("lat", ""),
+                    d.get("lng", ""),
+                    d.get("sector", ""),
+                    d.get("calle", ""),
+                    d.get("pasadas", 1),
+                    d.get("source", "tasker"),
+                    d.get("track_type", "periodic"),
+                ]
+            )
 
         if rows:
             ws.append_rows(rows, value_input_option="USER_ENTERED")
@@ -178,6 +179,7 @@ FEEDBACK_HEADERS = [
 
 async def _save_feedback_async(data: list[dict[str, Any]]) -> None:
     """Guarda feedback de clientes en hoja Feedback_Clientes (fire-and-forget)."""
+
     def _sync():
         spreadsheet = _get_client()
         if not spreadsheet:
@@ -190,18 +192,20 @@ async def _save_feedback_async(data: list[dict[str, Any]]) -> None:
 
         rows = []
         for d in data:
-            rows.append([
-                fecha,
-                hora,
-                d.get("delivery_id", ""),
-                d.get("client_id", ""),
-                d.get("client_name", ""),
-                d.get("phone", ""),
-                d.get("feedback_score", ""),
-                d.get("feedback_comment", ""),
-                d.get("vehicle_id", ""),
-                d.get("operator", ""),
-            ])
+            rows.append(
+                [
+                    fecha,
+                    hora,
+                    d.get("delivery_id", ""),
+                    d.get("client_id", ""),
+                    d.get("client_name", ""),
+                    d.get("phone", ""),
+                    d.get("feedback_score", ""),
+                    d.get("feedback_comment", ""),
+                    d.get("vehicle_id", ""),
+                    d.get("operator", ""),
+                ]
+            )
 
         if rows:
             ws.append_rows(rows, value_input_option="USER_ENTERED")
@@ -220,7 +224,7 @@ BOTELLAS_HEADERS = [
     "Hora",
     "Bottle_Code",
     "Status",  # available | in_transit_full | with_client |
-               # in_transit_empty | maintenance | retired
+    # in_transit_empty | maintenance | retired
     "Client_ID",
     "Client_Name",
     "Delivery_ID",
@@ -235,6 +239,7 @@ BOTELLAS_HEADERS = [
 
 async def _save_botellas_control_async(data: list[dict[str, Any]]) -> None:
     """Guarda inventario de botellones en hoja Botellas_Control (fire-and-forget)."""
+
     def _sync():
         spreadsheet = _get_client()
         if not spreadsheet:
@@ -247,21 +252,23 @@ async def _save_botellas_control_async(data: list[dict[str, Any]]) -> None:
 
         rows = []
         for d in data:
-            rows.append([
-                fecha,
-                hora,
-                d.get("bottle_code", ""),
-                d.get("status", ""),
-                d.get("client_id", ""),
-                d.get("client_name", ""),
-                d.get("delivery_id", ""),
-                d.get("assigned_at", ""),
-                d.get("expected_return_at", ""),
-                d.get("returned_at", ""),
-                d.get("alert_type", ""),
-                d.get("alert_severity", ""),
-                d.get("acknowledged", 0),
-            ])
+            rows.append(
+                [
+                    fecha,
+                    hora,
+                    d.get("bottle_code", ""),
+                    d.get("status", ""),
+                    d.get("client_id", ""),
+                    d.get("client_name", ""),
+                    d.get("delivery_id", ""),
+                    d.get("assigned_at", ""),
+                    d.get("expected_return_at", ""),
+                    d.get("returned_at", ""),
+                    d.get("alert_type", ""),
+                    d.get("alert_severity", ""),
+                    d.get("acknowledged", 0),
+                ]
+            )
 
         if rows:
             ws.append_rows(rows, value_input_option="USER_ENTERED")
@@ -274,6 +281,7 @@ async def _save_botellas_control_async(data: list[dict[str, Any]]) -> None:
 # ============================================================================
 # API PÚBLICA - Entry Points
 # ============================================================================
+
 
 async def sync_mapa_calor(gps_points: list[dict[str, Any]]) -> None:
     """
@@ -295,7 +303,7 @@ async def sync_feedback(
     feedback_score: int,
     feedback_comment: str = "",
     vehicle_id: int = 0,
-    operator: str = ""
+    operator: str = "",
 ) -> None:
     """
     Sincroniza feedback de cliente a hoja Feedback_Clientes.
@@ -310,16 +318,18 @@ async def sync_feedback(
         vehicle_id: ID del vehículo
         operator: Nombre del operador
     """
-    data = [{
-        "delivery_id": delivery_id,
-        "client_id": client_id,
-        "client_name": client_name,
-        "phone": phone,
-        "feedback_score": feedback_score,
-        "feedback_comment": feedback_comment,
-        "vehicle_id": vehicle_id,
-        "operator": operator,
-    }]
+    data = [
+        {
+            "delivery_id": delivery_id,
+            "client_id": client_id,
+            "client_name": client_name,
+            "phone": phone,
+            "feedback_score": feedback_score,
+            "feedback_comment": feedback_comment,
+            "vehicle_id": vehicle_id,
+            "operator": operator,
+        }
+    ]
     await _save_feedback_async(data)
 
 
@@ -335,19 +345,21 @@ async def sync_botellas_control(bottles_data: list[dict[str, Any]]) -> None:
     """
     data = []
     for b in bottles_data:
-        data.append({
-            "bottle_code": b.get("bottle_code", ""),
-            "status": b.get("status", ""),
-            "client_id": b.get("client_id", ""),
-            "client_name": b.get("client_name", ""),
-            "delivery_id": b.get("delivery_id", ""),
-            "assigned_at": b.get("assigned_at", ""),
-            "expected_return_at": b.get("expected_return_at", ""),
-            "returned_at": b.get("returned_at", ""),
-            "alert_type": b.get("alert_type", ""),
-            "alert_severity": b.get("alert_severity", ""),
-            "acknowledged": b.get("acknowledged", 0),
-        })
+        data.append(
+            {
+                "bottle_code": b.get("bottle_code", ""),
+                "status": b.get("status", ""),
+                "client_id": b.get("client_id", ""),
+                "client_name": b.get("client_name", ""),
+                "delivery_id": b.get("delivery_id", ""),
+                "assigned_at": b.get("assigned_at", ""),
+                "expected_return_at": b.get("expected_return_at", ""),
+                "returned_at": b.get("returned_at", ""),
+                "alert_type": b.get("alert_type", ""),
+                "alert_severity": b.get("alert_severity", ""),
+                "acknowledged": b.get("acknowledged", 0),
+            }
+        )
     await _save_botellas_control_async(data)
 
 
@@ -386,19 +398,21 @@ async def sync_all_dispatcher() -> None:
     # Preparar datos para sheets
     bottles_data = []
     for b in enriched_bottles:
-        bottles_data.append({
-            "bottle_code": b.get("bottle_code", ""),
-            "status": b.get("status", ""),
-            "client_id": b.get("client_id", ""),
-            "client_name": b.get("client_name", ""),
-            "delivery_id": b.get("delivery_id", ""),
-            "assigned_at": b.get("assigned_at", ""),
-            "expected_return_at": b.get("expected_return_at", ""),
-            "returned_at": b.get("returned_at", ""),
-            "alert_type": b.get("alert_type", ""),
-            "alert_severity": b.get("alert_severity", ""),
-            "acknowledged": b.get("acknowledged", 0),
-        })
+        bottles_data.append(
+            {
+                "bottle_code": b.get("bottle_code", ""),
+                "status": b.get("status", ""),
+                "client_id": b.get("client_id", ""),
+                "client_name": b.get("client_name", ""),
+                "delivery_id": b.get("delivery_id", ""),
+                "assigned_at": b.get("assigned_at", ""),
+                "expected_return_at": b.get("expected_return_at", ""),
+                "returned_at": b.get("returned_at", ""),
+                "alert_type": b.get("alert_type", ""),
+                "alert_severity": b.get("alert_severity", ""),
+                "acknowledged": b.get("acknowledged", 0),
+            }
+        )
 
     await _save_botellas_control_async(bottles_data)
 

@@ -1,4 +1,5 @@
 """Inventory Skill — Control de stock compartido."""
+
 import sqlite3
 from pathlib import Path
 from typing import Any
@@ -65,8 +66,7 @@ class InventorySkill(BaseSkill):
     async def _add_stock(self, product: str, quantity: int, reason: str) -> dict[str, Any]:
         conn = self._get_conn()
         conn.execute(
-            "UPDATE inventory SET current_stock = current_stock + ? "
-            "WHERE product = ?",
+            "UPDATE inventory SET current_stock = current_stock + ? WHERE product = ?",
             (quantity, product),
         )
         conn.execute(
@@ -85,8 +85,7 @@ class InventorySkill(BaseSkill):
             conn.close()
             return self._error("Stock insuficiente")
         conn.execute(
-            "UPDATE inventory SET current_stock = current_stock - ? "
-            "WHERE product = ?",
+            "UPDATE inventory SET current_stock = current_stock - ? WHERE product = ?",
             (quantity, product),
         )
         conn.execute(

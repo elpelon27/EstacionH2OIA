@@ -19,7 +19,7 @@ Comandos:
 
 Seguridad:
     Solo el chat_id del Líder (TELEGRAM_CHAT_ID) tiene permiso.
- """
+"""
 
 import logging
 import os
@@ -98,6 +98,7 @@ async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     assert update.effective_user is not None
     # P0-3: crear con 0600 (antes en /tmp era 1777=writable por todos)
     import os as _os
+
     _fd = _os.open(KILL_SWITCH_FILE, _os.O_CREAT | _os.O_WRONLY | _os.O_TRUNC, 0o600)
     with _os.fdopen(_fd, "w") as f:
         f.write(f"killed by {update.effective_user.username} at {datetime.now(CARACAS_TZ)}")
@@ -112,6 +113,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return await _unauthorized(update)
     assert update.message is not None
     import httpx
+
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get(BRIDGE_HEALTH_URL, timeout=5)
@@ -142,9 +144,9 @@ async def cmd_orders(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await update.message.reply_text("❌ BD no encontrada")
         return
     conn = sqlite3.connect(SQLITE_PATH)
-    today_start = datetime.now(CARACAS_TZ).replace(
-        hour=0, minute=0, second=0, microsecond=0
-    ).timestamp()
+    today_start = (
+        datetime.now(CARACAS_TZ).replace(hour=0, minute=0, second=0, microsecond=0).timestamp()
+    )
     query = (
         "SELECT id, product_description, status, created_at "
         "FROM orders WHERE created_at > ? ORDER BY created_at DESC LIMIT 10"
@@ -167,10 +169,13 @@ async def cmd_logs(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return await _unauthorized(update)
     assert update.message is not None
     import subprocess
+
     try:
         result = subprocess.run(
             ["journalctl", "-u", "valentina-bridge", "-n", "20", "--no-pager", "-o", "cat"],
-            capture_output=True, text=True, timeout=5,
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         logs = result.stdout.strip()
     except Exception as e:
@@ -189,6 +194,7 @@ async def cmd_metrics(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         return await _unauthorized(update)
     assert update.message is not None
     import httpx
+
     try:
         async with httpx.AsyncClient() as client:
             resp = await client.get("http://localhost:8000/metrics", timeout=5)
@@ -223,12 +229,14 @@ async def cmd_tasa(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     if not args:
         sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
         from src.financial.currency import get_tasa_display
+
         await update.message.reply_text("Tasa actual: " + get_tasa_display())
         return
     try:
         tasa = float(args[0].replace(",", "."))
         sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
         from src.financial.currency import set_manual_rate
+
         set_manual_rate(tasa)
         await update.message.reply_text("✅ Tasa actualizada: 1 = Bs. " + str(tasa))
         logger.info("Tasa manual: %.2f", tasa)
@@ -273,35 +281,36 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 bridge_ok = True
                 bridge_details = resp.json()
     except Exception as e:
-        logger.warning(f'Health check bridge error: {e}')
+        logger.warning(f"Health check bridge error: {e}")
 
     # Check SQLite connectivity
     sqlite_ok = False
     try:
         import sqlite3
+
         conn = sqlite3.connect(SQLITE_PATH)
-        conn.execute('PRAGMA foreign_keys = ON')
-        conn.execute('SELECT 1').fetchone()
+        conn.execute("PRAGMA foreign_keys = ON")
+        conn.execute("SELECT 1").fetchone()
         conn.close()
         sqlite_ok = True
     except Exception as e:
-        logger.warning(f'Health check SQLite error: {e}')
+        logger.warning(f"Health check SQLite error: {e}")
 
     # Check kill switch status
     kill_active = os.path.exists(KILL_SWITCH_FILE)
 
-    status_emoji = '✅' if (bridge_ok and sqlite_ok and not kill_active) else '⚠️'
+    status_emoji = "✅" if (bridge_ok and sqlite_ok and not kill_active) else "⚠️"
     health_text = (
-        f'{status_emoji} <b>Health Check - Kill Switch Bot</b>\n\n'
-        f'🤖 Bot: <b>ACTIVO</b>\n'
-        f'🌉 Bridge ({BRIDGE_HEALTH_URL}): {"✅ OK" if bridge_ok else "❌ ERROR"}\n'
-        f'💾 SQLite: {"✅ OK" if sqlite_ok else "❌ ERROR"}\n'
-        f'🛑 Kill Switch: {"🔴 ACTIVO" if kill_active else "🟢 INACTIVO"}\n'
-        f'🕐 {datetime.now(CARACAS_TZ).strftime("%Y-%m-%d %H:%M:%S")}'
+        f"{status_emoji} <b>Health Check - Kill Switch Bot</b>\n\n"
+        f"🤖 Bot: <b>ACTIVO</b>\n"
+        f"🌉 Bridge ({BRIDGE_HEALTH_URL}): {'✅ OK' if bridge_ok else '❌ ERROR'}\n"
+        f"💾 SQLite: {'✅ OK' if sqlite_ok else '❌ ERROR'}\n"
+        f"🛑 Kill Switch: {'🔴 ACTIVO' if kill_active else '🟢 INACTIVO'}\n"
+        f"🕐 {datetime.now(CARACAS_TZ).strftime('%Y-%m-%d %H:%M:%S')}"
     )
     if bridge_ok and bridge_details:
-        health_text += f'\n🔍 Checks: {bridge_details.get("checks", {})}'
-    await update.message.reply_text(health_text, parse_mode='HTML')
+        health_text += f"\n🔍 Checks: {bridge_details.get('checks', {})}"
+    await update.message.reply_text(health_text, parse_mode="HTML")
 
 
 def main() -> None:
@@ -322,8 +331,7 @@ def main() -> None:
     app.add_handler(CommandHandler("health", cmd_health))
 
     logger.info(
-        "Telegram bot iniciado. Esperando comandos "
-        "del Líder (chat_id=%s)",
+        "Telegram bot iniciado. Esperando comandos del Líder (chat_id=%s)",
         TELEGRAM_CHAT_ID,
     )
     app.run_polling(allowed_updates=Update.ALL_TYPES)

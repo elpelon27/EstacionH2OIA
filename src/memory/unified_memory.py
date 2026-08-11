@@ -11,9 +11,9 @@ to avoid blocking calls to external analytics service.
 import os
 
 # CRITICAL: Disable PostHog telemetry BEFORE importing mem0
-os.environ.setdefault('MEM0_TELEMETRY', 'False')
-os.environ.setdefault('POSTHOG_DISABLED', '1')
-os.environ.setdefault('DO_NOT_TRACK', '1')
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("POSTHOG_DISABLED", "1")
+os.environ.setdefault("DO_NOT_TRACK", "1")
 
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -52,7 +52,7 @@ class UnifiedMemory:
     """
     Sistema de memoria unificada SÍNCRONO (simple y robusto).
     Combina mem0 (persistencia) + Ollama (embeddings/LLM) + FAISS (vector store).
-    
+
     Telemetría PostHog DESHABILITADA por defecto para evitar bloqueos.
     """
 
@@ -63,31 +63,31 @@ class UnifiedMemory:
 
     def _default_config(self) -> dict:
         return {
-            'embedder': {
-                'provider': 'ollama',
-                'config': {
-                    'model': 'nomic-embed-text:latest',
-                    'ollama_base_url': os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
-                    'embedding_dims': 768
-                }
+            "embedder": {
+                "provider": "ollama",
+                "config": {
+                    "model": "nomic-embed-text:latest",
+                    "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                    "embedding_dims": 768,
+                },
             },
-            'llm': {
-                'provider': 'ollama',
-                'config': {
-                    'model': 'qwen2.5:7b',
-                    'ollama_base_url': os.getenv('OLLAMA_BASE_URL', 'http://localhost:11434'),
-                    'temperature': 0.1,
-                    'max_tokens': 2000
-                }
+            "llm": {
+                "provider": "ollama",
+                "config": {
+                    "model": "qwen2.5:7b",
+                    "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
+                    "temperature": 0.1,
+                    "max_tokens": 2000,
+                },
             },
-            'vector_store': {
-                'provider': 'faiss',
-                'config': {
-                    'path': '/mnt/valentina_ssd/mem0_faiss',
-                    'collection_name': 'hermes-agent',
-                    'embedding_model_dims': 768
-                }
-            }
+            "vector_store": {
+                "provider": "faiss",
+                "config": {
+                    "path": "/mnt/valentina_ssd/mem0_faiss",
+                    "collection_name": "hermes-agent",
+                    "embedding_model_dims": 768,
+                },
+            },
         }
 
     def initialize(self) -> bool:
@@ -107,36 +107,38 @@ class UnifiedMemory:
     def add(
         self,
         content: str,
-        memory_type: 'MemoryType',
+        memory_type: "MemoryType",
         metadata: dict[str, Any] | None = None,
         tags: list[str] | None = None,
         importance: float = 1.0,
-        user_id: str = "hermes-agent"
+        user_id: str = "hermes-agent",
     ) -> dict[str, Any]:
         """Añade una entrada de memoria (síncrono)."""
         self._ensure_initialized()
 
         enriched_metadata = metadata or {}
-        enriched_metadata.update({
-            'memory_type': memory_type.value,
-            'tags': tags or [],
-            'importance': importance,
-            'source': 'hermes-agent',
-            'timestamp': datetime.now().isoformat()
-        })
+        enriched_metadata.update(
+            {
+                "memory_type": memory_type.value,
+                "tags": tags or [],
+                "importance": importance,
+                "source": "hermes-agent",
+                "timestamp": datetime.now().isoformat(),
+            }
+        )
 
         return self._memory.add(
-            messages=[{'role': 'user', 'content': content}],
+            messages=[{"role": "user", "content": content}],
             user_id=user_id,
-            metadata=enriched_metadata
+            metadata=enriched_metadata,
         )
 
     def search(
         self,
         query: str,
-        memory_types: list['MemoryType'] | None = None,
+        memory_types: list["MemoryType"] | None = None,
         limit: int = 10,
-        user_id: str = "hermes-agent"
+        user_id: str = "hermes-agent",
     ) -> list[SearchResult]:
         """Busca en memoria (síncrono)."""
         self._ensure_initialized()
@@ -144,30 +146,30 @@ class UnifiedMemory:
         results = self._memory.search(query=query, user_id=user_id, limit=limit)
 
         search_results = []
-        for r in results.get('results', []):
-            mem_type_str = r.get('metadata', {}).get('memory_type', 'semantic')
+        for r in results.get("results", []):
+            mem_type_str = r.get("metadata", {}).get("memory_type", "semantic")
             try:
                 mem_type = MemoryType(mem_type_str)
             except ValueError:
                 mem_type = MemoryType.SEMANTIC
 
             entry = MemoryEntry(
-                id=r.get('id', ''),
+                id=r.get("id", ""),
                 type=mem_type,
-                content=r.get('memory', ''),
-                metadata=r.get('metadata', {}),
-                timestamp=datetime.fromisoformat(r.get('created_at', datetime.now().isoformat())),
-                tags=r.get('metadata', {}).get('tags', [])
+                content=r.get("memory", ""),
+                metadata=r.get("metadata", {}),
+                timestamp=datetime.fromisoformat(r.get("created_at", datetime.now().isoformat())),
+                tags=r.get("metadata", {}).get("tags", []),
             )
-            search_results.append(SearchResult(entry=entry, score=r.get('score', 0.0)))
+            search_results.append(SearchResult(entry=entry, score=r.get("score", 0.0)))
 
         return search_results
 
     def get_all(
         self,
-        memory_type: Optional['MemoryType'] = None,
+        memory_type: Optional["MemoryType"] = None,
         user_id: str = "hermes-agent",
-        limit: int = 100
+        limit: int = 100,
     ) -> list[MemoryEntry]:
         """Obtiene todas las memorias (via search con query vacío)."""
         return self.search("", [memory_type] if memory_type else None, limit, user_id)
@@ -180,16 +182,16 @@ class UnifiedMemory:
             test_result = self.search("test", limit=1)
 
             return {
-                'healthy': True,
-                'initialized': self._initialized,
-                'vector_store': 'faiss',
-                'embedder': 'ollama:nomic-embed-text',
-                'llm': 'ollama:qwen2.5:7b',
-                'storage_path': '/mnt/valentina_ssd/mem0_faiss',
-                'test_search_results': len(test_result)
+                "healthy": True,
+                "initialized": self._initialized,
+                "vector_store": "faiss",
+                "embedder": "ollama:nomic-embed-text",
+                "llm": "ollama:qwen2.5:7b",
+                "storage_path": "/mnt/valentina_ssd/mem0_faiss",
+                "test_search_results": len(test_result),
             }
         except Exception as e:
-            return {'healthy': False, 'error': str(e)}
+            return {"healthy": False, "error": str(e)}
 
     def close(self):
         pass
@@ -206,6 +208,7 @@ def create_unified_memory(config: dict | None = None) -> UnifiedMemory:
 # DEMO / TEST
 # ============================================================
 
+
 def demo():
     print("=== Inicializando Memoria Unificada ===")
 
@@ -221,7 +224,7 @@ def demo():
         content="Estación H2O usa 165 botellones loaner modelo H2O-001 a H2O-165",
         memory_type=MemoryType.SEMANTIC,
         tags=["h2o", "swap", "inventario", "botellones"],
-        importance=0.9
+        importance=0.9,
     )
     print("✅ Memoria semántica añadida")
 
@@ -231,7 +234,7 @@ def demo():
         memory_type=MemoryType.EPISODIC,
         tags=["entrega", "hotel_del_lago", "completada"],
         importance=0.7,
-        metadata={"cliente": "Hotel del Lago", "cantidad": 10}
+        metadata={"cliente": "Hotel del Lago", "cantidad": 10},
     )
     print("✅ Memoria episódica añadida")
 
@@ -241,7 +244,7 @@ def demo():
         memory_type=MemoryType.PROCEDURAL,
         tags=["procedimiento", "entrega", "workflow", "choferes"],
         importance=0.95,
-        metadata={"version": "1.0", "tipo": "workflow_entrega"}
+        metadata={"version": "1.0", "tipo": "workflow_entrega"},
     )
     print("✅ Memoria procedural añadida")
 
@@ -251,7 +254,7 @@ def demo():
         memory_type=MemoryType.AUTOBIOGRAPHICAL,
         tags=["identidad", "mision", "autonomia", "objetivo"],
         importance=1.0,
-        metadata={"tipo": "declaracion_mision", "version": "1.0"}
+        metadata={"tipo": "declaracion_mision", "version": "1.0"},
     )
     print("✅ Memoria autobiográfica añadida")
 
@@ -278,12 +281,12 @@ def demo():
 
 # Re-export para uso externo
 __all__ = [
-    'UnifiedMemory',
-    'MemoryType',
-    'MemoryEntry',
-    'SearchResult',
-    'create_unified_memory',
-    'demo'
+    "UnifiedMemory",
+    "MemoryType",
+    "MemoryEntry",
+    "SearchResult",
+    "create_unified_memory",
+    "demo",
 ]
 
 

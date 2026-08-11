@@ -9,11 +9,11 @@ from .orchestrator import AgentConfig, AgentType, Orchestrator, TaskResult
 from .skill_registry import SkillRegistry, SkillSpec
 
 __all__ = [
-    'Orchestrator',
-    'AgentConfig',
-    'AgentType',
-    'TaskResult',
-    'SkillRegistry',
-    'SkillSpec',
-    'MemoryAwareAgent'
+    "Orchestrator",
+    "AgentConfig",
+    "AgentType",
+    "TaskResult",
+    "SkillRegistry",
+    "SkillSpec",
+    "MemoryAwareAgent",
 ]

@@ -6,7 +6,7 @@
 
 Estructura: Sueldo fijo (€) + Comisión (€0.07 × botellones repartidos)
 Comisión SOLO botellones, NO hielo.
- """
+"""
 
 import logging
 from datetime import timedelta, timezone
@@ -49,7 +49,9 @@ async def calcular_nomina_periodo(
     for emp in empleados:
         # Contar botellones repartidos en el período
         # (Consulta a fs_pedidos donde operador_id = emp.id y fecha en rango)
-        botellones = _contar_botellones_repartidos(int(emp.id) if emp.id else 0, fecha_inicio, fecha_fin)
+        botellones = _contar_botellones_repartidos(
+            int(emp.id) if emp.id else 0, fecha_inicio, fecha_fin
+        )
 
         comision = round(botellones * emp.comision_botellon_eur, 2)
         total_eur = round(emp.sueldo_fijo_eur + comision, 2)
@@ -71,7 +73,11 @@ async def calcular_nomina_periodo(
         nominas.append(nom)
         logger.info(
             "Nómina calculada: %s — Sueldo €%.2f + Comisión €%.2f (%d botellones) = €%.2f",
-            emp.nombre, emp.sueldo_fijo_eur, comision, botellones, total_eur
+            emp.nombre,
+            emp.sueldo_fijo_eur,
+            comision,
+            botellones,
+            total_eur,
         )
 
     return nominas
@@ -80,15 +86,19 @@ async def calcular_nomina_periodo(
 def _contar_botellones_repartidos(empleado_id: int, fecha_inicio: str, fecha_fin: str) -> int:
     """Cuenta botellones repartidos por un empleado en un período."""
     from .database import get_db
+
     try:
         with get_db() as conn:
-            row = conn.execute("""
+            row = conn.execute(
+                """
                 SELECT SUM(botellones_cantidad) as total
                 FROM fs_pedidos
                 WHERE operador_id = ?
                 AND estado_entrega = 'confirmado'
                 AND entrega_confirmada_at BETWEEN ? AND ?
-            """, (empleado_id, fecha_inicio, fecha_fin + " 23:59:59")).fetchone()
+            """,
+                (empleado_id, fecha_inicio, fecha_fin + " 23:59:59"),
+            ).fetchone()
             return row["total"] if row and row["total"] else 0
     except Exception as e:
         logger.error("Error contando botellones: %s", e)

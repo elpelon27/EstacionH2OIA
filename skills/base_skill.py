@@ -1,4 +1,5 @@
 """Clase base para todas las skills de Hermes Agent."""
+
 from typing import Any
 
 from core.config import get_settings

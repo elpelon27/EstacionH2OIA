@@ -75,7 +75,7 @@ def buscar_pedidos_por_telefono_monto(
         placeholders = ",".join(["?"] * len(estados_permitidos))
         query = f"""
             SELECT * FROM fs_pedidos
-            WHERE 
+            WHERE
                 (cliente_telefono LIKE ? OR cliente_telefono LIKE ? OR cliente_telefono LIKE ?)
                 AND monto_total_eur BETWEEN ? AND ?
                 AND estado_pago IN ({placeholders})
@@ -226,6 +226,7 @@ async def procesar_notifica_pago_movil(payload: R4NotificaRequest) -> dict[str, 
                 logger.error("Pedido sin ID válido")
                 return {"abono": False}
 
+            monto = float(payload.Monto)
             logger.info(
                 "Match pedido fs_id=%d cliente=%s monto=%.2f",
                 fs_pedido_id,
@@ -253,11 +254,17 @@ async def procesar_notifica_pago_movil(payload: R4NotificaRequest) -> dict[str, 
                 with db.get_db() as conn:
                     conn.execute(
                         """
-                        INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_nuevo, modificado_por, timestamp)
-                        VALUES ('fs_pedidos', ?, 'PAGO_BANCO_R4',
-                                json_object('estado_pago', 'pagado', 'monto_pagado_eur', ?, 'referencia_banco', ?),
-                                'banco_r4', datetime('now'))
-                    """,
+                        INSERT INTO fs_audit_log
+                            (tabla, registro_id, accion, estado_nuevo, modificado_por, timestamp)
+                        VALUES
+                            ('fs_pedidos', ?, 'PAGO_BANCO_R4',
+                             json_object(
+                                 'estado_pago', 'pagado',
+                                 'monto_pagado_eur', ?,
+                                 'referencia_banco', ?
+                             ),
+                             'banco_r4', datetime('now'))
+                        """,
                         (pedido.id, float(payload.Monto), payload.Referencia),
                     )
 

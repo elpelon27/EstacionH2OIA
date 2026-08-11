@@ -20,20 +20,22 @@ from src.memory.unified_memory import MemoryEntry, MemoryType, SearchResult, Uni
 
 class AgentType(Enum):
     """Types of specialist agents in the swarm"""
+
     ORCHESTRATOR = "orchestrator"
-    DISPATCHER = "dispatcher"          # Route planning, driver assignment
-    FINANCIAL = "financial"            # Payments, collections, reconciliation
-    INVENTORY = "inventory"            # Bottle tracking, SWAP management
-    VALENTINA = "valentina"            # WhatsApp customer interactions
-    ANALYTICS = "analytics"            # Reports, metrics, insights
-    RESEARCH = "research"              # Deep research, web search
-    MEMORY = "memory"                  # Memory management, retrieval
+    DISPATCHER = "dispatcher"  # Route planning, driver assignment
+    FINANCIAL = "financial"  # Payments, collections, reconciliation
+    INVENTORY = "inventory"  # Bottle tracking, SWAP management
+    VALENTINA = "valentina"  # WhatsApp customer interactions
+    ANALYTICS = "analytics"  # Reports, metrics, insights
+    RESEARCH = "research"  # Deep research, web search
+    MEMORY = "memory"  # Memory management, retrieval
     CUSTOM = "custom"
 
 
 @dataclass
 class AgentConfig:
     """Configuration for a specialist agent"""
+
     name: str
     agent_type: AgentType
     description: str
@@ -41,7 +43,9 @@ class AgentConfig:
     tools: list[str] = field(default_factory=list)  # Tool names this agent can use
     skills: list[str] = field(default_factory=list)  # Skill names this agent can load
     handoff_agents: list[AgentType] = field(default_factory=list)  # Can handoff to these
-    memory_types: list[MemoryType] = field(default_factory=lambda: [MemoryType.SEMANTIC, MemoryType.EPISODIC])
+    memory_types: list[MemoryType] = field(
+        default_factory=lambda: [MemoryType.SEMANTIC, MemoryType.EPISODIC]
+    )
     enabled: bool = True
     metadata: dict[str, Any] = field(default_factory=dict)
 
@@ -49,6 +53,7 @@ class AgentConfig:
 @dataclass
 class AgentMessage:
     """Message between agents"""
+
     id: str = field(default_factory=lambda: str(uuid.uuid4()))
     from_agent: str = ""
     to_agent: str = ""
@@ -62,6 +67,7 @@ class AgentMessage:
 @dataclass
 class TaskResult:
     """Result of an agent task execution"""
+
     success: bool
     agent_name: str
     output: Any = None
@@ -74,7 +80,7 @@ class TaskResult:
 class BaseAgent(ABC):
     """Base class for all specialist agents"""
 
-    def __init__(self, config: AgentConfig, orchestrator: 'Orchestrator', memory: UnifiedMemory):
+    def __init__(self, config: AgentConfig, orchestrator: "Orchestrator", memory: UnifiedMemory):
         self.config = config
         self.orchestrator = orchestrator
         self.memory = memory
@@ -110,18 +116,20 @@ class BaseAgent(ABC):
             content=content,
             memory_type=memory_type,
             metadata=metadata,
-            tags=[self.config.agent_type.value, self.config.name]
+            tags=[self.config.agent_type.value, self.config.name],
         )
 
     async def handoff(self, to_agent: AgentType, task: str, context: dict[str, Any]) -> TaskResult:
         """Handoff task to another agent"""
-        return await self.orchestrator.delegate(to_agent, task, context, from_agent=self.config.name)
+        return await self.orchestrator.delegate(
+            to_agent, task, context, from_agent=self.config.name
+        )
 
 
 class Orchestrator:
     """
     Central orchestrator coordinating specialist agents.
-    
+
     Patterns from:
     - OpenSwarm: Orchestrator routes to specialists, never answers directly
     - ADK: Graph-based workflow execution with state management
@@ -143,64 +151,93 @@ class Orchestrator:
         """Register the default specialist agents for H2O operations"""
 
         # Dispatcher Agent
-        self.register_agent(AgentConfig(
-            name="dispatcher",
-            agent_type=AgentType.DISPATCHER,
-            description="Route planning, driver assignment, vehicle tracking, delivery optimization",
-            instructions=self._get_dispatcher_instructions(),
-            tools=["route_optimizer", "vehicle_tracker", "driver_assigner", "delivery_scheduler"],
-            skills=["route_planning", "vehicle_assignment", "bottle_tracking"],
-            handoff_agents=[AgentType.FINANCIAL, AgentType.INVENTORY, AgentType.VALENTINA],
-            memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL]
-        ))
+        self.register_agent(
+            AgentConfig(
+                name="dispatcher",
+                agent_type=AgentType.DISPATCHER,
+                description="Route planning, driver assignment, vehicle tracking, delivery optimization",
+                instructions=self._get_dispatcher_instructions(),
+                tools=[
+                    "route_optimizer",
+                    "vehicle_tracker",
+                    "driver_assigner",
+                    "delivery_scheduler",
+                ],
+                skills=["route_planning", "vehicle_assignment", "bottle_tracking"],
+                handoff_agents=[AgentType.FINANCIAL, AgentType.INVENTORY, AgentType.VALENTINA],
+                memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL],
+            )
+        )
 
         # Financial Agent
-        self.register_agent(AgentConfig(
-            name="financial",
-            agent_type=AgentType.FINANCIAL,
-            description="Payments processing, collections, reconciliation, banking integration (R4 Banco)",
-            instructions=self._get_financial_instructions(),
-            tools=["payment_processor", "collections_manager", "reconciliation_engine", "r4_banco_client"],
-            skills=["payment_processing", "collections_workflow", "bank_reconciliation"],
-            handoff_agents=[AgentType.DISPATCHER, AgentType.VALENTINA],
-            memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL]
-        ))
+        self.register_agent(
+            AgentConfig(
+                name="financial",
+                agent_type=AgentType.FINANCIAL,
+                description="Payments processing, collections, reconciliation, banking integration (R4 Banco)",
+                instructions=self._get_financial_instructions(),
+                tools=[
+                    "payment_processor",
+                    "collections_manager",
+                    "reconciliation_engine",
+                    "r4_banco_client",
+                ],
+                skills=["payment_processing", "collections_workflow", "bank_reconciliation"],
+                handoff_agents=[AgentType.DISPATCHER, AgentType.VALENTINA],
+                memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL],
+            )
+        )
 
         # Inventory Agent
-        self.register_agent(AgentConfig(
-            name="inventory",
-            agent_type=AgentType.INVENTORY,
-            description="Bottle tracking, SWAP management (165 loaners), stock levels, cycle counts",
-            instructions=self._get_inventory_instructions(),
-            tools=["bottle_tracker", "swap_manager", "stock_monitor", "cycle_counter"],
-            skills=["bottle_lifecycle", "swap_migration", "inventory_audit"],
-            handoff_agents=[AgentType.DISPATCHER, AgentType.FINANCIAL],
-            memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL]
-        ))
+        self.register_agent(
+            AgentConfig(
+                name="inventory",
+                agent_type=AgentType.INVENTORY,
+                description="Bottle tracking, SWAP management (165 loaners), stock levels, cycle counts",
+                instructions=self._get_inventory_instructions(),
+                tools=["bottle_tracker", "swap_manager", "stock_monitor", "cycle_counter"],
+                skills=["bottle_lifecycle", "swap_migration", "inventory_audit"],
+                handoff_agents=[AgentType.DISPATCHER, AgentType.FINANCIAL],
+                memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL],
+            )
+        )
 
         # Valentina Agent (WhatsApp)
-        self.register_agent(AgentConfig(
-            name="valentina",
-            agent_type=AgentType.VALENTINA,
-            description="Customer WhatsApp interactions, orders, complaints, status updates",
-            instructions=self._get_valentina_instructions(),
-            tools=["whatsapp_sender", "order_parser", "status_checker", "complaint_handler"],
-            skills=["customer_communication", "order_taking", "complaint_resolution"],
-            handoff_agents=[AgentType.DISPATCHER, AgentType.FINANCIAL, AgentType.INVENTORY],
-            memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.AUTOBIOGRAPHICAL]
-        ))
+        self.register_agent(
+            AgentConfig(
+                name="valentina",
+                agent_type=AgentType.VALENTINA,
+                description="Customer WhatsApp interactions, orders, complaints, status updates",
+                instructions=self._get_valentina_instructions(),
+                tools=["whatsapp_sender", "order_parser", "status_checker", "complaint_handler"],
+                skills=["customer_communication", "order_taking", "complaint_resolution"],
+                handoff_agents=[AgentType.DISPATCHER, AgentType.FINANCIAL, AgentType.INVENTORY],
+                memory_types=[
+                    MemoryType.SEMANTIC,
+                    MemoryType.EPISODIC,
+                    MemoryType.AUTOBIOGRAPHICAL,
+                ],
+            )
+        )
 
         # Analytics Agent
-        self.register_agent(AgentConfig(
-            name="analytics",
-            agent_type=AgentType.ANALYTICS,
-            description="Reports, metrics, KPI dashboards, business insights",
-            instructions=self._get_analytics_instructions(),
-            tools=["report_generator", "metrics_calculator", "dashboard_builder", "trend_analyzer"],
-            skills=["kpi_reporting", "trend_analysis", "executive_dashboard"],
-            handoff_agents=[AgentType.DISPATCHER, AgentType.FINANCIAL, AgentType.INVENTORY],
-            memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL]
-        ))
+        self.register_agent(
+            AgentConfig(
+                name="analytics",
+                agent_type=AgentType.ANALYTICS,
+                description="Reports, metrics, KPI dashboards, business insights",
+                instructions=self._get_analytics_instructions(),
+                tools=[
+                    "report_generator",
+                    "metrics_calculator",
+                    "dashboard_builder",
+                    "trend_analyzer",
+                ],
+                skills=["kpi_reporting", "trend_analysis", "executive_dashboard"],
+                handoff_agents=[AgentType.DISPATCHER, AgentType.FINANCIAL, AgentType.INVENTORY],
+                memory_types=[MemoryType.SEMANTIC, MemoryType.EPISODIC, MemoryType.PROCEDURAL],
+            )
+        )
 
     def register_agent(self, config: AgentConfig):
         """Register an agent configuration"""
@@ -243,14 +280,20 @@ class Orchestrator:
                 self.agents[key] = agent
         return self.agents.get(key)
 
-    async def delegate(self, to_agent: AgentType, task: str, context: dict[str, Any], from_agent: str = "orchestrator") -> TaskResult:
+    async def delegate(
+        self,
+        to_agent: AgentType,
+        task: str,
+        context: dict[str, Any],
+        from_agent: str = "orchestrator",
+    ) -> TaskResult:
         """Delegate a task to a specialist agent"""
         agent = self.get_agent(to_agent)
         if not agent:
             return TaskResult(
                 success=False,
                 agent_name=to_agent.value,
-                error=f"Agent {to_agent.value} not available"
+                error=f"Agent {to_agent.value} not available",
             )
 
         # Load context if first time
@@ -268,14 +311,16 @@ class Orchestrator:
                 "from_agent": from_agent,
                 "to_agent": to_agent.value,
                 "task": task,
-                "success": result.success
+                "success": result.success,
             },
-            tags=["workflow", "delegation", from_agent, to_agent.value]
+            tags=["workflow", "delegation", from_agent, to_agent.value],
         )
 
         return result
 
-    async def execute_workflow(self, workflow_name: str, steps: list[dict], initial_context: dict[str, Any]) -> list[TaskResult]:
+    async def execute_workflow(
+        self, workflow_name: str, steps: list[dict], initial_context: dict[str, Any]
+    ) -> list[TaskResult]:
         """Execute a multi-step workflow across agents"""
         workflow_id = str(uuid.uuid4())
         self.active_workflows[workflow_id] = {
@@ -283,7 +328,7 @@ class Orchestrator:
             "steps": steps,
             "context": initial_context.copy(),
             "results": [],
-            "started_at": datetime.now()
+            "started_at": datetime.now(),
         }
 
         results = []
@@ -313,15 +358,16 @@ class Orchestrator:
                     "workflow_name": workflow_name,
                     "step_agent": agent_type.value,
                     "step_task": task,
-                    "success": result.success
+                    "success": result.success,
                 },
-                tags=["workflow", workflow_name, agent_type.value]
+                tags=["workflow", workflow_name, agent_type.value],
             )
 
             # Check for handoff
             if result.handoff_to:
-                handoff_result = await self.delegate(result.handoff_to,
-                    step.get("handoff_task", "Continue workflow"), context)
+                handoff_result = await self.delegate(
+                    result.handoff_to, step.get("handoff_task", "Continue workflow"), context
+                )
                 results.append(handoff_result)
 
         self.active_workflows[workflow_id]["results"] = results

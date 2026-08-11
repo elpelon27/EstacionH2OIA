@@ -280,8 +280,7 @@ async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     reply_markup = InlineKeyboardMarkup(keyboard)
 
     await message.reply_text(
-        "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n"
-        "¿Quién eres?",
+        "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n¿Quién eres?",
         reply_markup=reply_markup,
     )
 
@@ -518,9 +517,7 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 "siguiente ruta.\n"
                 "💧 Estación H2O"
             )
-            logger.info(
-                "new_%s ack sin delivery asociado (vehicle_id=%d)", action_kind, vehicle_id
-            )
+            logger.info("new_%s ack sin delivery asociado (vehicle_id=%d)", action_kind, vehicle_id)
             return
 
         delivery_id = delivery["id"]
@@ -584,9 +581,7 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                         delivery_id,
                     )
                 else:
-                    logger.warning(
-                        "SWAP: tracking failed: %s", result.get("error", "unknown")
-                    )
+                    logger.warning("SWAP: tracking failed: %s", result.get("error", "unknown"))
             except Exception as e:
                 logger.warning("SWAP: error notificando WorkloadRouter: %s", e)
 
@@ -668,9 +663,7 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     try:
         conn = sqlite3.connect("/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
         conn.execute("PRAGMA foreign_keys = ON")
-        row = conn.execute(
-            'SELECT COUNT(*) FROM deliveries WHERE status = "pending"'
-        ).fetchone()
+        row = conn.execute('SELECT COUNT(*) FROM deliveries WHERE status = "pending"').fetchone()
         pending_deliveries = row[0] if row else 0
         conn.close()
         db_ok = True

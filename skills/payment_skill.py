@@ -1,4 +1,5 @@
 """Payment Skill — Validación de pagos Pago Móvil vía OCR con Qwen2.5-VL."""
+
 import base64
 import json
 from typing import Any
@@ -39,15 +40,17 @@ class PaymentSkill(BaseSkill):
                 except ValueError:
                     verified = False
 
-            return self._success({
-                "verified": verified,
-                "extracted_amount": amount_str,
-                "reference": extracted.get("reference", ""),
-                "bank": extracted.get("bank", ""),
-                "date": extracted.get("date", ""),
-                "order_id": order_id,
-                "expected_amount": expected_amount,
-            })
+            return self._success(
+                {
+                    "verified": verified,
+                    "extracted_amount": amount_str,
+                    "reference": extracted.get("reference", ""),
+                    "bank": extracted.get("bank", ""),
+                    "date": extracted.get("date", ""),
+                    "order_id": order_id,
+                    "expected_amount": expected_amount,
+                }
+            )
         except Exception as e:
             return self._error(f"Error procesando pago: {str(e)}")
 
@@ -65,8 +68,8 @@ class PaymentSkill(BaseSkill):
             "Analiza esta captura de Pago Móvil venezolano.\n"
             "Extrae: amount, reference, bank, date, phone.\n"
             "Retorna SOLO JSON: "
-            "{\"amount\":\"515.18\",\"reference\":\"123\",\"bank\":\"Banesco\","
-            "\"date\":\"2026-06-28\",\"phone\":\"\"}"
+            '{"amount":"515.18","reference":"123","bank":"Banesco",'
+            '"date":"2026-06-28","phone":""}'
         )
 
         try:

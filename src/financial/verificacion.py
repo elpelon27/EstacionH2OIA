@@ -417,7 +417,7 @@ async def _ocr_qwen_vl(image_data: bytes) -> dict | None:
                 "role": "user",
                 "content": (
                     "Extrae referencia (número) y monto en bolívares de este "
-                    "comprobante. Responde JSON: {\"referencia\": \"\", \"monto_ves\": 0}"
+                    'comprobante. Responde JSON: {"referencia": "", "monto_ves": 0}'
                 ),
                 "images": [b64],
             }

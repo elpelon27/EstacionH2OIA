@@ -8,6 +8,7 @@ Verifica que:
 
 Envía resumen por Telegram al Líder.
 """
+
 import asyncio
 import logging
 import os
@@ -42,13 +43,9 @@ def _check_conversations_db() -> dict[str, int]:
     info = {"dispatch_queue_pending": 0, "dispatch_queue_total": 0, "orders_today": 0}
     try:
         conn = sqlite3.connect(DB_CONV)
-        row = conn.execute(
-            "SELECT estado, COUNT(*) FROM dispatch_queue GROUP BY estado"
-        ).fetchall()
+        row = conn.execute("SELECT estado, COUNT(*) FROM dispatch_queue GROUP BY estado").fetchall()
         info["dispatch_queue_total"] = sum(r[1] for r in row) if row else 0
-        info["dispatch_queue_pending"] = next(
-            (r[1] for r in row if r[0] == "pending"), 0
-        )
+        info["dispatch_queue_pending"] = next((r[1] for r in row if r[0] == "pending"), 0)
         conn.close()
     except Exception as e:
         logger.error("Error leyendo conversations.db: %s", e)
@@ -63,12 +60,8 @@ def _check_dispatch_db() -> dict[str, int]:
         for table in ("clients", "vehicles"):
             count = conn.execute(f"SELECT COUNT(*) FROM {table}").fetchone()
             info[table] = count[0] if count else 0
-        row = conn.execute(
-            "SELECT status, COUNT(*) FROM deliveries GROUP BY status"
-        ).fetchall()
-        info["deliveries_pending"] = next(
-            (r[1] for r in row if r[0] == "pending"), 0
-        )
+        row = conn.execute("SELECT status, COUNT(*) FROM deliveries GROUP BY status").fetchall()
+        info["deliveries_pending"] = next((r[1] for r in row if r[0] == "pending"), 0)
         conn.close()
     except Exception as e:
         logger.error("Error leyendo dispatch.db: %s", e)
@@ -79,9 +72,12 @@ def _check_service() -> str:
     """Verifica que dispatcher-bot.service esté activo."""
     try:
         import subprocess
+
         r = subprocess.run(
             ["systemctl", "is-active", "dispatcher-bot.service"],
-            capture_output=True, text=True, timeout=5
+            capture_output=True,
+            text=True,
+            timeout=5,
         )
         return r.stdout.strip()
     except Exception:
@@ -106,9 +102,13 @@ async def main() -> None:
             f"📬 Dispatch queue pending: {conv_info['dispatch_queue_pending']}\n"
             f"📊 Dispatch queue total: {conv_info['dispatch_queue_total']}\n"
         )
-        logger.info("Check-in: %s | clients=%d vehicles=%d pending=%d",
-                    svc_status, dispatch_info["clients"],
-                    dispatch_info["vehicles"], conv_info["dispatch_queue_pending"])
+        logger.info(
+            "Check-in: %s | clients=%d vehicles=%d pending=%d",
+            svc_status,
+            dispatch_info["clients"],
+            dispatch_info["vehicles"],
+            conv_info["dispatch_queue_pending"],
+        )
 
         if TELEGRAM_BOT_TOKEN:
             async with httpx.AsyncClient() as client:

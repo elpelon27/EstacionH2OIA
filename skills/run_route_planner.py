@@ -8,6 +8,7 @@ y notifica a cada chofer por Telegram con su ruta del día.
 
 Cron: 45 7 * * * /mnt/ssd_trabajo/hermes-agent/venv/bin/python skills/run_route_planner.py
 """
+
 import asyncio
 import logging
 import os
@@ -66,15 +67,15 @@ def _fetch_pending_orders() -> list[Any]:
     return rows
 
 
-def _find_or_create_client(conn: sqlite3.Connection, name: str, phone: str,
-                           lat: float, lng: float, address: str) -> int:
+def _find_or_create_client(
+    conn: sqlite3.Connection, name: str, phone: str, lat: float, lng: float, address: str
+) -> int:
     """Busca client por phone, o lo crea si no existe. Retorna client_id."""
     import hashlib
+
     phone_hash = hashlib.sha256(phone.encode()).hexdigest()[:16] if phone else ""
 
-    row = conn.execute(
-        "SELECT id FROM clients WHERE phone = ?", (phone,)
-    ).fetchone()
+    row = conn.execute("SELECT id FROM clients WHERE phone = ?", (phone,)).fetchone()
     if row:
         # Actualizar lat/lng si vienen del pedido
         if lat is not None and lng is not None:
@@ -89,8 +90,16 @@ def _find_or_create_client(conn: sqlite3.Connection, name: str, phone: str,
         """INSERT INTO clients (phone, phone_hash, name, address_text, lat, lng,
            client_type, priority, active, created_at, updated_at)
            VALUES (?, ?, ?, ?, ?, ?, 'retail', 5, 1, ?, ?)""",
-        (phone, phone_hash, name or phone, address, lat, lng,
-         datetime.now(CARACAS_TZ).timestamp(), datetime.now(CARACAS_TZ).timestamp()),
+        (
+            phone,
+            phone_hash,
+            name or phone,
+            address,
+            lat,
+            lng,
+            datetime.now(CARACAS_TZ).timestamp(),
+            datetime.now(CARACAS_TZ).timestamp(),
+        ),
     )
     return conn.execute("SELECT last_insert_rowid()").fetchone()[0]  # type: ignore[no-any-return]
 
@@ -98,6 +107,7 @@ def _find_or_create_client(conn: sqlite3.Connection, name: str, phone: str,
 def _extract_bottles(producto_desc: str) -> int:
     """Extrae cantidad de botellones del producto_desc (ej '3 botellones de agua')."""
     import re
+
     m = re.search(r"(\d+)\s*botell", producto_desc or "", re.IGNORECASE)
     return int(m.group(1)) if m else 1
 
@@ -118,7 +128,7 @@ async def _notify_chofer(route: Any, total_distance: float) -> None:
     import httpx
 
     stops_text = "\n".join(
-        f"  {i+1}. {stop.name} — {stop.bottles_full} botellones\n     {stop.address}"
+        f"  {i + 1}. {stop.name} — {stop.bottles_full} botellones\n     {stop.address}"
         for i, stop in enumerate(route.stops)
     )
 
@@ -186,20 +196,26 @@ async def main() -> None:
                 lat, lng = DEPOT_LAT, DEPOT_LNG
 
             client_id = _find_or_create_client(
-                conn, p["cliente_nombre"] or "", p["cliente_telefono"] or "",
-                lat, lng, p["direccion"] or "",
+                conn,
+                p["cliente_nombre"] or "",
+                p["cliente_telefono"] or "",
+                lat,
+                lng,
+                p["direccion"] or "",
             )
             bottles = _extract_bottles(p["producto_desc"])
 
-            orders.append(ClientOrder(
-                client_id=client_id,
-                name=p["cliente_nombre"] or p["cliente_telefono"] or "Cliente",
-                lat=lat,
-                lng=lng,
-                bottles_full=bottles,
-                address=p["direccion"] or "",
-                phone=p["cliente_telefono"] or "",
-            ))
+            orders.append(
+                ClientOrder(
+                    client_id=client_id,
+                    name=p["cliente_nombre"] or p["cliente_telefono"] or "Cliente",
+                    lat=lat,
+                    lng=lng,
+                    bottles_full=bottles,
+                    address=p["direccion"] or "",
+                    phone=p["cliente_telefono"] or "",
+                )
+            )
             order_map.append((p["id"], client_id))
 
         conn.commit()
@@ -215,8 +231,10 @@ async def main() -> None:
 
         logger.info(
             "VRP calculado: %d rutas, %.1f km total, %d min, alg=%s, unassigned=%d",
-            len(vrp_result.routes), vrp_result.total_distance_km,
-            vrp_result.total_duration_min, vrp_result.algorithm,
+            len(vrp_result.routes),
+            vrp_result.total_distance_km,
+            vrp_result.total_duration_min,
+            vrp_result.algorithm,
             len(vrp_result.unassigned),
         )
 
@@ -232,9 +250,17 @@ async def main() -> None:
                     total_distance_km, total_duration_minutes, route_algorithm,
                     route_computed_at, created_at)
                    VALUES (?, 'morning', ?, 'planning', ?, ?, ?, ?, ?, ?, ?)""",
-                (route.vehicle_id, today_str, len(route.stops), route.total_bottles,
-                 route.total_distance_km, route.total_duration_min,
-                 vrp_result.algorithm, now_ts, now_ts),
+                (
+                    route.vehicle_id,
+                    today_str,
+                    len(route.stops),
+                    route.total_bottles,
+                    route.total_distance_km,
+                    route.total_duration_min,
+                    vrp_result.algorithm,
+                    now_ts,
+                    now_ts,
+                ),
             )
             session_id = conn.execute("SELECT last_insert_rowid()").fetchone()[0]
 
@@ -245,8 +271,15 @@ async def main() -> None:
                        (dispatch_session_id, client_id, vehicle_id, order_sequence,
                         status, bottles_full, created_at, updated_at)
                        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)""",
-                    (session_id, stop.client_id, route.vehicle_id, seq + 1,
-                     stop.bottles_full, now_ts, now_ts),
+                    (
+                        session_id,
+                        stop.client_id,
+                        route.vehicle_id,
+                        seq + 1,
+                        stop.bottles_full,
+                        now_ts,
+                        now_ts,
+                    ),
                 )
 
             # 5. Notificar chofer

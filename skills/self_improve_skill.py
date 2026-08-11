@@ -1,4 +1,5 @@
 """Self-Improve Skill — Auto-análisis con Fusion Tournament (nocturno)."""
+
 from typing import Any
 
 from core.fusion import get_fusion

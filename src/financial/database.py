@@ -65,9 +65,12 @@ CREATE TABLE IF NOT EXISTS fs_productos (
 );
 
 -- Seed inicial (idempotente)
-INSERT OR IGNORE INTO fs_productos (id, nombre, precio_base_eur, precio_volumen_eur, umbral_volumen, tiene_comision, comision_eur, activo) VALUES
-(1, 'Botellón 19L', 1.00, 0.85, 10, 1, 0.07, 1),
-(2, 'Bolsa Hielo 7.5kg', 1.20, 0.90, 5, 0, 0.00, 1);
+INSERT OR IGNORE INTO fs_productos
+    (id, nombre, precio_base_eur, precio_volumen_eur, umbral_volumen,
+     tiene_comision, comision_eur, activo)
+VALUES
+    (1, 'Botellón 19L', 1.00, 0.85, 10, 1, 0.07, 1),
+    (2, 'Bolsa Hielo 7.5kg', 1.20, 0.90, 5, 0, 0.00, 1);
 
 -- ============================================================================
 -- 2. VISTA FINANCIERA DE PEDIDOS (1:1 con orders de Valentina)
@@ -80,24 +83,26 @@ CREATE TABLE IF NOT EXISTS fs_pedidos (
     operador_id             INTEGER,
     monto_total_eur         REAL NOT NULL,
     monto_total_ves         REAL DEFAULT 0,
-    monto_pagado_eur        REAL DEFAULT 0,                   -- v3.0: tracking parciales
-    tasa_eur_ves_deuda      REAL NOT NULL,                   -- v3.0: tasa congelada al crear deuda
-    tasa_eur_ves            REAL DEFAULT 0,                  -- v3.0: tasa EUR/VES actual
+    monto_pagado_eur        REAL DEFAULT 0,  -- v3.0: tracking parciales
+    tasa_eur_ves_deuda      REAL NOT NULL,  -- v3.0: tasa congelada al crear deuda
+    tasa_eur_ves            REAL DEFAULT 0,  -- v3.0: tasa EUR/VES actual
     tasa_usd_ves_ref        REAL,
     botellones_cantidad     INTEGER DEFAULT 0,
     hielo_cantidad          INTEGER DEFAULT 0,
-    metodo_pago             TEXT,                            -- pagomovil|efectivo_eur|efectivo_ves
-    estado_pago             TEXT DEFAULT 'pendiente',        -- pendiente|parcial|pagado|verificando|vencido|moroso
-    estado_entrega          TEXT DEFAULT 'sin_entregar',     -- sin_entregar|entregado|confirmado
-    tipo_credito            TEXT,                            -- NULL=contado | express|semanal|mensual
+    metodo_pago             TEXT,  -- pagomovil|efectivo_eur|efectivo_ves
+    estado_pago             TEXT DEFAULT 'pendiente',
+    -- pendiente|parcial|pagado|verificando|vencido|moroso
+    estado_entrega          TEXT DEFAULT 'sin_entregar',
+    -- sin_entregar|entregado|confirmado
+    tipo_credito            TEXT,  -- NULL=contado | express|semanal|mensual
     fecha_vencimiento_credito TEXT,
-    verificacion_bancaria   TEXT DEFAULT 'pending',          -- pending|api|ocr|manual
+    verificacion_bancaria   TEXT DEFAULT 'pending',  -- pending|api|ocr|manual
     recordatorios_enviados  INTEGER DEFAULT 0,
-    ultimo_recordatorio_at  TEXT,                            -- ISO8601 UTC
+    ultimo_recordatorio_at  TEXT,  -- ISO8601 UTC
     escalo_humano           BOOLEAN DEFAULT 0,
-    entrega_confirmada_at   TEXT,                            -- ISO8601 UTC
-    creado_at               TEXT NOT NULL,                   -- ISO8601 UTC
-    actualizado_at          TEXT NOT NULL                    -- ISO8601 UTC
+    entrega_confirmada_at   TEXT,  -- ISO8601 UTC
+    creado_at               TEXT NOT NULL,  -- ISO8601 UTC
+    actualizado_at          TEXT NOT NULL  -- ISO8601 UTC
 );
 
 CREATE INDEX IF NOT EXISTS idx_fs_pedidos_cliente ON fs_pedidos(cliente_telefono);
@@ -142,9 +147,10 @@ CREATE TABLE IF NOT EXISTS fs_cuentas_cobrar (
     fs_pedido_id            INTEGER NOT NULL,
     monto_original_eur      REAL NOT NULL,
     monto_pagado_eur        REAL DEFAULT 0,
-    tipo_credito            TEXT NOT NULL,                   -- express|semanal|mensual
-    fecha_vencimiento       TEXT NOT NULL,                   -- ISO8601 date
-    estado                  TEXT DEFAULT 'pendiente',        -- pendiente|parcial|pagado|vencido|moroso
+    tipo_credito            TEXT NOT NULL,  -- express|semanal|mensual
+    fecha_vencimiento       TEXT NOT NULL,  -- ISO8601 date
+    estado                  TEXT DEFAULT 'pendiente',
+    -- pendiente|parcial|pagado|vencido|moroso
     recordatorios_enviados  INTEGER DEFAULT 0,
     ultimo_recordatorio_at  TEXT,
     escalo_humano           BOOLEAN DEFAULT 0,
@@ -154,8 +160,10 @@ CREATE TABLE IF NOT EXISTS fs_cuentas_cobrar (
     FOREIGN KEY (fs_pedido_id) REFERENCES fs_pedidos(id)
 );
 
-CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_estado ON fs_cuentas_cobrar(estado);
-CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_vencimiento ON fs_cuentas_cobrar(fecha_vencimiento);
+CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_estado
+    ON fs_cuentas_cobrar(estado);
+CREATE INDEX IF NOT EXISTS idx_fs_cuentas_cobrar_vencimiento
+    ON fs_cuentas_cobrar(fecha_vencimiento);
 
 -- ============================================================================
 -- 5. LOG DE VERIFICACIÓN (auditoría operativa del loop)
@@ -164,11 +172,11 @@ CREATE TABLE IF NOT EXISTS fs_verificacion_log (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     fs_pedido_id        INTEGER NOT NULL,
     intento             INTEGER NOT NULL,
-    metodo_verificacion TEXT,                                -- api_bancaria|ocr|manual
+    metodo_verificacion TEXT,  -- api_bancaria|ocr|manual
     pago_encontrado     BOOLEAN DEFAULT 0,
-    accion              TEXT,                                -- recordatorio_enviado|escalo_humano|pagado
+    accion              TEXT,  -- recordatorio_enviado|escalo_humano|pagado
     resultado_detalle   TEXT,
-    timestamp           TEXT NOT NULL,                       -- ISO8601 UTC
+    timestamp           TEXT NOT NULL,  -- ISO8601 UTC
     FOREIGN KEY (fs_pedido_id) REFERENCES fs_pedidos(id)
 );
 
@@ -268,13 +276,13 @@ CREATE TABLE IF NOT EXISTS fs_reportes_diarios (
 -- ============================================================================
 CREATE TABLE IF NOT EXISTS fs_audit_log (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
-    tabla               TEXT NOT NULL,                       -- fs_pedidos|fs_pagos|fs_cuentas_cobrar
+    tabla               TEXT NOT NULL,  -- fs_pedidos|fs_pagos|fs_cuentas_cobrar
     registro_id         INTEGER NOT NULL,
-    accion              TEXT NOT NULL,                       -- INSERT|UPDATE|DELETE
-    estado_anterior     TEXT,                                -- JSON
-    estado_nuevo        TEXT,                                -- JSON
-    modificado_por      TEXT,                                -- 'sistema'|'valentina'|'lider'|'dispatcher'
-    timestamp           TEXT NOT NULL                        -- ISO8601 UTC
+    accion              TEXT NOT NULL,  -- INSERT|UPDATE|DELETE
+    estado_anterior     TEXT,  -- JSON
+    estado_nuevo        TEXT,  -- JSON
+    modificado_por      TEXT,  -- 'sistema'|'valentina'|'lider'|'dispatcher'
+    timestamp           TEXT NOT NULL  -- ISO8601 UTC
 );
 
 CREATE INDEX IF NOT EXISTS idx_fs_audit_log_tabla_reg ON fs_audit_log(tabla, registro_id);
@@ -285,8 +293,10 @@ CREATE TRIGGER IF NOT EXISTS trg_audit_fs_pedidos_insert
 AFTER INSERT ON fs_pedidos
 FOR EACH ROW
 BEGIN
-    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
-    VALUES ('fs_pedidos', NEW.id, 'INSERT', NULL,
+    INSERT INTO fs_audit_log
+        (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES
+        ('fs_pedidos', NEW.id, 'INSERT', NULL,
             json_object(
                 'estado_pago', NEW.estado_pago,
                 'monto_total_eur', NEW.monto_total_eur,
@@ -300,8 +310,10 @@ CREATE TRIGGER IF NOT EXISTS trg_audit_fs_pedidos_update
 AFTER UPDATE ON fs_pedidos
 FOR EACH ROW
 BEGIN
-    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
-    VALUES ('fs_pedidos', NEW.id, 'UPDATE',
+    INSERT INTO fs_audit_log
+        (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES
+        ('fs_pedidos', NEW.id, 'UPDATE',
             json_object(
                 'estado_pago', OLD.estado_pago,
                 'monto_pagado_eur', OLD.monto_pagado_eur,
@@ -323,8 +335,10 @@ CREATE TRIGGER IF NOT EXISTS trg_audit_fs_pagos_insert
 AFTER INSERT ON fs_pagos
 FOR EACH ROW
 BEGIN
-    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
-    VALUES ('fs_pagos', NEW.id, 'INSERT', NULL,
+    INSERT INTO fs_audit_log
+        (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES
+        ('fs_pagos', NEW.id, 'INSERT', NULL,
             json_object(
                 'fs_pedido_id', NEW.fs_pedido_id,
                 'monto_eur', NEW.monto_eur,
@@ -339,8 +353,10 @@ CREATE TRIGGER IF NOT EXISTS trg_audit_fs_cuentas_cobrar_update
 AFTER UPDATE ON fs_cuentas_cobrar
 FOR EACH ROW
 BEGIN
-    INSERT INTO fs_audit_log (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
-    VALUES ('fs_cuentas_cobrar', NEW.id, 'UPDATE',
+    INSERT INTO fs_audit_log
+        (tabla, registro_id, accion, estado_anterior, estado_nuevo, modificado_por, timestamp)
+    VALUES
+        ('fs_cuentas_cobrar', NEW.id, 'UPDATE',
             json_object('estado', OLD.estado, 'monto_pagado_eur', OLD.monto_pagado_eur),
             json_object('estado', NEW.estado, 'monto_pagado_eur', NEW.monto_pagado_eur),
             'sistema', datetime('now'));
@@ -357,7 +373,8 @@ END;
 def get_db() -> Iterator[sqlite3.Connection]:
     """Context manager para conexión SQLite (thread-safe, WAL, FK, busy_timeout).
 
-    busy_timeout aumentado a 30s para manejar concurrencia startup (Financial Shield recovery + bridge init).
+    busy_timeout aumentado a 30s para manejar concurrencia startup
+    (Financial Shield recovery + bridge init).
     """
     conn = sqlite3.connect(DB_PATH, check_same_thread=False)
     conn.row_factory = sqlite3.Row
@@ -558,7 +575,8 @@ def buscar_pedidos_por_telefono_monto(
     Args:
         telefono_emisor: Teléfono del pagador (se normaliza internamente)
         monto_str: Monto como string (ej: "123.45")
-        estados_permitidos: Lista de estados_pago válidos (default: pendiente,verificando,parcial,vencido)
+        estados_permitidos: Lista de estados_pago válidos
+            (default: pendiente,verificando,parcial,vencido)
 
     Returns:
         Lista de PedidoFinanciero ordenados por fecha (más reciente primero)

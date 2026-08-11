@@ -488,12 +488,12 @@ if __name__ == "__main__":
 
     result = compute_vrp_route(test_orders)
 
-    print(f"\n{'='*60}")
+    print(f"\n{'=' * 60}")
     print(f"RESULTADO VRP — Algoritmo: {result.algorithm}")
     print(f"Distancia total: {result.total_distance_km} km")
     print(f"Duración total: {result.total_duration_min} min")
     print(f"No asignados: {len(result.unassigned)}")
-    print(f"{'='*60}")
+    print(f"{'=' * 60}")
 
     for route in result.routes:
         print(f"\n🚚 {route.operator_name} (Vehículo {route.vehicle_id})")

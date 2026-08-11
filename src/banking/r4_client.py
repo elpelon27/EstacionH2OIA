@@ -113,7 +113,7 @@ class R4Client:
         for attempt in range(self.max_retries):
             try:
                 logger.debug(
-                    f"R4 {method} {url} attempt={attempt+1} payload_keys={list(payload.keys())}"
+                    f"R4 {method} {url} attempt={attempt + 1} payload_keys={list(payload.keys())}"
                 )
 
                 if method.upper() == "GET":
@@ -143,12 +143,12 @@ class R4Client:
 
             except httpx.HTTPStatusError as e:
                 last_error = f"HTTP {e.response.status_code}: {e.response.text}"
-                logger.warning(f"R4 {endpoint_key} HTTP error attempt {attempt+1}: {last_error}")
+                logger.warning(f"R4 {endpoint_key} HTTP error attempt {attempt + 1}: {last_error}")
             except R4BankError:
                 raise
             except Exception as e:
                 last_error = str(e)
-                logger.warning(f"R4 {endpoint_key} error attempt {attempt+1}: {last_error}")
+                logger.warning(f"R4 {endpoint_key} error attempt {attempt + 1}: {last_error}")
 
             if attempt < self.max_retries - 1:
                 wait = 2**attempt  # 1s, 2s, 4s...

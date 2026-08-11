@@ -1,4 +1,5 @@
 """Script para cron: procesa recordatorios pendientes cada 30 min."""
+
 import asyncio
 import logging
 import os
@@ -15,14 +16,16 @@ if env_path.exists():
             key, _, val = line.partition("=")
             os.environ.setdefault(key.strip(), val.strip())
 
-sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
+sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
-logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(levelname)s] %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("fs_recordatorios_cron")
+
 
 async def main() -> None:
     try:
         from src.agents.financial_agent import get_agent
+
         agent = get_agent()
         agent.init()
         logger.info("Procesando recordatorios pendientes...")
@@ -35,6 +38,7 @@ async def main() -> None:
             logger.info("No hay recordatorios pendientes")
     except Exception as e:
         logger.error("Error recordatorios FS: %s", e)
+
 
 if __name__ == "__main__":
     asyncio.run(main())

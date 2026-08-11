@@ -21,15 +21,15 @@ from pathlib import Path
 from typing import Any
 
 # Import our internal systems
-sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent/src')
+sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent/src")
 
 from memory import MemoryType, UnifiedMemory
 from orchestration.skill_registry import SkillRegistry, SkillScope, SkillSpec, create_skill_registry
 
 # Disable telemetry for external libs
-os.environ.setdefault('MEM0_TELEMETRY', 'False')
-os.environ.setdefault('POSTHOG_DISABLED', '1')
-os.environ.setdefault('DO_NOT_TRACK', '1')
+os.environ.setdefault("MEM0_TELEMETRY", "False")
+os.environ.setdefault("POSTHOG_DISABLED", "1")
+os.environ.setdefault("DO_NOT_TRACK", "1")
 
 
 class ExternalSkillSource(Enum):
@@ -42,6 +42,7 @@ class ExternalSkillSource(Enum):
 @dataclass
 class ExternalSkill:
     """Represents a skill from an external source"""
+
     name: str
     description: str
     source: ExternalSkillSource
@@ -78,8 +79,8 @@ class SkillNetConnector(SkillLibraryConnector):
     """Connector for SkillNet marketplace (500K+ skills)"""
 
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
-        self.api_key = api_key or os.getenv('SKILLNET_API_KEY') or os.getenv('API_KEY')
-        self.base_url = base_url or os.getenv('BASE_URL') or 'https://api.openai.com/v1'
+        self.api_key = api_key or os.getenv("SKILLNET_API_KEY") or os.getenv("API_KEY")
+        self.base_url = base_url or os.getenv("BASE_URL") or "https://api.openai.com/v1"
         self._client = None
 
     def _get_client(self):
@@ -87,18 +88,18 @@ class SkillNetConnector(SkillLibraryConnector):
         if self._client is None:
             try:
                 # Add SkillNet to path
-                skillnet_path = '/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src'
+                skillnet_path = (
+                    "/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src"
+                )
                 if skillnet_path not in sys.path:
                     sys.path.insert(0, skillnet_path)
 
                 from skillnet_ai import SkillNetClient
-                self._client = SkillNetClient(
-                    api_key=self.api_key,
-                    base_url=self.base_url
-                )
+
+                self._client = SkillNetClient(api_key=self.api_key, base_url=self.base_url)
             except ImportError:
                 # Fallback to REST API
-                self._client = 'rest_only'
+                self._client = "rest_only"
         return self._client
 
     def search(self, query: str, limit: int = 10) -> list[ExternalSkill]:
@@ -108,36 +109,44 @@ class SkillNetConnector(SkillLibraryConnector):
         try:
             client = self._get_client()
 
-            if client != 'rest_only':
+            if client != "rest_only":
                 # Use Python SDK
-                results = client.search(q=query, mode='vector', threshold=0.75, limit=limit)
+                results = client.search(q=query, mode="vector", threshold=0.75, limit=limit)
                 for skill in results:
-                    skills.append(ExternalSkill(
-                        name=getattr(skill, 'skill_name', 'unknown'),
-                        description=getattr(skill, 'skill_description', ''),
-                        source=ExternalSkillSource.SKILLNET,
-                        source_url=getattr(skill, 'skill_url', ''),
-                        tags=['skillnet', 'marketplace'] + ([skill.category.lower()] if getattr(skill, 'category', None) else []),
-                        metadata={'stars': getattr(skill, 'stars', 0)}
-                    ))
+                    skills.append(
+                        ExternalSkill(
+                            name=getattr(skill, "skill_name", "unknown"),
+                            description=getattr(skill, "skill_description", ""),
+                            source=ExternalSkillSource.SKILLNET,
+                            source_url=getattr(skill, "skill_url", ""),
+                            tags=["skillnet", "marketplace"]
+                            + (
+                                [skill.category.lower()] if getattr(skill, "category", None) else []
+                            ),
+                            metadata={"stars": getattr(skill, "stars", 0)},
+                        )
+                    )
             else:
                 # Use REST API fallback
                 import requests
+
                 resp = requests.get(
-                    'http://api-skillnet.openkg.cn/v1/search',
-                    params={'q': query, 'mode': 'vector', 'threshold': 0.75, 'limit': limit},
-                    timeout=10
+                    "http://api-skillnet.openkg.cn/v1/search",
+                    params={"q": query, "mode": "vector", "threshold": 0.75, "limit": limit},
+                    timeout=10,
                 )
                 if resp.status_code == 200:
-                    for skill_data in resp.json().get('results', []):
-                        skills.append(ExternalSkill(
-                            name=skill_data.get('skill_name', 'unknown'),
-                            description=skill_data.get('description', ''),
-                            source=ExternalSkillSource.SKILLNET,
-                            source_url=skill_data.get('skill_url', ''),
-                            tags=['skillnet', 'marketplace'],
-                            metadata={'stars': skill_data.get('stars', 0)}
-                        ))
+                    for skill_data in resp.json().get("results", []):
+                        skills.append(
+                            ExternalSkill(
+                                name=skill_data.get("skill_name", "unknown"),
+                                description=skill_data.get("description", ""),
+                                source=ExternalSkillSource.SKILLNET,
+                                source_url=skill_data.get("skill_url", ""),
+                                tags=["skillnet", "marketplace"],
+                                metadata={"stars": skill_data.get("stars", 0)},
+                            )
+                        )
 
         except Exception as e:
             logging.warning(f"SkillNet search failed: {e}")
@@ -149,15 +158,18 @@ class SkillNetConnector(SkillLibraryConnector):
         try:
             client = self._get_client()
 
-            if client != 'rest_only' and hasattr(client, 'download'):
+            if client != "rest_only" and hasattr(client, "download"):
                 return client.download(skill.source_url, target_dir=target_dir)
 
             # Fallback: use downloader directly
-            skillnet_path = '/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src'
+            skillnet_path = (
+                "/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src"
+            )
             if skillnet_path not in sys.path:
                 sys.path.insert(0, skillnet_path)
 
             from skillnet_ai.downloader import SkillDownloader
+
             downloader = SkillDownloader()
             return downloader.download(skill.source_url, target_dir=target_dir)
 
@@ -171,36 +183,45 @@ class SkillNetConnector(SkillLibraryConnector):
     def evaluate_skill(self, skill_path: str) -> dict[str, Any]:
         """Evaluate a local skill using SkillNet evaluator"""
         try:
-            skillnet_path = '/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src'
+            skillnet_path = (
+                "/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src"
+            )
             if skillnet_path not in sys.path:
                 sys.path.insert(0, skillnet_path)
 
             from skillnet_ai import SkillNetClient
+
             client = SkillNetClient(api_key=self.api_key, base_url=self.base_url)
             return client.evaluate(skill_path)
         except Exception as e:
             logging.error(f"SkillNet evaluation failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
     def analyze_skills(self, skills_dir: str) -> dict[str, Any]:
         """Analyze skill relationships in a directory"""
         try:
-            skillnet_path = '/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src'
+            skillnet_path = (
+                "/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src"
+            )
             if skillnet_path not in sys.path:
                 sys.path.insert(0, skillnet_path)
 
             from skillnet_ai import SkillNetClient
+
             client = SkillNetClient(api_key=self.api_key, base_url=self.base_url)
             return client.analyze(skills_dir)
         except Exception as e:
             logging.error(f"SkillNet analysis failed: {e}")
-            return {'error': str(e)}
+            return {"error": str(e)}
 
 
 class ADKSkillsConnector(SkillLibraryConnector):
     """Connector for Google ADK skills format"""
 
-    def __init__(self, adk_skills_path: str = '/mnt/ssd_trabajo/hermes-agent/external_repos/orchestration/adk-python'):
+    def __init__(
+        self,
+        adk_skills_path: str = "/mnt/ssd_trabajo/hermes-agent/external_repos/orchestration/adk-python",
+    ):
         self.adk_skills_path = Path(adk_skills_path)
         self._skill_registry = None
 
@@ -210,19 +231,23 @@ class ADKSkillsConnector(SkillLibraryConnector):
 
         # Look for skills in common locations
         search_paths = [
-            self.adk_skills_path / 'src' / 'google' / 'adk' / 'skills',
-            self.adk_skills_path / 'contributing' / 'samples',
-            self.adk_skills_path / '.agents' / 'skills',
+            self.adk_skills_path / "src" / "google" / "adk" / "skills",
+            self.adk_skills_path / "contributing" / "samples",
+            self.adk_skills_path / ".agents" / "skills",
         ]
 
         for search_path in search_paths:
             if search_path.exists():
-                for skill_dir in search_path.rglob('*'):
+                for skill_dir in search_path.rglob("*"):
                     if skill_dir.is_dir():
-                        skill_file = skill_dir / 'SKILL.md'
+                        skill_file = skill_dir / "SKILL.md"
                         if skill_file.exists():
                             skill = self._parse_adk_skill(skill_file, skill_dir)
-                            if skill and (not query or query.lower() in skill.name.lower() or query.lower() in skill.description.lower()):
+                            if skill and (
+                                not query
+                                or query.lower() in skill.name.lower()
+                                or query.lower() in skill.description.lower()
+                            ):
                                 skills.append(skill)
                                 if len(skills) >= limit:
                                     return skills
@@ -233,35 +258,40 @@ class ADKSkillsConnector(SkillLibraryConnector):
         """Parse ADK skill format (similar to Agent Skills but with ADK extensions)"""
         try:
             import yaml
-            content = skill_file.read_text(encoding='utf-8')
+
+            content = skill_file.read_text(encoding="utf-8")
 
             frontmatter = {}
             instructions = content
 
-            if content.startswith('---'):
-                parts = content.split('---', 2)
+            if content.startswith("---"):
+                parts = content.split("---", 2)
                 if len(parts) >= 3:
                     frontmatter = yaml.safe_load(parts[1]) or {}
                     instructions = parts[2].strip()
 
-            name = frontmatter.get('name', skill_dir.name)
-            description = frontmatter.get('description', '')
+            name = frontmatter.get("name", skill_dir.name)
+            description = frontmatter.get("description", "")
 
             return ExternalSkill(
                 name=name,
                 description=description,
                 source=ExternalSkillSource.ADK,
                 source_url=f"file://{skill_dir}",
-                version=frontmatter.get('version', '1.0.0'),
-                tags=frontmatter.get('tags', []) + ['adk'],
-                dependencies=frontmatter.get('dependencies', []),
-                allowed_tools=frontmatter.get('allowed_tools', []),
+                version=frontmatter.get("version", "1.0.0"),
+                tags=frontmatter.get("tags", []) + ["adk"],
+                dependencies=frontmatter.get("dependencies", []),
+                allowed_tools=frontmatter.get("allowed_tools", []),
                 instructions=instructions,
                 metadata={
-                    'adk_additional_tools': frontmatter.get('metadata', {}).get('adk_additional_tools', []),
-                    'adk_inject_state': frontmatter.get('metadata', {}).get('adk_inject_state', False),
-                    'source_dir': str(skill_dir)
-                }
+                    "adk_additional_tools": frontmatter.get("metadata", {}).get(
+                        "adk_additional_tools", []
+                    ),
+                    "adk_inject_state": frontmatter.get("metadata", {}).get(
+                        "adk_inject_state", False
+                    ),
+                    "source_dir": str(skill_dir),
+                },
             )
         except Exception as e:
             logging.warning(f"Failed to parse ADK skill {skill_file}: {e}")
@@ -271,7 +301,8 @@ class ADKSkillsConnector(SkillLibraryConnector):
         """Copy ADK skill to local directory"""
         try:
             import shutil
-            source_dir = Path(skill.metadata.get('source_dir', ''))
+
+            source_dir = Path(skill.metadata.get("source_dir", ""))
             if source_dir.exists():
                 target = Path(target_dir) / skill.name
                 shutil.copytree(source_dir, target, dirs_exist_ok=True)
@@ -288,7 +319,9 @@ class ADKSkillsConnector(SkillLibraryConnector):
 class AnthropicSkillsConnector(SkillLibraryConnector):
     """Connector for Anthropic Agent Skills format (skills-ref)"""
 
-    def __init__(self, skills_path: str = '/mnt/ssd_trabajo/hermes-agent/external_repos/skills/skills'):
+    def __init__(
+        self, skills_path: str = "/mnt/ssd_trabajo/hermes-agent/external_repos/skills/skills"
+    ):
         self.skills_path = Path(skills_path)
 
     def search(self, query: str, limit: int = 10) -> list[ExternalSkill]:
@@ -297,10 +330,14 @@ class AnthropicSkillsConnector(SkillLibraryConnector):
 
         # Check skills directory - use rglob to find all SKILL.md files recursively
         if self.skills_path.exists():
-            for skill_file in self.skills_path.rglob('SKILL.md'):
+            for skill_file in self.skills_path.rglob("SKILL.md"):
                 skill_dir = skill_file.parent
                 skill = self._parse_anthropic_skill(skill_file, skill_dir)
-                if skill and (not query or query.lower() in skill.name.lower() or query.lower() in skill.description.lower()):
+                if skill and (
+                    not query
+                    or query.lower() in skill.name.lower()
+                    or query.lower() in skill.description.lower()
+                ):
                     skills.append(skill)
                     if len(skills) >= limit:
                         break
@@ -311,34 +348,35 @@ class AnthropicSkillsConnector(SkillLibraryConnector):
         """Parse Anthropic Agent Skills SKILL.md format"""
         try:
             import yaml
-            content = skill_file.read_text(encoding='utf-8')
+
+            content = skill_file.read_text(encoding="utf-8")
 
             frontmatter = {}
             instructions = content
 
-            if content.startswith('---'):
-                parts = content.split('---', 2)
+            if content.startswith("---"):
+                parts = content.split("---", 2)
                 if len(parts) >= 3:
                     frontmatter = yaml.safe_load(parts[1]) or {}
                     instructions = parts[2].strip()
 
-            name = frontmatter.get('name', skill_dir.name)
-            description = frontmatter.get('description', '')
+            name = frontmatter.get("name", skill_dir.name)
+            description = frontmatter.get("description", "")
 
             return ExternalSkill(
                 name=name,
                 description=description,
                 source=ExternalSkillSource.ANTHROPIC,
                 source_url=f"file://{skill_dir}",
-                version=frontmatter.get('version', '1.0.0'),
-                tags=frontmatter.get('tags', []) + ['anthropic', 'agentskills'],
-                dependencies=frontmatter.get('dependencies', []),
-                allowed_tools=frontmatter.get('allowed_tools', []),
+                version=frontmatter.get("version", "1.0.0"),
+                tags=frontmatter.get("tags", []) + ["anthropic", "agentskills"],
+                dependencies=frontmatter.get("dependencies", []),
+                allowed_tools=frontmatter.get("allowed_tools", []),
                 instructions=instructions,
                 metadata={
-                    'source_dir': str(skill_dir),
-                    'license': frontmatter.get('license', 'Apache-2.0')
-                }
+                    "source_dir": str(skill_dir),
+                    "license": frontmatter.get("license", "Apache-2.0"),
+                },
             )
         except Exception as e:
             logging.warning(f"Failed to parse Anthropic skill {skill_file}: {e}")
@@ -348,7 +386,8 @@ class AnthropicSkillsConnector(SkillLibraryConnector):
         """Copy Anthropic skill to local directory"""
         try:
             import shutil
-            source_dir = Path(skill.metadata.get('source_dir', ''))
+
+            source_dir = Path(skill.metadata.get("source_dir", ""))
             if source_dir.exists():
                 target = Path(target_dir) / skill.name
                 shutil.copytree(source_dir, target, dirs_exist_ok=True)
@@ -364,13 +403,16 @@ class AnthropicSkillsConnector(SkillLibraryConnector):
     def validate_skill(self, skill_path: str) -> list[str]:
         """Validate skill using skills-ref"""
         try:
-            skills_ref_path = '/mnt/ssd_trabajo/hermes-agent/external_repos/skills/agentskills/skills-ref/src'
+            skills_ref_path = (
+                "/mnt/ssd_trabajo/hermes-agent/external_repos/skills/agentskills/skills-ref/src"
+            )
             if skills_ref_path not in sys.path:
                 sys.path.insert(0, skills_ref_path)
 
             from pathlib import Path
 
             from skills_ref import validate
+
             return validate(Path(skill_path))
         except Exception as e:
             logging.error(f"Skills-ref validation failed: {e}")
@@ -388,24 +430,27 @@ class SkillCreator:
         """Lazy load SkillNet creator"""
         if self._skillnet_creator is None:
             try:
-                skillnet_path = '/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src'
+                skillnet_path = (
+                    "/mnt/ssd_trabajo/hermes-agent/external_repos/skills/SkillNet/skillnet-ai/src"
+                )
                 if skillnet_path not in sys.path:
                     sys.path.insert(0, skillnet_path)
 
                 from skillnet_ai import SkillCreator as SkillNetSkillCreator
+
                 self._skillnet_creator = SkillNetSkillCreator(
-                    api_key=os.getenv('SKILLNET_API_KEY') or os.getenv('API_KEY'),
-                    base_url=os.getenv('BASE_URL') or 'https://api.openai.com/v1'
+                    api_key=os.getenv("SKILLNET_API_KEY") or os.getenv("API_KEY"),
+                    base_url=os.getenv("BASE_URL") or "https://api.openai.com/v1",
                 )
             except Exception as e:
                 logging.warning(f"Could not load SkillNet creator: {e}")
-                self._skillnet_creator = 'unavailable'
+                self._skillnet_creator = "unavailable"
         return self._skillnet_creator
 
     def create_from_trajectory(self, trajectory: str, output_dir: str) -> list[str]:
         """Create skills from execution trajectory using SkillNet"""
         creator = self._get_skillnet_creator()
-        if creator == 'unavailable':
+        if creator == "unavailable":
             return self._create_basic_skill(trajectory, output_dir)
 
         try:
@@ -418,9 +463,7 @@ class SkillCreator:
         """Create skills from agent's episodic memories"""
         # Search for recent executions
         results = self.memory.search(
-            query=f"{agent_type} execution task",
-            memory_types=[MemoryType.EPISODIC],
-            limit=limit
+            query=f"{agent_type} execution task", memory_types=[MemoryType.EPISODIC], limit=limit
         )
 
         if not results:
@@ -440,6 +483,7 @@ class SkillCreator:
     def _create_basic_skill(self, trajectory: str, output_dir: str) -> list[str]:
         """Create basic skill without external LLM"""
         import hashlib
+
         skill_name = f"auto_skill_{hashlib.md5(trajectory.encode()).hexdigest()[:8]}"
         skill_dir = Path(output_dir) / skill_name
         skill_dir.mkdir(parents=True, exist_ok=True)
@@ -479,7 +523,7 @@ This skill encapsulates a repeated pattern observed in agent executions.
 class ExternalSkillIntegrator:
     """
     Main integrator for external skill libraries.
-    
+
     Provides unified interface for:
     - Searching across all external sources
     - Downloading/installing skills
@@ -506,7 +550,9 @@ class ExternalSkillIntegrator:
         self.auto_skills_dir = Path("/mnt/ssd_trabajo/hermes-agent/skills/auto_generated")
         self.auto_skills_dir.mkdir(parents=True, exist_ok=True)
 
-    def search_all_sources(self, query: str, limit_per_source: int = 5) -> dict[str, list[ExternalSkill]]:
+    def search_all_sources(
+        self, query: str, limit_per_source: int = 5
+    ) -> dict[str, list[ExternalSkill]]:
         """Search all external sources for skills"""
         results = {}
         for source, connector in self.connectors.items():
@@ -540,16 +586,16 @@ class ExternalSkillIntegrator:
                     name=skill.name,
                     description=skill.description,
                     version=skill.version,
-                    author=skill.metadata.get('author', 'external'),
-                    license=skill.metadata.get('license', 'MIT'),
+                    author=skill.metadata.get("author", "external"),
+                    license=skill.metadata.get("license", "MIT"),
                     scope=SkillScope.GLOBAL,
                     allowed_tools=skill.allowed_tools,
                     dependencies=skill.dependencies,
                     tags=skill.tags,
                     instructions=skill.instructions,
-                    metadata=skill.metadata
+                    metadata=skill.metadata,
                 ),
-                target_dir=str(self.auto_skills_dir)
+                target_dir=str(self.auto_skills_dir),
             )
 
             return self.skill_registry.skills.get(skill.name)
@@ -575,9 +621,9 @@ class ExternalSkillIntegrator:
                         license="MIT",
                         scope=SkillScope.GLOBAL,
                         tags=["auto-generated", agent_type],
-                        metadata={"source": "auto_creation", "agent_type": agent_type}
+                        metadata={"source": "auto_creation", "agent_type": agent_type},
                     ),
-                    target_dir=str(self.auto_skills_dir)
+                    target_dir=str(self.auto_skills_dir),
                 )
                 registered.append(self.skill_registry.skills.get(skill_dir.name))
 
@@ -589,7 +635,7 @@ class ExternalSkillIntegrator:
         if isinstance(connector, SkillNetConnector):
             skill_path = str(self.auto_skills_dir / skill_name)
             return connector.evaluate_skill(skill_path)
-        return {'error': 'SkillNet connector not available'}
+        return {"error": "SkillNet connector not available"}
 
     def analyze_skill_relationships(self) -> dict[str, Any]:
         """Analyze relationships between all local skills"""
@@ -599,11 +645,11 @@ class ExternalSkillIntegrator:
 
         # Fallback: use our registry's dependency analysis
         return {
-            'dependencies': self.skill_registry.analyze_dependencies(),
-            'composable': {
+            "dependencies": self.skill_registry.analyze_dependencies(),
+            "composable": {
                 name: self.skill_registry.find_composable_skills(name)
                 for name in self.skill_registry.skills.keys()
-            }
+            },
         }
 
     def get_skill_recommendations(self, agent_type: str, task: str) -> list[ExternalSkill]:
@@ -617,8 +663,16 @@ class ExternalSkillIntegrator:
             for skill in skills:
                 # Match if skill has no specific tags (generic) or matches agent type
                 skill_tags_lower = [t.lower() for t in skill.tags]
-                agent_match = not skill_tags_lower or agent_type.lower() in skill_tags_lower or any(agent_type.lower() in t for t in skill_tags_lower)
-                task_match = task.lower() in skill.description.lower() or task.lower() in skill.name.lower() or any(word in skill.description.lower() for word in task.lower().split())
+                agent_match = (
+                    not skill_tags_lower
+                    or agent_type.lower() in skill_tags_lower
+                    or any(agent_type.lower() in t for t in skill_tags_lower)
+                )
+                task_match = (
+                    task.lower() in skill.description.lower()
+                    or task.lower() in skill.name.lower()
+                    or any(word in skill.description.lower() for word in task.lower().split())
+                )
 
                 if agent_match or task_match:
                     recommendations.append(skill)
@@ -630,9 +684,9 @@ class ExternalSkillIntegrator:
 # FACTORY FUNCTIONS
 # ============================================================
 
+
 def create_external_skill_integrator(
-    memory: UnifiedMemory,
-    skill_registry: SkillRegistry
+    memory: UnifiedMemory, skill_registry: SkillRegistry
 ) -> ExternalSkillIntegrator:
     """Factory to create the external skill integrator"""
     return ExternalSkillIntegrator(memory, skill_registry)
@@ -642,13 +696,14 @@ def create_external_skill_integrator(
 # DEMO / TEST
 # ============================================================
 
+
 def demo():
     """Demo the external skill integration"""
     print("=== External Skill Library Integration Demo ===\n")
 
     # Initialize memory
     memory = UnifiedMemory()
-    print("Memory:", memory.health_check()['healthy'])
+    print("Memory:", memory.health_check()["healthy"])
 
     # Initialize skill registry
     skill_registry = create_skill_registry()

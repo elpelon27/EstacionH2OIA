@@ -5,7 +5,7 @@
  ============================================================================
 
 Registro de egresos a proveedores. Solo contado, no hay crédito.
- """
+"""
 
 import logging
 from typing import Any
@@ -50,8 +50,7 @@ async def registrar_pago_proveedor(
 
     pago_id = db.create_proveedor_pago(pago)
     logger.info(
-        "Pago a proveedor registrado: %s — €%.2f (%s)",
-        proveedor_nombre, monto_eur, concepto
+        "Pago a proveedor registrado: %s — €%.2f (%s)", proveedor_nombre, monto_eur, concepto
     )
     return pago_id
 
@@ -59,16 +58,20 @@ async def registrar_pago_proveedor(
 def get_total_egresos_periodo(fecha_inicio: str, fecha_fin: str) -> dict[str, Any]:
     """Total de egresos a proveedores en un período."""
     from .database import get_db
+
     try:
         with get_db() as conn:
-            row = conn.execute("""
+            row = conn.execute(
+                """
                 SELECT
                     COUNT(*) as num_pagos,
                     SUM(monto_eur) as total_eur,
                     SUM(monto_ves) as total_ves
                 FROM fs_proveedor_pagos
                 WHERE creado_at BETWEEN ? AND ?
-            """, (fecha_inicio, fecha_fin + " 23:59:59")).fetchone()
+            """,
+                (fecha_inicio, fecha_fin + " 23:59:59"),
+            ).fetchone()
 
             if row:
                 return {

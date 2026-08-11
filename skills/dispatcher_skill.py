@@ -128,11 +128,11 @@ class DispatcherSkill:
         operators: list[str] | None = None,
     ) -> dict[str, Any]:
         """Calcula rutas optimizadas usando OR-Tools VRP."""
-        ClientOrder = self.route_engine["ClientOrder"]
+        client_order = self.route_engine["ClientOrder"]
         compute_vrp_route = self.route_engine["compute_vrp_route"]
 
         client_orders = [
-            ClientOrder(
+            client_order(
                 client_id=o["client_id"],
                 name=o["name"],
                 lat=o["lat"],

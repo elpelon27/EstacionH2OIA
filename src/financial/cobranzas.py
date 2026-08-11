@@ -9,7 +9,7 @@ Gestiona:
 - Loop de recordatorios automáticos (3 máx, 1h entre cada uno)
 - Escalamiento a humano tras 3 recordatorios fallidos
 - Cálculo de fechas de vencimiento
- """
+"""
 
 import logging
 from datetime import datetime, timedelta, timezone
@@ -56,7 +56,9 @@ def crear_cuenta_cobrar(pedido: PedidoFinanciero, tipo_credito: str) -> int:
     cuenta_id = db.create_cuenta_cobrar(cuenta)
     logger.info(
         "Cuenta por cobrar creada: cliente=%s monto=€%.2f vence=%s",
-        pedido.cliente_nombre, pedido.monto_total_eur, cuenta.fecha_vencimiento
+        pedido.cliente_nombre,
+        pedido.monto_total_eur,
+        cuenta.fecha_vencimiento,
     )
     return cuenta_id
 
@@ -99,9 +101,12 @@ def procesar_recordatorio(pedido: PedidoFinanciero) -> dict[str, Any]:
         # Escalar a humano
         db.marcar_escalo_humano(int(pedido.id) if pedido.id else 0)
         db.log_verificacion(
-            int(pedido.id) if pedido.id else 0, intento, "manual",
-            False, "escalo_humano",
-            "3 recordatorios fallidos — escalado a humano"
+            int(pedido.id) if pedido.id else 0,
+            intento,
+            "manual",
+            False,
+            "escalo_humano",
+            "3 recordatorios fallidos — escalado a humano",
         )
         return {
             "accion": "escalar_humano",
@@ -119,9 +124,12 @@ def procesar_recordatorio(pedido: PedidoFinanciero) -> dict[str, Any]:
     # Enviar recordatorio
     db.incrementar_recordatorio(int(pedido.id) if pedido.id else 0)
     db.log_verificacion(
-        int(pedido.id) if pedido.id else 0, intento, "manual",
-        False, "recordatorio_enviado",
-        f"Recordatorio #{intento} enviado"
+        int(pedido.id) if pedido.id else 0,
+        intento,
+        "manual",
+        False,
+        "recordatorio_enviado",
+        f"Recordatorio #{intento} enviado",
     )
 
     mensaje_cliente = (

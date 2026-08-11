@@ -17,7 +17,7 @@ Solución: Este script monitorea la URL cada 5 min. Si cambia:
 Despliegue:
     systemd: cloudflare-watchdog.service
     Ejecuta cada 5 min via systemd timer
- """
+"""
 
 import logging
 import os
@@ -49,7 +49,8 @@ def get_current_cloudflare_url() -> str | None:
     try:
         result = subprocess.run(
             [
-                "sudo", "journalctl",
+                "sudo",
+                "journalctl",
                 "-u",
                 "cloudflared-tunnel.service",
                 "--since",
@@ -61,9 +62,7 @@ def get_current_cloudflare_url() -> str | None:
             timeout=10,
         )
         # Buscar la última URL trycloudflare en los logs
-        urls = re.findall(
-            r"https://[a-z0-9-]+\.trycloudflare\.com", result.stdout
-        )
+        urls = re.findall(r"https://[a-z0-9-]+\.trycloudflare\.com", result.stdout)
         return urls[-1] if urls else None
     except Exception as e:
         logger.error("Error obteniendo URL de cloudflared: %s", e)
@@ -99,7 +98,9 @@ def log_change(old_url: str | None, new_url: str) -> None:
             f.write(f"  URL vieja: {old_url or '(ninguna)'}\n")
             f.write(f"  URL nueva: {new_url}\n")
             f.write("  Acción requerida: actualizar Meta Dashboard\n")
-            f.write("    https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/\n")
+            f.write(
+                "    https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/\n"
+            )
             f.write(f"    Callback URL: {new_url}/webhook/meta\n")
             f.write("    Verify Token: a2ee0e434375cb232a99f10e4e1d210a\n\n")
     except Exception as e:
@@ -176,7 +177,9 @@ def main() -> None:
     print(f"URL nueva: {current_url}")
     print(f"Callback URL: {current_url}/webhook/meta")
     print("Verify Token: a2ee0e434375cb232a99f10e4e1d210a")
-    print("Ir a: https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/")
+    print(
+        "Ir a: https://developers.facebook.com/apps/975863248739508/whatsapp_business/wa_settings/"
+    )
     print("=" * 60)
 
 

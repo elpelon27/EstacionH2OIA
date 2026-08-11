@@ -334,7 +334,7 @@ class DispatcherTelegramBot:
         reply_markup = InlineKeyboardMarkup(keyboard)
 
         await message.reply_text(
-            "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n" "¿Quién eres?",
+            "👋 ¡Bienvenido al sistema de despacho de Estación H2O!\n\n¿Quién eres?",
             reply_markup=reply_markup,
         )
 
@@ -532,12 +532,12 @@ class DispatcherTelegramBot:
 
         status_emoji = "✅" if (db_ok and bridge_ok) else "⚠️"
         health_text = (
-            f'{status_emoji} <b>Health Check - Dispatcher Bot</b>\n\n'
-            f'🤖 Bot: <b>ACTIVO</b>\n'
-            f'💾 Dispatch DB: {"✅ OK" if db_ok else "❌ ERROR"}\n'
-            f'📦 Entregas pendientes: {pending_deliveries}\n'
-            f'🌉 Bridge (puerto 8000): {"✅ OK" if bridge_ok else "❌ ERROR"}\n'
-            f'🕐 {datetime.now(CARACAS_TZ).strftime("%Y-%m-%d %H:%M:%S")}'
+            f"{status_emoji} <b>Health Check - Dispatcher Bot</b>\n\n"
+            f"🤖 Bot: <b>ACTIVO</b>\n"
+            f"💾 Dispatch DB: {'✅ OK' if db_ok else '❌ ERROR'}\n"
+            f"📦 Entregas pendientes: {pending_deliveries}\n"
+            f"🌉 Bridge (puerto 8000): {'✅ OK' if bridge_ok else '❌ ERROR'}\n"
+            f"🕐 {datetime.now(CARACAS_TZ).strftime('%Y-%m-%d %H:%M:%S')}"
         )
         if update.message:
             await update.message.reply_text(health_text, parse_mode="HTML")

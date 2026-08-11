@@ -99,7 +99,7 @@ ALLOWED_SHELL_COMMANDS = {
     "mem": "free -h",
     "processes": "ps aux | head -20",
     "services": (
-        "systemctl status valentina-bridge dispatcher-bot " "telegram-bot cloudflared --no-pager"
+        "systemctl status valentina-bridge dispatcher-bot telegram-bot cloudflared --no-pager"
     ),
     "git_log": "cd /mnt/ssd_trabajo/hermes-agent && git log --oneline -10",
     "git_status": "cd /mnt/ssd_trabajo/hermes-agent && git status",
@@ -146,7 +146,7 @@ async def _require_confirmation(update: Update, action: str) -> bool:
     if "confirmo" in text.lower() or "sí confirmo" in text.lower() or "si confirmo" in text.lower():
         return True
     await msg.reply_text(
-        f"⚠️ Acción sensible: {action}\n" f'Responde con "confirmo" o "sí confirmo" para proceder.'
+        f'⚠️ Acción sensible: {action}\nResponde con "confirmo" o "sí confirmo" para proceder.'
     )
     return False
 
@@ -178,9 +178,7 @@ async def cmd_stop(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     with _os.fdopen(_fd, "w") as f:
         f.write(f"killed by {update.effective_user.username} at {datetime.now(CARACAS_TZ)}")
     await update.message.reply_text(
-        "🛑 Kill switch ACTIVADO\n"
-        "Valentina NO responderá mensajes nuevos.\n"
-        "Para reactivar: /start"
+        "🛑 Kill switch ACTIVADO\nValentina NO responderá mensajes nuevos.\nPara reactivar: /start"
     )
     logger.warning("Kill switch activado por Líder via Prometeo bot")
 
@@ -639,7 +637,7 @@ async def cmd_shell(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     cmd_key = args[0]
     if cmd_key not in ALLOWED_SHELL_COMMANDS:
         await update.message.reply_text(
-            f"❌ Comando '{cmd_key}' no permitido.\n" "Usa /shell sin args para ver la lista."
+            f"❌ Comando '{cmd_key}' no permitido.\nUsa /shell sin args para ver la lista."
         )
         return
 
@@ -839,7 +837,7 @@ async def cmd_pending(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         created = _escape_md(p.get("created_at", ""))
         ptype = _escape_md(p.get("type", "?"))
 
-        msg += f"{type_emoji} `{req_id}` [{ptype}]\n" f"   {prompt}...\n" f"   ⏱️ {created}\n\n"
+        msg += f"{type_emoji} `{req_id}` [{ptype}]\n   {prompt}...\n   ⏱️ {created}\n\n"
 
     msg += "Usa `/approve <id> <respuesta>` o `/reject <id>`"
     await update.message.reply_text(msg, parse_mode="MarkdownV2")
