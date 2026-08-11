@@ -9,10 +9,13 @@ Integrates UnifiedMemory with agent execution for:
 
 from abc import abstractmethod
 from dataclasses import dataclass, field
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from src.memory.unified_memory import MemoryType, SearchResult, UnifiedMemory
 from src.orchestration.orchestrator import AgentConfig, AgentType, BaseAgent, TaskResult
+
+if TYPE_CHECKING:
+    from src.orchestration.orchestrator import Orchestrator
 
 
 @dataclass

@@ -11,11 +11,11 @@ Resultado en hex uppercase.
 import hashlib
 import hmac
 from dataclasses import dataclass
-from enum import Enum
+from enum import StrEnum
 from typing import Any
 
 
-class R4Endpoint(str, Enum):
+class R4Endpoint(StrEnum):
     """Endpoints R4 Conecta con sus patrones de firma HMAC."""
 
     # Consultas

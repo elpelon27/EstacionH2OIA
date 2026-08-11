@@ -7,10 +7,10 @@ Este módulo proporciona la tabla completa de códigos de respuesta
 de la red interbancaria venezolana según especificación del banco.
 """
 
-from enum import Enum
+from enum import StrEnum
 
 
-class CodigosRedInterbancaria(str, Enum):
+class CodigosRedInterbancaria(StrEnum):
     """
     Códigos de respuesta de la red interbancaria (Codigored).
 

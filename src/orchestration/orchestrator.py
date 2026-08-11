@@ -99,7 +99,7 @@ class BaseAgent(ABC):
 
         # Search for relevant procedural memories
         if MemoryType.PROCEDURAL in self.config.memory_types:
-            memories = await self._search_procedural_memories()
+            await self._search_procedural_memories()
             # Could inject into context
 
         self._context_loaded = True
@@ -405,7 +405,7 @@ You are the Dispatch Specialist for Estación H2O Maracaibo. You manage route pl
 
 ## Handoff Triggers
 - Payment issues -> Financial Agent
-- Bottle inventory discrepancies -> Inventory Agent  
+- Bottle inventory discrepancies -> Inventory Agent
 - Customer communication needs -> Valentina Agent
 
 ## Tools Available

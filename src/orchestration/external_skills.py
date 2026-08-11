@@ -220,7 +220,9 @@ class ADKSkillsConnector(SkillLibraryConnector):
 
     def __init__(
         self,
-        adk_skills_path: str = "/mnt/ssd_trabajo/hermes-agent/external_repos/orchestration/adk-python",
+        adk_skills_path: str = (
+            "/mnt/ssd_trabajo/hermes-agent/external_repos/orchestration/adk-python"
+        ),
     ):
         self.adk_skills_path = Path(adk_skills_path)
         self._skill_registry = None
@@ -648,7 +650,7 @@ class ExternalSkillIntegrator:
             "dependencies": self.skill_registry.analyze_dependencies(),
             "composable": {
                 name: self.skill_registry.find_composable_skills(name)
-                for name in self.skill_registry.skills.keys()
+                for name in self.skill_registry.skills
             },
         }
 
@@ -659,7 +661,7 @@ class ExternalSkillIntegrator:
 
         # Filter for agent relevance
         recommendations = []
-        for source, skills in results.items():
+        for _, skills in results.items():
             for skill in skills:
                 # Match if skill has no specific tags (generic) or matches agent type
                 skill_tags_lower = [t.lower() for t in skill.tags]
