@@ -1,0 +1,14 @@
+# ============================================================================
+# odoo-ventas-diarias.timer — 11:00 PM Caracas (UTC-4) = 03:00 UTC
+# ============================================================================
+
+[Unit]
+Description=Timer para reporte diario de ventas Odoo (11 PM Caracas)
+
+[Timer]
+OnCalendar=*-*-* 03:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

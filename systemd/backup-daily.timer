@@ -1,0 +1,14 @@
+# ============================================================================
+# backup-daily.timer — 3:00 AM Caracas (UTC-4) = 07:00 UTC
+# ============================================================================
+
+[Unit]
+Description=Timer para backup diario (3 AM Caracas)
+
+[Timer]
+OnCalendar=*-*-* 07:00 UTC
+Persistent=true
+RandomizedDelaySec=30m
+
+[Install]
+WantedBy=timers.target

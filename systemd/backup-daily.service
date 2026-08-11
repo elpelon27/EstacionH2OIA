@@ -1,0 +1,25 @@
+# ============================================================================
+# backup-daily.service — Backup diario 3 AM Caracas
+# ============================================================================
+
+[Unit]
+Description=Backup diario de bases de datos y configuración
+Documentation=https://github.com/elpelon27/EstacionH2OIA
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+ExecStart=/mnt/ssd_trabajo/hermes-agent/scripts/backup_daily.sh
+TimeoutSec=300
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=backup-daily
+
+MemoryMax=1G
+CPUQuota=50%
+TasksMax=128

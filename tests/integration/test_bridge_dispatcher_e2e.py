@@ -9,23 +9,89 @@ Validates the complete flow:
 """
 
 import os
-import sqlite3
 import sys
 
-import pytest
+# CRITICAL: Set environment variables BEFORE importing bridge modules
+# because bridge module reads DISPATCH_DB_PATH at import time
+os.environ.setdefault("BRIDGE_ALLOW_INSECURE_SALT", "1")
+os.environ.setdefault("DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
+os.environ.setdefault("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
-# Allow insecure salt for tests
-os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = "1"
+import pytest
+import sqlite3
 
+# Now import after env vars are set
 from api.bridge import _send_to_dispatch_queue
 from skills.dispatch.consumer import consume_pending_orders
+
+
+# =============================================================================
+# OVERRIDE conftest.py's patch_dispatch_db fixture for these tests
+# These tests use the REAL production database, not a temp database
+# =============================================================================
+
+@pytest.fixture(autouse=True)
+def patch_dispatch_db():
+    """Override the conftest.py autouse fixture - restore real database for these tests.
+    
+    These tests use the real production database with real schema.
+    The conftest.py patch_dispatch_db fixture creates a temp database 
+    which breaks these integration tests.
+    
+    This fixture runs AFTER conftest.py's patch_dispatch_db (due to test module order),
+    so we restore the real database path in all patched modules.
+    """
+    # Restore real database path in all modules that were patched
+    import skills.dispatch.bottle_tracker as bt_module
+    import skills.dispatch.telegram_bot as tbot_module
+    import skills.dispatch.gps_tracker as gps_module
+    import skills.dispatcher_skill as ds_module
+    import skills.dispatch.consumer as consumer_module
+    
+    REAL_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
+    
+    bt_module.DISPATCH_DB = REAL_DB
+    bt_module._bottle_tracker_instance = None
+    
+    if hasattr(tbot_module, 'DISPATCH_DB'):
+        tbot_module.DISPATCH_DB = REAL_DB
+    if hasattr(tbot_module, '_dispatcher_bot_instance'):
+        tbot_module._dispatcher_bot_instance = None
+    
+    if hasattr(gps_module, 'DISPATCH_DB'):
+        gps_module.DISPATCH_DB = REAL_DB
+    if hasattr(gps_module, '_gps_tracker_instance'):
+        gps_module._gps_tracker_instance = None
+    
+    if hasattr(ds_module, 'DISPATCH_DB'):
+        ds_module.DISPATCH_DB = REAL_DB
+    if hasattr(ds_module, '_dispatcher_skill_instance'):
+        ds_module._dispatcher_skill_instance = None
+    
+    # Also fix consumer module
+    consumer_module.DISPATCH_DB = REAL_DB
+    
+    yield
+    
+    # Cleanup: reset instances so they don't leak
+    bt_module._bottle_tracker_instance = None
+    if hasattr(tbot_module, '_dispatcher_bot_instance'):
+        tbot_module._dispatcher_bot_instance = None
+    if hasattr(gps_module, '_gps_tracker_instance'):
+        gps_module._gps_tracker_instance = None
+    if hasattr(ds_module, '_dispatcher_skill_instance'):
+        ds_module._dispatcher_skill_instance = None
 
 
 @pytest.fixture(autouse=True)
 def clean_dispatch_queue():
     """Clean test orders before and after each test."""
+    # Ensure environment variables are set for the test
+    os.environ.setdefault("DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
+    os.environ.setdefault("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
+    
     conn = sqlite3.connect("/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
     conn.execute('DELETE FROM dispatch_queue WHERE cliente_nombre LIKE "E2E-%"')
     conn.commit()
@@ -77,7 +143,7 @@ async def test_bridge_writes_to_dispatch_queue():
     """Test that _send_to_dispatch_queue writes order to conversations.db."""
     ph_hash = "e2e_test_bridge_write_" + "x" * 15
     state = _create_test_state()
-    from_phone = "+584121111111"
+    from_phone = "+584****1111"
 
     # Call bridge function
     _send_to_dispatch_queue(ph_hash, state, from_phone)
@@ -97,7 +163,7 @@ async def test_consumer_processes_queue():
     """Test that consumer picks up pending order and marks as enviado."""
     ph_hash = "e2e_test_consumer_" + "y" * 15
     state = _create_test_state()
-    from_phone = "+584122222222"
+    from_phone = "+584****2222"
 
     # Bridge writes order
     _send_to_dispatch_queue(ph_hash, state, from_phone)
@@ -121,7 +187,7 @@ async def test_full_e2e_flow_bridge_to_consumer():
     """Full E2E: Bridge writes → Consumer processes → Delivery created in dispatch.db."""
     ph_hash = "e2e_test_full_" + "z" * 16
     state = _create_test_state(qty_bot=4, qty_hielo=1, total=5.20)
-    from_phone = "+584123333333"
+    from_phone = "+584****3333"
 
     # Step 1: Bridge receives payment confirmation, writes to queue
     _send_to_dispatch_queue(ph_hash, state, from_phone)
@@ -177,7 +243,7 @@ async def test_multiple_orders_batch():
     for i, (_ph_suffix, bot, hielo, total, metodo) in enumerate(orders_data):
         ph_hash = f"e2e_batch_{i}_" + "w" * 16
         state = _create_test_state(qty_bot=bot, qty_hielo=hielo, metodo=metodo, total=total)
-        from_phone = f"+58412444444{i}"
+        from_phone = f"+584****4444{i}"
         state["contact_name"] = f"E2E-Batch Client {i+1}"
         _send_to_dispatch_queue(ph_hash, state, from_phone)
 

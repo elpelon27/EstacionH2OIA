@@ -396,7 +396,7 @@ async def consume_pending_orders(max_orders: int = 20) -> dict[str, Any]:
             )
 
         except Exception as e:
-            logger.exception("Error procesando pedido %s: %s", order.get("id", "?"), e)
+            logger.exception("Error procesando pedido %s: %s", order["id"] if "id" in order.keys() else "?", e)
             stats["errors"] += 1
 
     logger.info(

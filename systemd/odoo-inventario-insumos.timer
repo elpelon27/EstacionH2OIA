@@ -1,0 +1,14 @@
+# ============================================================================
+# odoo-inventario-insumos.timer — Lunes 8:00 AM Caracas (UTC-4) = 12:00 UTC
+# ============================================================================
+
+[Unit]
+Description=Timer para inventario insumos Odoo (lunes 8 AM Caracas)
+
+[Timer]
+OnCalendar=Mon *-*-* 12:00 UTC
+Persistent=true
+RandomizedDelaySec=10m
+
+[Install]
+WantedBy=timers.target

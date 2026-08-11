@@ -1,0 +1,25 @@
+# ============================================================================
+# odoo-ventas-diarias.service — Reporte diario de ventas (11 PM Caracas)
+# ============================================================================
+
+[Unit]
+Description=Reporte diario de ventas Odoo
+Documentation=https://github.com/elpelon27/EstacionH2OIA
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python /mnt/ssd_trabajo/hermes-agent/scripts/odoo_reporte_ventas_diarias.py
+TimeoutSec=180
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=odoo-ventas-diarias
+
+MemoryMax=512M
+CPUQuota=50%
+TasksMax=64

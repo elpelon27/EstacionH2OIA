@@ -1,0 +1,33 @@
+version: '3.8'
+
+services:
+  odoo-db:
+    image: postgres:15
+    container_name: odoo-db
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: odoo
+      POSTGRES_PASSWORD: odoo_secure_pass_2026
+    volumes:
+      - odoo-db-data:/var/lib/postgresql/data
+    ports:
+      - "127.0.0.1:5433:5432"
+    restart: unless-stopped
+    mem_limit: 1g
+
+  odoo-web:
+    image: odoo:17.0
+    container_name: odoo-web
+    depends_on:
+      - odoo-db
+    ports:
+      - "127.0.0.1:8069:8069"
+    volumes:
+      - odoo-web-data:/var/lib/odoo
+      - ./config:/etc/odoo
+    restart: unless-stopped
+    mem_limit: 2g
+
+volumes:
+  odoo-db-data:
+  odoo-web-data:

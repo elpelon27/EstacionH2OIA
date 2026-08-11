@@ -17,6 +17,9 @@ Type=simple
 User=root
 Group=root
 WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/api
+# P1-4: ExecStartPre - validate dependencies before starting
+# Fails fast if critical Python packages missing, preventing crash loop
+ExecStartPre=/mnt/ssd_trabajo/hermes-agent/venv/bin/python -c "import uvicorn, fastapi, httpx, slowapi, prometheus_client, sqlite3, json, logging, os, sys; print('✅ All deps OK')"
 ExecStart=/bin/bash /mnt/ssd_trabajo/hermes-agent/api/start_bridge.sh
 Restart=always
 RestartSec=5 10 20 30 60

@@ -1,0 +1,14 @@
+# ============================================================================
+# r4-tasa-bcv.timer — 9:00 AM y 3:00 PM Caracas (UTC-4)
+# ============================================================================
+
+[Unit]
+Description=Timer para actualizar tasa BCV (9 AM y 3 PM Caracas)
+
+[Timer]
+OnCalendar=*-*-* 13:00,19:00 UTC
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

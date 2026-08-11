@@ -1,0 +1,14 @@
+# ============================================================================
+# odoo-nomina-viernes.timer — Viernes 5:00 PM Caracas (UTC-4) = 21:00 UTC
+# ============================================================================
+
+[Unit]
+Description=Timer para nómina viernes Odoo (5 PM Caracas)
+
+[Timer]
+OnCalendar=Fri *-*-* 21:00 UTC
+Persistent=true
+RandomizedDelaySec=15m
+
+[Install]
+WantedBy=timers.target

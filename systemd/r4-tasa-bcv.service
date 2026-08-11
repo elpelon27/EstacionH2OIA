@@ -1,0 +1,26 @@
+# ============================================================================
+# r4-tasa-bcv.service — Actualizar tasa BCV (9 AM + 3 PM Caracas)
+# ============================================================================
+
+[Unit]
+Description=Actualizar tasa BCV desde R4 Conecta
+Documentation=https://github.com/elpelon27/EstacionH2OIA
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=root
+Group=root
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+EnvironmentFile=/mnt/ssd_trabajo/hermes-agent/config/.env
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python /mnt/ssd_trabajo/hermes-agent/scripts/r4_update_tasa_bcv.py
+TimeoutSec=120
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=r4-tasa-bcv
+
+# Resource limits
+MemoryMax=512M
+CPUQuota=50%
+TasksMax=64
