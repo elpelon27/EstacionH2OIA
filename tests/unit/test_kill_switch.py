@@ -1,6 +1,5 @@
 """Test P0-C: Kill switch functionality"""
 
-import contextlib
 import os
 import stat
 import tempfile

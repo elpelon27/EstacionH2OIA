@@ -19,13 +19,13 @@ os.environ.setdefault("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/convers
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
-import pytest
 import sqlite3
+
+import pytest
 
 # Now import after env vars are set
 from api.bridge import _send_to_dispatch_queue
 from skills.dispatch.consumer import consume_pending_orders
-
 
 # =============================================================================
 # OVERRIDE conftest.py's patch_dispatch_db fixture for these tests
@@ -45,36 +45,36 @@ def patch_dispatch_db():
     """
     # Restore real database path in all modules that were patched
     import skills.dispatch.bottle_tracker as bt_module
-    import skills.dispatch.telegram_bot as tbot_module
-    import skills.dispatch.gps_tracker as gps_module
-    import skills.dispatcher_skill as ds_module
     import skills.dispatch.consumer as consumer_module
-    
+    import skills.dispatch.gps_tracker as gps_module
+    import skills.dispatch.telegram_bot as tbot_module
+    import skills.dispatcher_skill as ds_module
+
     REAL_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
-    
+
     bt_module.DISPATCH_DB = REAL_DB
     bt_module._bottle_tracker_instance = None
-    
+
     if hasattr(tbot_module, 'DISPATCH_DB'):
         tbot_module.DISPATCH_DB = REAL_DB
     if hasattr(tbot_module, '_dispatcher_bot_instance'):
         tbot_module._dispatcher_bot_instance = None
-    
+
     if hasattr(gps_module, 'DISPATCH_DB'):
         gps_module.DISPATCH_DB = REAL_DB
     if hasattr(gps_module, '_gps_tracker_instance'):
         gps_module._gps_tracker_instance = None
-    
+
     if hasattr(ds_module, 'DISPATCH_DB'):
         ds_module.DISPATCH_DB = REAL_DB
     if hasattr(ds_module, '_dispatcher_skill_instance'):
         ds_module._dispatcher_skill_instance = None
-    
+
     # Also fix consumer module
     consumer_module.DISPATCH_DB = REAL_DB
-    
+
     yield
-    
+
     # Cleanup: reset instances so they don't leak
     bt_module._bottle_tracker_instance = None
     if hasattr(tbot_module, '_dispatcher_bot_instance'):
@@ -91,7 +91,7 @@ def clean_dispatch_queue():
     # Ensure environment variables are set for the test
     os.environ.setdefault("DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
     os.environ.setdefault("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
-    
+
     conn = sqlite3.connect("/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
     conn.execute('DELETE FROM dispatch_queue WHERE cliente_nombre LIKE "E2E-%"')
     conn.commit()

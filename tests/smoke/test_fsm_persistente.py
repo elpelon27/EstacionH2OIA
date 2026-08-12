@@ -17,11 +17,9 @@ Run: python3 tests/smoke/test_fsm_persistente.py
 """
 
 import os
-import sys
-import json
-import time
 import shutil
 import sqlite3
+import sys
 
 # Path setup
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))

@@ -9,9 +9,9 @@ Valida:
 5. READY=1 notificable (no crashea aunque no haya socket systemd)
 """
 
+import asyncio
 import os
 import sys
-import asyncio
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.insert(0, os.path.join(PROJECT_ROOT, "api"))
@@ -66,6 +66,7 @@ except Exception as e:
 print("\n[4] _watchdog_loop como asyncio.Task")
 import bridge
 
+
 async def test_watchdog():
     """Verifica que el watchdog loop arranca y se cancela limpiamente."""
     global _watchdog_failed
@@ -99,6 +100,7 @@ test("_watchdog_task en bridge", hasattr(bridge, "_watchdog_task"))
 # Test 7: _watchdog_loop es coroutine
 print("\n[7] _watchdog_loop es async coroutine")
 import inspect
+
 test("_watchdog_loop es coroutine function", inspect.iscoroutinefunction(bridge._watchdog_loop))
 
 print(f"\n=== RESULTADO: {passed} PASS, {failed} FAIL ===\n")

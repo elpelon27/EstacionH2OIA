@@ -1,7 +1,6 @@
 """Unit test fixtures - overrides test file fixtures to prevent conflicts."""
 import pytest
 
-
 # =============================================================================
 # OVERRIDE TEST_BOTTLE_TRACKER.PY FIXTURES
 # =============================================================================
@@ -30,7 +29,6 @@ def tracker():
     """
     # Our root conftest's patch_dispatch_db fixture already patched DISPATCH_DB
     # to a temp DB. Just get the tracker instance.
-    import skills.dispatch.bottle_tracker as bt_module
     from skills.dispatch.bottle_tracker import get_bottle_tracker
     tracker = get_bottle_tracker()
     yield tracker

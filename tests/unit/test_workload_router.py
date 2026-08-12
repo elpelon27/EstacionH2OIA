@@ -12,10 +12,12 @@ mock_skills = MagicMock()
 mock_skills.payment_skill = mock_payment_skill
 sys.modules["skills"] = mock_skills
 
-import pytest
 from datetime import time
 from unittest.mock import AsyncMock, MagicMock, patch
-from core.workload_router import WorkloadRouter, Route, ROUTE_TABLE, get_router
+
+import pytest
+
+from core.workload_router import ROUTE_TABLE, Route, WorkloadRouter, get_router
 
 
 @pytest.fixture

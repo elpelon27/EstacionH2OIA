@@ -5,8 +5,7 @@ El sistema actual usa api/bridge.py (Meta Cloud API + Dify + FSM deterministico)
 Los tests que referencian funciones eliminadas (_send_waha_message) estan marcados skip.
 """
 
-from typing import AsyncGenerator
-from unittest.mock import AsyncMock, MagicMock, patch
+from collections.abc import AsyncGenerator
 
 import pytest
 from httpx import ASGITransport, AsyncClient
@@ -24,7 +23,7 @@ async def client() -> AsyncGenerator[AsyncClient, None]:
     if "api.main" in sys.modules:
         importlib.reload(sys.modules["api.main"])
     else:
-        import api.main
+        pass
     from api.main import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c

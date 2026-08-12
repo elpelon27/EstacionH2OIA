@@ -4,12 +4,12 @@
 Valida que el regex matchea SOLO teléfonos venezolanos reales y NO matcha
 IDs, timestamps, IPs, ni otros números que aparecen en logs.
 """
-import sys
 import os
+import sys
+
 sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
 os.environ['BRIDGE_ALLOW_INSECURE_SALT'] = '1'
 
-import re
 
 # Importar el regex de la clase
 from api.bridge import SanitizingFormatter

@@ -1,8 +1,8 @@
 """pytest configuration and fixtures for test isolation."""
 import os
 import sys
-from typing import Generator
-from unittest.mock import AsyncMock, MagicMock
+from collections.abc import Generator
+from unittest.mock import AsyncMock
 
 import pytest
 
@@ -22,6 +22,7 @@ sys.modules["skills.dispatcher"] = mock_dispatcher
 
 # Import the REAL skills module and add the mocked modules to it
 import skills
+
 skills.dispatcher = mock_dispatcher
 
 
@@ -76,16 +77,16 @@ def patch_dispatch_db(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, N
     Each test gets a fresh temp database with the correct schema.
     """
     global _test_db_path
-    import tempfile
     import sqlite3
-    
+    import tempfile
+
     # Create temp database with correct schema
     test_db = tempfile.mktemp(suffix=".db")
     _test_db_path = test_db
-    
+
     conn = sqlite3.connect(test_db)
     conn.execute("PRAGMA foreign_keys = ON")
-    
+
     # Schema from test_bottle_tracker.py
     conn.execute("""
         CREATE TABLE bottles (
@@ -248,7 +249,7 @@ def patch_dispatch_db(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, N
             created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
         )
     """)
-    
+
     # Insert 165 bottles + test clients
     for i in range(1, 166):
         conn.execute("INSERT INTO bottles (bottle_code, status) VALUES (?, 'available')", (f"H2O-{i:03d}",))
@@ -257,57 +258,57 @@ def patch_dispatch_db(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, N
     conn.execute("INSERT INTO zones (id, name) VALUES (1, 'Test Zone')")
     conn.commit()
     conn.close()
-    
+
     # Patch all modules that use DISPATCH_DB
     import skills.dispatch.bottle_tracker as bt_module
-    import skills.dispatch.telegram_bot as tbot_module
     import skills.dispatch.gps_tracker as gps_module
+    import skills.dispatch.telegram_bot as tbot_module
     import skills.dispatcher_skill as ds_module
-    
+
     original_bt_db = bt_module.DISPATCH_DB
     original_tbot_db = getattr(tbot_module, 'DISPATCH_DB', None)
     original_gps_db = getattr(gps_module, 'DISPATCH_DB', None)
     original_ds_db = getattr(ds_module, 'DISPATCH_DB', None)
-    
+
     bt_module.DISPATCH_DB = test_db
     bt_module._bottle_tracker_instance = None
-    
+
     if hasattr(tbot_module, 'DISPATCH_DB'):
         tbot_module.DISPATCH_DB = test_db
     if hasattr(tbot_module, '_dispatcher_bot_instance'):
         tbot_module._dispatcher_bot_instance = None
-    
+
     if hasattr(gps_module, 'DISPATCH_DB'):
         gps_module.DISPATCH_DB = test_db
     if hasattr(gps_module, '_gps_tracker_instance'):
         gps_module._gps_tracker_instance = None
-    
+
     if hasattr(ds_module, 'DISPATCH_DB'):
         ds_module.DISPATCH_DB = test_db
     if hasattr(ds_module, '_dispatcher_skill_instance'):
         ds_module._dispatcher_skill_instance = None
-    
+
     yield test_db
-    
+
     # Cleanup
     bt_module.DISPATCH_DB = original_bt_db
     bt_module._bottle_tracker_instance = None
-    
+
     if hasattr(tbot_module, 'DISPATCH_DB'):
         tbot_module.DISPATCH_DB = original_tbot_db
     if hasattr(tbot_module, '_dispatcher_bot_instance'):
         tbot_module._dispatcher_bot_instance = None
-    
+
     if hasattr(gps_module, 'DISPATCH_DB'):
         gps_module.DISPATCH_DB = original_gps_db
     if hasattr(gps_module, '_gps_tracker_instance'):
         gps_module._gps_tracker_instance = None
-    
+
     if hasattr(ds_module, 'DISPATCH_DB'):
         ds_module.DISPATCH_DB = original_ds_db
     if hasattr(ds_module, '_dispatcher_skill_instance'):
         ds_module._dispatcher_skill_instance = None
-    
+
     # Cleanup temp file
     try:
         os.unlink(test_db)
@@ -323,7 +324,7 @@ def patch_dispatch_db(monkeypatch: pytest.MonkeyPatch) -> Generator[str, None, N
 # NOTE: test_bottle_tracker.py uses its own test_db fixture with proper schema
 # at /tmp/test_bottle_tracker.db - do NOT override it here
 
-# NOTE: test_dispatch_telegram_bot.py and test_gps_tracker.py fixtures are 
+# NOTE: test_dispatch_telegram_bot.py and test_gps_tracker.py fixtures are
 # disabled at import time above
 
 
@@ -336,7 +337,9 @@ def pytest_configure(config):
 
 # Shared prometheus reset fixture for all test modules
 import contextlib
+
 import pytest
+
 
 @pytest.fixture(autouse=True)
 def reset_prometheus():

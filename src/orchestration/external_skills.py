@@ -221,7 +221,8 @@ class ADKSkillsConnector(SkillLibraryConnector):
     def __init__(
         self,
         adk_skills_path: str = (
-            "/mnt/ssd_trabajo/hermes-agent/external_repos/orchestration/adk-python"
+            "/mnt/ssd_trabajo/hermes-agent/"
+            "external_repos/orchestration/adk-python"
         ),
     ):
         self.adk_skills_path = Path(adk_skills_path)

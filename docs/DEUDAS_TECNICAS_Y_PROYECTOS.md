@@ -1,5 +1,5 @@
 # 📋 DEUDAS TÉCNICAS Y PROYECTOS - Estación H2O / Valentina
-**Última actualización:** 2026-08-11 | **Commit:** `a569fe2` | **Estado CI:** ✅ GREEN
+**Última actualización:** 2026-08-11 | **Commit:** `e1a2b31` | **Estado CI:** ✅ GREEN
 
 ---
 
@@ -17,7 +17,9 @@
 | **DT-09** | Ruff errors en skills/ y src/ | `skills/`, `src/financial/`, `src/integrations/` — E501, N806, B904, SIM117, F841, unused imports, SIM102, SIM118, SIM401, E722, F402, B007, W291/W293 | `003d43e` → `a569fe2` |
 | **DT-10** | mypy `unused-ignore` en 6 ubicaciones | `core/logger.py`, `skills/dispatcher.py`, `core/openrouter_client.py`, `skills/dispatch/telegram_bot.py` — limpieza type ignores | `003d43e` → `a569fe2` |
 | **DT-11** | `conftest.py` mypy `no-untyped-def` | `Generator[str, None, None]` type hint + import `typing.Generator` | `c362db7` |
+| **DT-13** | Tests de integración no en CI | `.github/workflows/ci.yml` + 25 integration tests passing | `e1a2b31` |
 | **DT-14** | `requirements.txt` vs `pyproject.toml` drift | `[project.dependencies]` + `[project.optional-dependencies].dev` | `4263f51` |
+| **DT-15** | Secrets hardcodeados en tests | `HERMES_PROJECT_ROOT` env var + fixture `reset_prometheus` autouse | `cba1637`, `c362db7` |
 | **DT-16** | `UP042` str+Enum en r4/codigos.py y hmac_auth.py | Migrar a `StrEnum` (Python 3.11+) | `a569fe2` |
 | **DT-17** | `E402` module imports en r4/webhooks.py | Mover imports `time`, `defaultdict` al top | `8dbc80d` |
 | **DT-18** | `N805`/`B904`/`B008`/`SIM102` en r4/webhooks.py | `cls→self`, `raise from`, `Depends()`, `if` combinado | `8dbc80d` |
@@ -25,6 +27,7 @@
 | **DT-20** | `W291` trailing whitespace en orchestrator.py | `ruff format` | `a569fe2` |
 | **DT-21** | `SIM118` key in dict.keys() en external_skills.py | `ruff --fix` | `a569fe2` |
 | **DT-22** | `B007` unused loop var en external_skills.py | `_` convention | `a569fe2` |
+| **DT-25** | `E501`/`W293`/`B008` residual en r4/webhooks.py | Código comentado refactorizado, `Depends` singleton, `field_validator`, newline | Pendiente commit |
 | **FASE 7 Seguridad** | Hardening bridge.py + infra | Rate limiting dual (IP + teléfono), payload validation, input sanitization, logrotate, backup_daily.sh, fail2ban script | `f30037c` |
 
 ---
@@ -42,11 +45,8 @@
 | ID | Deuda | Archivos afectados | Descripción | Esfuerzo estimado |
 |---|---|---|---|---|
 | **DT-12** | Cobertura de tests < 35% | `core/`, `agents/`, `api/` | Solo 28% coverage; falta tests unitarios para lógica crítica (`workload_router`, `cost_guard`, `circuit_breaker`, `fusion`, `judge`, `openrouter_client`) | ~8-16h |
-| **DT-13** | Tests de integración no corren en CI | `tests/integration/` | Requieren BD real, services, secrets | ~4h (mock infra) |
-| **DT-15** | Secrets hardcodeados en tests | `tests/unit/test_kill_switch.py`, `tests/unit/test_api.py` | Paths `/mnt/ssd_trabajo/...` hardcoded | ~1h |
 | **DT-23** | `E501` long lines en unified_memory.py | `src/memory/unified_memory.py:243,253` | Refactor strings | ~30min |
 | **DT-24** | `E501` long lines en external_skills.py | `src/orchestration/external_skills.py:223` | Refactor | ~15min |
-| **DT-25** | `E501`/`W293`/`B008` residual en r4/webhooks.py | `src/integrations/r4/webhooks.py` | Código comentado + Depends defaults + whitespace | ~30min |
 | **DT-26** | `E501` docstrings en orchestrator.py | `src/orchestration/orchestrator.py` | 5 docstrings largas (líneas 316, 401, 435, 469, 504) | ~30min |
 | **DT-27** | Lint legacy en conftest.py | `tests/conftest.py` | 34 issues (W293, E501, I001, E402, F401, SIM105, W291/292) | ~1h |
 

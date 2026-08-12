@@ -10,8 +10,6 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from agents.valentina import ValentinaAgent, get_valentina
-
 
 @pytest.fixture
 def valentina():

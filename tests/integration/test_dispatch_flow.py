@@ -9,11 +9,11 @@ Dispatch Queue → Route Engine → Bot Chofer → Check-in → GPS →
 Entregado → Botellón loaner tracking → Sheets Sync → Financial Shield
 """
 
-import pytest
-import asyncio
 import os
-import sys
 import sqlite3
+import sys
+
+import pytest
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
@@ -26,10 +26,10 @@ def test_db():
     """Crea BD de test limpia con esquema completo."""
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
-    
+
     conn = sqlite3.connect(TEST_DB)
     conn.execute("PRAGMA foreign_keys = ON")
-    
+
     # Tablas base
     conn.execute("""
         CREATE TABLE vehicles (
@@ -46,7 +46,7 @@ def test_db():
             created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -69,7 +69,7 @@ def test_db():
             updated_at REAL NOT NULL DEFAULT (strftime('%s','now'))
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE zones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -82,7 +82,7 @@ def test_db():
             created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE deliveries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -107,7 +107,7 @@ def test_db():
             FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE dispatch_sessions (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -127,7 +127,7 @@ def test_db():
             FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE gps_tracks (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -143,7 +143,7 @@ def test_db():
             FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE geofence_events (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -156,7 +156,7 @@ def test_db():
             FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE dispatch_queue (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -178,7 +178,7 @@ def test_db():
             creado_at TEXT NOT NULL
         )
     """)
-    
+
     # Tablas SWAP
     conn.execute("""
         CREATE TABLE bottles (
@@ -195,7 +195,7 @@ def test_db():
             FOREIGN KEY (client_id) REFERENCES clients(id)
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE bottle_movements (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -213,7 +213,7 @@ def test_db():
             FOREIGN KEY (bottle_code) REFERENCES bottles(bottle_code)
         )
     """)
-    
+
     conn.execute("""
         CREATE TABLE bottle_alerts (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -228,41 +228,41 @@ def test_db():
             FOREIGN KEY (bottle_code) REFERENCES bottles(bottle_code)
         )
     """)
-    
+
     # Datos de prueba
     import time
     now = time.time()
-    
+
     # Vehículos
     conn.execute("INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)")
     conn.execute("INSERT INTO vehicles (id, name, operator_name, active) VALUES (2, 'Triciclo 2', 'EVERT', 1)")
-    
+
     # Zonas
     conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)")
     conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)")
-    
+
     # Clientes
     conn.execute("""INSERT INTO clients (id, phone, phone_hash, name, address_text, lat, lng, client_type, priority, zone_id) 
                    VALUES (1, '+584121234567', 'hash1', 'Restaurante El Portal', 'Av. 2 El Milagro', 10.6500, -71.6200, 'b2b', 1, 1)""")
     conn.execute("""INSERT INTO clients (id, phone, phone_hash, name, address_text, lat, lng, client_type, priority, zone_id) 
                    VALUES (2, '+584141112233', 'hash2', 'Residencias Los Sauces', 'Urbanización Los Sauces', 10.6520, -71.6180, 'multifamily', 4, 1)""")
-    
+
     # Sesión de despacho
     conn.execute("INSERT INTO dispatch_sessions (id, vehicle_id, shift, date, status, total_clients, total_bottles_full, total_distance_km, total_duration_minutes, route_algorithm, route_computed_at) VALUES (1, 1, 'morning', '2026-07-29', 'active', 2, 9, 15.5, 60, 'ortools_vrp', 1785365000)")
-    
+
     # Entregas
     conn.execute("""INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full, estimated_arrival) VALUES (1, 1, 1, 1, 1, 'pending', 6, 1785366000)""")
     conn.execute("""INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full, estimated_arrival) VALUES (2, 1, 2, 1, 2, 'pending', 3, 1785369000)""")
-    
+
     # 165 botellones
     for i in range(1, 166):
         conn.execute("INSERT INTO bottles (id, bottle_code, status) VALUES (?, ?, 'available')", (i, f"H2O-{i:03d}"))
-    
+
     conn.commit()
     conn.close()
-    
+
     yield TEST_DB
-    
+
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
 
@@ -270,24 +270,24 @@ def test_db():
 @pytest.fixture
 def patch_db(monkeypatch, test_db):
     """Parchea las constantes de BD para usar test DB."""
-    import skills.dispatcher as dispatcher_module
-    import skills.dispatch.telegram_bot as telegram_bot_module
-    import skills.dispatch.gps_tracker as gps_tracker_module
     import skills.dispatch.bottle_tracker as bottle_tracker_module
+    import skills.dispatch.gps_tracker as gps_tracker_module
+    import skills.dispatch.telegram_bot as telegram_bot_module
+    import skills.dispatcher as dispatcher_module
     import skills.dispatcher_skill as dispatcher_skill_module
-    
+
     for mod in [dispatcher_module, telegram_bot_module, gps_tracker_module, bottle_tracker_module, dispatcher_skill_module]:
         if hasattr(mod, 'DISPATCH_DB'):
             monkeypatch.setattr(mod, 'DISPATCH_DB', test_db)
         if hasattr(mod, 'DISPATCH_DB_PATH'):
             monkeypatch.setattr(mod, 'DISPATCH_DB_PATH', test_db)
-    
+
     # Reset singletons to pick up new DB path
     import skills.dispatch.bottle_tracker as bt_module
     import skills.dispatch.gps_tracker as gt_module
     import skills.dispatch.telegram_bot as tbot_module
     import skills.dispatcher_skill as ds_module
-    
+
     bt_module._bottle_tracker_instance = None
     gt_module._gps_tracker_instance = None
     tbot_module._dispatcher_bot_instance = None
@@ -300,12 +300,11 @@ class TestDispatchFlowE2E:
     @pytest.mark.asyncio
     async def test_complete_flow(self, patch_db):
         """Flujo completo: Pedido → Route → Chofer → GPS → Entrega → SWAP → Sheets."""
-        from skills.dispatcher_skill import get_dispatcher_skill
         from skills.dispatch.bottle_tracker import get_bottle_tracker
-        from skills.dispatch.gps_tracker import get_gps_tracker, GPSPoint
-        from core.workload_router import get_router
-        from skills.dispatch.route_engine import compute_vrp_route, ClientOrder
-        
+        from skills.dispatch.gps_tracker import GPSPoint, get_gps_tracker
+        from skills.dispatch.route_engine import ClientOrder, compute_vrp_route
+        from skills.dispatcher_skill import get_dispatcher_skill
+
         # 1. Route Engine calcula ruta
         orders = [
             ClientOrder(client_id=1, name="Restaurante El Portal", lat=10.6500, lng=-71.6200, bottles_full=6, priority=1),
@@ -314,21 +313,21 @@ class TestDispatchFlowE2E:
         route_result = compute_vrp_route(orders, num_vehicles=1)
         assert len(route_result.routes) == 1
         assert route_result.routes[0].total_bottles == 9
-        
+
         # 2. Chofer check-in 8am
         gps_tracker = get_gps_tracker()
         checkin_result = await gps_tracker.process_gps_point(
             GPSPoint(vehicle_id=1, lat=10.6447, lng=-71.6101, source="telegram", track_type="checkin_arrive")
         )
         assert checkin_result.inside_perimeter is True
-        
+
         # 3. Chofer presiona "Llegué"
         from skills.dispatch.telegram_bot import get_dispatcher_bot
         bot = get_dispatcher_bot()
-        
+
         # Simular callback "arr_1"
         # (en test real se mockearía Telegram)
-        
+
         # 4. Chofer presiona "Entregado" - trigger SWAP
         dispatcher = get_dispatcher_skill()
         result = await dispatcher.execute(
@@ -338,7 +337,7 @@ class TestDispatchFlowE2E:
         )
         assert result["success"] is True
         assert result["data"]["bottle"]["bottle_code"] == "H2O-001"
-        
+
         # 4.5. Chofer confirma entrega en la app (with_client)
         confirm_result = await dispatcher.execute(
             action="confirm_delivery",
@@ -347,7 +346,7 @@ class TestDispatchFlowE2E:
         )
         assert confirm_result["success"] is True
         assert confirm_result["data"]["bottle"]["status"] == "with_client"
-        
+
         # 5. Chofer recoge vacío
         bottle_tracker = get_bottle_tracker()
         return_result = await bottle_tracker.return_from_client(
@@ -357,21 +356,21 @@ class TestDispatchFlowE2E:
         )
         assert return_result["success"] is True
         assert return_result["bottle"]["status"] == "in_transit_empty"
-        
+
         # 6. Planta recibe vacío → lavado
         wash_result = await bottle_tracker.send_to_wash(
             bottle_code=result["data"]["bottle"]["bottle_code"],
         )
         assert wash_result["success"] is True
         assert wash_result["bottle"]["status"] == "maintenance"
-        
+
         # 7. Lavado completado → disponible
         wash_complete = await bottle_tracker.wash_complete(
             bottle_code=result["data"]["bottle"]["bottle_code"],
         )
         assert wash_complete["success"] is True
         assert wash_complete["bottle"]["status"] == "available"
-        
+
         # 8. Inventario final = 165
         stats = await bottle_tracker.get_inventory_stats()
         assert stats["total"] == 165

@@ -1,14 +1,14 @@
 """Tests para core/circuit_breaker.py."""
 import asyncio
+
 import pytest
-from datetime import time
-from unittest.mock import AsyncMock, MagicMock, patch
+
 from core.circuit_breaker import (
     CircuitBreaker,
     CircuitBreakerConfig,
     CircuitBreakerRegistry,
-    CircuitState,
     CircuitOpenError,
+    CircuitState,
     get_circuit_breaker_registry,
 )
 
@@ -173,7 +173,7 @@ async def test_call_half_open_failure_reopens(breaker):
 async def test_excluded_exceptions_count_as_failure(breaker):
     """Excepciones en excluded_exceptions cuentan como fallo."""
     async def timeout_func():
-        raise asyncio.TimeoutError("timeout")
+        raise TimeoutError("timeout")
 
     with pytest.raises(asyncio.TimeoutError):
         await breaker.call(timeout_func)

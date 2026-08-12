@@ -7,22 +7,22 @@ Estación H2O · Maracaibo, Venezuela
 Tests unitarios para la sincronización Google Sheets del Dispatcher.
 """
 
-import pytest
-import os
 import sys
+
+import pytest
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
 from skills.dispatch.sheets_sync import (
-    MAPA_CALOR_HEADERS,
-    FEEDBACK_HEADERS,
     BOTELLAS_HEADERS,
-    SHEET_MAPA_CALOR,
-    SHEET_FEEDBACK,
+    FEEDBACK_HEADERS,
+    MAPA_CALOR_HEADERS,
     SHEET_BOTELLAS,
-    sync_mapa_calor,
-    sync_feedback,
+    SHEET_FEEDBACK,
+    SHEET_MAPA_CALOR,
     sync_botellas_control,
+    sync_feedback,
+    sync_mapa_calor,
 )
 
 
@@ -93,8 +93,7 @@ class TestSheetsSyncAPI:
         """sync_mapa_calor acepta estructura correcta."""
         # Solo verificamos que la función existe y se puede llamar
         # (no ejecutamos _sync real que necesita credenciales)
-        from skills.dispatch.sheets_sync import sync_mapa_calor
-        
+
         # No debe lanzar excepción por estructura
         data = [{
             "vehicle_id": 1,
@@ -107,17 +106,16 @@ class TestSheetsSyncAPI:
             "source": "tasker",
             "track_type": "periodic",
         }]
-        
+
         # La función debe existir y ser callable
         assert callable(sync_mapa_calor)
 
     @pytest.mark.asyncio
     async def test_sync_feedback_structure(self):
         """sync_feedback acepta estructura correcta."""
-        from skills.dispatch.sheets_sync import sync_feedback
-        
+
         assert callable(sync_feedback)
-        
+
         # Verificar parámetros esperados
         import inspect
         sig = inspect.signature(sync_feedback)
@@ -132,8 +130,7 @@ class TestSheetsSyncAPI:
     @pytest.mark.asyncio
     async def test_sync_botellas_control_structure(self):
         """sync_botellas_control acepta estructura correcta."""
-        from skills.dispatch.sheets_sync import sync_botellas_control
-        
+
         assert callable(sync_botellas_control)
 
     @pytest.mark.asyncio

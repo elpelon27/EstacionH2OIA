@@ -6,13 +6,13 @@ en abortos ('volver', 'menú', saludo en estado awaiting_payment).
 Patrón: spy con patch.object(b, '_send_to_dispatch_queue', side_effect=spy).
 No toca BD real (el spy reemplaza la función antes de que toque SQLite).
 """
-import sys
 import os
+import sys
+
 sys.path.insert(0, '/mnt/ssd_trabajo/hermes-agent')
 os.environ['BRIDGE_ALLOW_INSECURE_SALT'] = '1'
 
 from unittest.mock import patch
-from datetime import datetime
 
 import api.bridge as b
 
@@ -49,7 +49,7 @@ def _test_case(name, state_overrides, input_text, should_dispatch):
             b._handle_deterministic(
                 ph, input_text, '+58412xxxxxxxx', 'Cliente Test', msg, {}
             )
-    except Exception as e:
+    except Exception:
         # Algunos paths pueden faltar mocks auxiliares; lo importante es el spy
         pass
 
