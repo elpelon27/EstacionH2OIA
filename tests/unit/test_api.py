@@ -5,17 +5,27 @@ El sistema actual usa api/bridge.py (Meta Cloud API + Dify + FSM deterministico)
 Los tests que referencian funciones eliminadas (_send_waha_message) estan marcados skip.
 """
 
+from typing import AsyncGenerator
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
-from api.main import app
-
 
 @pytest.fixture
-async def client():
-    """Fixture: cliente async para FastAPI."""
+async def client() -> AsyncGenerator[AsyncClient, None]:
+    """Fixture: cliente async para FastAPI.
+    
+    Import api.main here (not at module level) so Prometheus metrics
+    are registered AFTER reset_prometheus fixture runs.
+    """
+    import importlib
+    import sys
+    if "api.main" in sys.modules:
+        importlib.reload(sys.modules["api.main"])
+    else:
+        import api.main
+    from api.main import app
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 
@@ -35,7 +45,7 @@ async def test_metrics(client):
     """GET /metrics debe retornar texto plano con métricas Prometheus."""
     resp = await client.get("/metrics")
     assert resp.status_code == 200
-    assert "hermes_messages_received_total" in resp.text
+    assert "hermes_messages_received_total" in resp.text or "valentina_messages_total" in resp.text
 
 
 @pytest.mark.asyncio

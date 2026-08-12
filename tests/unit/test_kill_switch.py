@@ -1,6 +1,4 @@
-"""
-Test P0-C: Kill switch functionality
-"""
+"""Test P0-C: Kill switch functionality"""
 
 import contextlib
 import os
@@ -8,25 +6,6 @@ import stat
 import tempfile
 
 import pytest
-
-
-# Module-level fixture to prevent prometheus duplicate registration
-@pytest.fixture(autouse=True)
-def reset_prometheus():
-    """Reset prometheus registry between tests."""
-    from prometheus_client import REGISTRY
-
-    # Collect collectors to unregister
-    collectors = list(REGISTRY._collector_to_names.keys())
-    for collector in collectors:
-        with contextlib.suppress(Exception):
-            REGISTRY.unregister(collector)
-    yield
-    # Cleanup after
-    collectors = list(REGISTRY._collector_to_names.keys())
-    for collector in collectors:
-        with contextlib.suppress(Exception):
-            REGISTRY.unregister(collector)
 
 
 # Test that kill switch file can be created and removed

@@ -13,7 +13,7 @@ Features:
 
 from typing import Any
 
-from openai import AsyncOpenAI
+from openai import AsyncOpenAI, RateLimitError, APIError
 from openai.types.chat import ChatCompletionMessageParam
 
 from core.config import get_settings

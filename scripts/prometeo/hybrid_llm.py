@@ -19,8 +19,8 @@ Comportamiento:
 import logging
 import os
 import time
-
-from openai import OpenAI
+import random
+from openai import OpenAI, RateLimitError, APIStatusError
 
 logging.basicConfig(
     level=logging.INFO,
@@ -68,7 +68,7 @@ class HybridLLM:
     def __init__(self):
         self.current_provider_idx = 0  # arrancamos con Nemotron (índice 0)
         self.failures = {p["name"]: 0 for p in PROVIDERS}
-        self.last_failure_time = {p["name"]: 0 for p in PROVIDERS}
+        self.last_failure_time: dict[str, float] = {p["name"]: 0.0 for p in PROVIDERS}
         self.clients = {}
         for p in PROVIDERS:
             if p["api_key"]:
@@ -82,8 +82,8 @@ class HybridLLM:
             status = "✅" if p["name"] in self.clients else "❌"
             logger.info(f"  {i+1}. {status} {p['display']} ({p['model']})")
 
-    def _try_provider(self, idx: int, messages: list, **kwargs) -> str | None:
-        """Intenta un provider específico. Retorna respuesta o None."""
+    def _try_provider(self, idx: int, messages: list, max_retries: int = 3, **kwargs) -> str | None:
+        """Intenta un provider específico con reintentos y backoff. Retorna respuesta o None."""
         if idx >= len(PROVIDERS):
             return None
 
@@ -96,16 +96,43 @@ class HybridLLM:
         if time.time() - self.last_failure_time[p["name"]] < COOLDOWN_SECONDS:
             return None
 
-        try:
-            completion = client.chat.completions.create(
-                model=p["model"], messages=messages, **kwargs
-            )
-            return completion.choices[0].message.content
-        except Exception as e:
-            logger.warning(f"{p['display']} fallo: {str(e)[:200]}")
-            self.failures[p["name"]] += 1
-            self.last_failure_time[p["name"]] = time.time()
-            return None
+        for attempt in range(max_retries):
+            try:
+                completion = client.chat.completions.create(
+                    model=p["model"], messages=messages, **kwargs
+                )
+                return completion.choices[0].message.content
+            except (RateLimitError, APIStatusError) as e:
+                # Detectar ResourceExhausted (429/quota exhausted)
+                is_resource_exhausted = (
+                    isinstance(e, RateLimitError) or
+                    (isinstance(e, APIStatusError) and 
+                     ("ResourceExhausted" in str(e) or 
+                      "quota" in str(e).lower() or
+                      "limit reached" in str(e).lower()))
+                )
+                
+                if is_resource_exhausted and attempt < max_retries - 1:
+                    wait_time = 120 + random.randint(0, 30)  # 120-150s con jitter
+                    logger.warning(
+                        f"{p['display']} quota agotada (intento {attempt + 1}/{max_retries}). "
+                        f"Esperando {wait_time}s antes de reintentar..."
+                    )
+                    time.sleep(wait_time)
+                    continue  # Reintentar
+                
+                # Otros errores de rate limit o errores no recuperables
+                logger.warning(f"{p['display']} fallo: {str(e)[:200]}")
+                self.failures[p["name"]] += 1
+                self.last_failure_time[p["name"]] = time.time()
+                return None
+            except Exception as e:
+                logger.warning(f"{p['display']} fallo: {str(e)[:200]}")
+                self.failures[p["name"]] += 1
+                self.last_failure_time[p["name"]] = time.time()
+                return None
+        
+        return None
 
     def _ping_provider(self, idx: int) -> bool:
         """Ping rápido a un provider."""

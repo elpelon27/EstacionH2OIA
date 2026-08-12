@@ -332,3 +332,25 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: marks tests as slow")
     config.addinivalue_line("markers", "integration: marks tests as integration tests")
     config.addinivalue_line("markers", "unit: marks tests as unit tests")
+
+
+# Shared prometheus reset fixture for all test modules
+import contextlib
+import pytest
+
+@pytest.fixture(autouse=True)
+def reset_prometheus():
+    """Reset prometheus registry between tests."""
+    from prometheus_client import REGISTRY
+
+    # Collect collectors to unregister
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        with contextlib.suppress(Exception):
+            REGISTRY.unregister(collector)
+    yield
+    # Cleanup after
+    collectors = list(REGISTRY._collector_to_names.keys())
+    for collector in collectors:
+        with contextlib.suppress(Exception):
+            REGISTRY.unregister(collector)
