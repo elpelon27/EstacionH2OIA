@@ -240,7 +240,11 @@ def demo():
 
     # Procedural
     memory.add(
-        content="Procedimiento entrega: 1) Verificar pedido 2) Cargar botellones 3) Navegar GPS 4) Entregar 5) Recoger vacíos 6) Confirmar en app",
+        content=(
+            "Procedimiento entrega: 1) Verificar pedido "
+            "2) Cargar botellones 3) Navegar GPS "
+            "4) Entregar 5) Recoger vacíos 6) Confirmar en app"
+        ),
         memory_type=MemoryType.PROCEDURAL,
         tags=["procedimiento", "entrega", "workflow", "choferes"],
         importance=0.95,
@@ -250,7 +254,11 @@ def demo():
 
     # Autobiográfica
     memory.add(
-        content="Mi objetivo es ser la entidad aislada full-stack que opere Estación H2O de forma autónoma, gestionando SWAP, despacho, finanzas y logística sin intervención humana constante",
+        content=(
+            "Mi objetivo es ser la entidad aislada full-stack que opere "
+            "Estación H2O de forma autónoma, gestionando SWAP, despacho, "
+            "finanzas y logística sin intervención humana constante"
+        ),
         memory_type=MemoryType.AUTOBIOGRAPHICAL,
         tags=["identidad", "mision", "autonomia", "objetivo"],
         importance=1.0,
