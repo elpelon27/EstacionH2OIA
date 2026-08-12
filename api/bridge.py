@@ -719,9 +719,9 @@ def _sanitize_input_text(text: str) -> str:
         return ""
 
     # Limitar longitud (WhatsApp max es ~4096, nosotros ponemos límite conservador)
-    MAX_LEN = 2000
-    if len(text) > MAX_LEN:
-        text = text[:MAX_LEN] + "… [truncado]"
+    max_len = 2000
+    if len(text) > max_len:
+        text = text[:max_len] + "… [truncado]"
 
     # Remover caracteres de control peligrosos (ASCII 0-31 excepto \n \r \t)
     # \x00-\x08, \x0b-\x0c, \x0e-\x1f

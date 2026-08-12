@@ -128,7 +128,10 @@ class SkillRegistry:
         py_skills = {
             "dispatcher_skill": {
                 "name": "dispatcher_skill",
-                "description": "Dispatcher operations: route planning, driver assignment, delivery tracking",
+                "description": (
+                    "Dispatcher operations: route planning, driver assignment, "
+                    "delivery tracking"
+                ),
                 "tags": ["dispatch", "routing", "driver", "delivery"],
                 "allowed_tools": ["route_optimizer", "vehicle_tracker", "driver_assigner"],
                 "dependencies": ["bottle_tracking"],
@@ -185,7 +188,11 @@ class SkillRegistry:
                     tags=skill_data["tags"],
                     allowed_tools=skill_data["allowed_tools"],
                     dependencies=skill_data["dependencies"],
-                    instructions=f"# {skill_name}\n\n{skill_data['description']}\n\nThis skill is implemented in Python.",
+                    instructions=(
+                        f"# {skill_name}\n\n"
+                        f"{skill_data['description']}\n\n"
+                        "This skill is implemented in Python."
+                    ),
                     metadata={"implementation": "python", "module": f"skills.{skill_name}"},
                 )
                 self.skills[skill_name] = skill
@@ -200,18 +207,19 @@ class SkillRegistry:
         query_lower = query.lower()
 
         for skill in self.skills.values():
-            if agent_type and skill.scope == SkillScope.AGENT_SPECIFIC:
-                if agent_type not in skill.tags and agent_type not in skill.metadata.get(
-                    "agent_types", []
-                ):
-                    continue
+            if (
+                agent_type
+                and skill.scope == SkillScope.AGENT_SPECIFIC
+                and agent_type not in skill.tags
+                and agent_type not in skill.metadata.get("agent_types", [])
+            ):
+                continue
 
-            if query_lower:
-                if (
-                    query_lower not in skill.name.lower()
-                    and query_lower not in skill.description.lower()
-                ):
-                    continue
+            if query_lower and (
+                query_lower not in skill.name.lower()
+                and query_lower not in skill.description.lower()
+            ):
+                continue
 
             results.append(skill.discovery_info)
             if len(results) >= limit:
@@ -304,10 +312,7 @@ class SkillRegistry:
         self.skills[skill.name] = skill
 
     def create_skill_file(self, skill: SkillSpec, target_dir: str | None = None) -> Path:
-        if target_dir:
-            skill_dir = Path(target_dir) / skill.name
-        else:
-            skill_dir = self.skills_dir / skill.name
+        skill_dir = Path(target_dir) / skill.name if target_dir else self.skills_dir / skill.name
 
         skill_dir.mkdir(parents=True, exist_ok=True)
         skill_file = skill_dir / "SKILL.md"
