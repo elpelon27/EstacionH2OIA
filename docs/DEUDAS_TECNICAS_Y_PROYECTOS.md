@@ -1,5 +1,5 @@
 # 📋 DEUDAS TÉCNICAS Y PROYECTOS - Estación H2O / Valentina
-**Última actualización:** 2026-08-11 | **Commit:** `e1a2b31` | **Estado CI:** ✅ GREEN
+**Última actualización:** 2026-08-12 | **Commit:** `6877602` | **Estado CI:** ✅ GREEN
 
 ---
 
@@ -27,7 +27,10 @@
 | **DT-20** | `W291` trailing whitespace en orchestrator.py | `ruff format` | `a569fe2` |
 | **DT-21** | `SIM118` key in dict.keys() en external_skills.py | `ruff --fix` | `a569fe2` |
 | **DT-22** | `B007` unused loop var en external_skills.py | `_` convention | `a569fe2` |
-| **DT-25** | `E501`/`W293`/`B008` residual en r4/webhooks.py | Código comentado refactorizado, `Depends` singleton, `field_validator`, newline | Pendiente commit |
+| **DT-23** | `E501` long lines en unified_memory.py | `src/memory/unified_memory.py:243,253` — strings concatenadas | `6877602` |
+| **DT-24** | `E501` long lines en external_skills.py | `src/orchestration/external_skills.py:223` — path concatenado | `6877602` |
+| **DT-25** | `E501`/`W293`/`B008` residual en r4/webhooks.py | Código comentado refactorizado, `Depends` singleton, `field_validator`, newline | `e6768fc` |
+| **DT-26** | `E501` docstrings en orchestrator.py | 5 docstrings refactorizadas a strings concatenadas | `e6768fc` |
 | **FASE 7 Seguridad** | Hardening bridge.py + infra | Rate limiting dual (IP + teléfono), payload validation, input sanitization, logrotate, backup_daily.sh, fail2ban script | `f30037c` |
 
 ---
@@ -45,9 +48,6 @@
 | ID | Deuda | Archivos afectados | Descripción | Esfuerzo estimado |
 |---|---|---|---|---|
 | **DT-12** | Cobertura de tests < 35% | `core/`, `agents/`, `api/` | Solo 28% coverage; falta tests unitarios para lógica crítica (`workload_router`, `cost_guard`, `circuit_breaker`, `fusion`, `judge`, `openrouter_client`) | ~8-16h |
-| **DT-23** | `E501` long lines en unified_memory.py | `src/memory/unified_memory.py:243,253` | Refactor strings | ~30min |
-| **DT-24** | `E501` long lines en external_skills.py | `src/orchestration/external_skills.py:223` | Refactor | ~15min |
-| **DT-26** | `E501` docstrings en orchestrator.py | `src/orchestration/orchestrator.py` | 5 docstrings largas (líneas 316, 401, 435, 469, 504) | ~30min |
 | **DT-27** | Lint legacy en conftest.py | `tests/conftest.py` | 34 issues (W293, E501, I001, E402, F401, SIM105, W291/292) | ~1h |
 
 ---
@@ -97,20 +97,16 @@
 
 ### Inmediato (Esta semana)
 1. **DT-01** → Obtener chat_ids de Yordanis y Evert → Desbloquear Sprint 3
-2. **DT-15** → Secrets hardcodeados en tests (quick win ~1h)
-3. **DT-23/DT-24** → E501 quick wins unified_memory.py + external_skills.py (~45min)
+2. **DT-27** → Limpieza conftest.py legacy (~1h)
 
 ### Corto plazo (2-3 semanas)
-4. **DT-25/DT-26** → Limpieza r4/webhooks.py + orchestrator.py docstrings (~1h)
-5. **DT-27** → Limpieza conftest.py legacy (~1h)
-6. **DT-12** → Subir coverage a >60% en core/ (prioridad: `workload_router`, `cost_guard`, `circuit_breaker`, `fusion`, `judge`, `openrouter_client`)
-7. **DT-13** → Tests integración con testcontainers o mocks
-8. **Activar Unified Memory** → Qdrant + Redis + mem0 para memoria semántica persistente
+3. **DT-12** → Subir coverage a >60% en core/ (prioridad: `workload_router`, `cost_guard`, `circuit_breaker`, `fusion`, `judge`, `openrouter_client`)
+4. **Activar Unified Memory** → Qdrant + Redis + mem0 para memoria semántica persistente
 
 ### Mediano plazo (1-2 meses)
-9. **Prometheus + Grafana + Loki** → Observabilidad completa
-10. **Swap bottles migración** → Ejecutar plan 3-semanas
-11. **Runbooks completos** → Deploy, rollback, swap, disaster recovery
+5. **Prometheus + Grafana + Loki** → Observabilidad completa
+6. **Swap bottles migración** → Ejecutar plan 3-semanas
+7. **Runbooks completos** → Deploy, rollback, swap, disaster recovery
 
 ---
 
