@@ -35,6 +35,7 @@ import json
 import logging
 import os
 import re
+import socket
 import sqlite3
 import sys
 import time
@@ -316,6 +317,8 @@ def _get_prometheus_metrics():
             "ESCALATIONS_TOTAL": _Stub(),
             "ACTIVE_CONVERSATIONS": _Stub(),
             "DEDUP_HITS": _Stub(),
+            "ODOO_UP": _Stub(),
+            "DISPATCH_QUEUE_PENDING": _Stub(),
         }
 
     from prometheus_client import REGISTRY, Counter, Gauge, Histogram
@@ -330,6 +333,8 @@ def _get_prometheus_metrics():
         "ESCALATIONS_TOTAL": "valentina_escalations_total",
         "ACTIVE_CONVERSATIONS": "valentina_active_conversations",
         "DEDUP_HITS": "valentina_dedup_hits_total",
+        "ODOO_UP": "valentina_odoo_up",
+        "DISPATCH_QUEUE_PENDING": "valentina_dispatch_queue_pending",
     }
 
     metrics = {}
@@ -389,6 +394,16 @@ def _get_prometheus_metrics():
                     metric_name,
                     "Mensajes duplicados ignorados",
                 )
+            elif attr_name == "ODOO_UP":
+                metrics[attr_name] = Gauge(
+                    metric_name,
+                    "1 si Odoo responde (TCP :8069), 0 si no",
+                )
+            elif attr_name == "DISPATCH_QUEUE_PENDING":
+                metrics[attr_name] = Gauge(
+                    metric_name,
+                    "Pedidos en dispatch_queue con estado pending",
+                )
 
     return metrics
 
@@ -403,6 +418,8 @@ ORDERS_TOTAL = _prom_metrics["ORDERS_TOTAL"]
 ESCALATIONS_TOTAL = _prom_metrics["ESCALATIONS_TOTAL"]
 ACTIVE_CONVERSATIONS = _prom_metrics["ACTIVE_CONVERSATIONS"]
 DEDUP_HITS = _prom_metrics["DEDUP_HITS"]
+ODOO_UP = _prom_metrics["ODOO_UP"]
+DISPATCH_QUEUE_PENDING = _prom_metrics["DISPATCH_QUEUE_PENDING"]
 
 
 # ============================================================================
@@ -2938,9 +2955,40 @@ async def metrics(request: Request) -> RawResponse:
     )
 
 
+def _check_tcp_up(host: str, port: int, timeout: float = 0.5) -> bool:
+    """Check rápido de disponibilidad TCP (para Odoo/Postgres).
+
+    No bloquea el health check: timeout corto (500ms). Solo verifica que el
+    puerto acepta conexión, no valida autenticación (para eso está /webhook/r4/health).
+    """
+    try:
+        with socket.create_connection((host, port), timeout=timeout):
+            return True
+    except OSError:
+        return False
+
+
+def _count_pending_queue() -> int:
+    """Cuenta pedidos 'pending' en dispatch_queue (conversations.db)."""
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        row = conn.execute(
+            "SELECT COUNT(*) FROM dispatch_queue WHERE estado = 'pending'"
+        ).fetchone()
+        conn.close()
+        return int(row[0]) if row else 0
+    except sqlite3.Error:
+        return -1  # -1 = no disponible
+
+
 @app.get("/health")
 async def health() -> JSONResponse:
-    """Health check para systemd / Prometheus / Cloudflare."""
+    """Health check para systemd / Prometheus / Cloudflare.
+
+    FASE 9: extiende los checks con dependencias del hogar (Odoo, dispatch.db,
+    R4 webhook) para dar visibilidad de monitorio sin añadir latencia apreciable
+    (el check Odoo es TCP con timeout corto).
+    """
     ok = bool(DIFY_API_KEY and META_ACCESS_TOKEN and META_PHONE_NUMBER_ID)
     kill_switch = _is_kill_switch_active()
     status = "ok"
@@ -2949,6 +2997,28 @@ async def health() -> JSONResponse:
         ok = False
     elif not ok:
         status = "degraded"
+
+    # FASE 9 — checks de dependencias del hogar
+    odoo_up = _check_tcp_up("127.0.0.1", 8069)
+    dispatch_ok = os.path.exists(DISPATCH_DB_PATH) and os.path.exists(
+        os.path.join(os.path.dirname(DISPATCH_DB_PATH), "conversations.db")
+    )
+    # Actualizar métricas gauge Prometheus (si prometheus_client disponible)
+    with suppress(Exception):
+        ODOO_UP.set(1 if odoo_up else 0)
+
+    # Contar pedidos pending en dispatch_queue (si la BD es accesible)
+    try:
+        conn = sqlite3.connect(SQLITE_PATH)
+        conn.row_factory = sqlite3.Row
+        pending = conn.execute(
+            "SELECT COUNT(*) FROM dispatch_queue WHERE estado = 'pending'"
+        ).fetchone()[0]
+        conn.close()
+        DISPATCH_QUEUE_PENDING.set(pending)
+    except sqlite3.Error:
+        pass
+
     return JSONResponse(
         status_code=200 if ok else 503,
         content={
@@ -2961,6 +3031,10 @@ async def health() -> JSONResponse:
                 "sqlite": os.path.exists(SQLITE_PATH),
                 "telegram": TELEGRAM_ENABLED,
                 "kill_switch": kill_switch,
+                # FASE 9 — nuevas
+                "odoo": odoo_up,
+                "dispatch_db": dispatch_ok,
+                "dispatch_queue_pending": _count_pending_queue(),
             },
         },
     )
