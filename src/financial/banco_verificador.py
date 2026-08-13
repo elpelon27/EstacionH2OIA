@@ -219,67 +219,67 @@ async def procesar_notifica_pago_movil(payload: R4NotificaRequest) -> dict[str, 
         logger.info("R4notifica: Pedido %d ya está pagado", pedido.id)
         return {"abono": True}  # ACK al banco aunque ya esté pagado
 
-        # 5. Llamar Financial Shield - verificación atómica
-        try:
-            fs_pedido_id = pedido.id
-            if fs_pedido_id is None:
-                logger.error("Pedido sin ID válido")
-                return {"abono": False}
-
-            monto = float(payload.Monto)
-            logger.info(
-                "Match pedido fs_id=%d cliente=%s monto=%.2f",
-                fs_pedido_id,
-                pedido.cliente_nombre,
-                monto,
-            )
-
-            resultado = await verificacion.verificar_pago_manual(
-                fs_pedido_id=fs_pedido_id,
-                monto_eur=float(payload.Monto),
-                metodo_pago="pagomovil",
-                referencia=payload.Referencia,
-                verificado_por="banco_r4",
-            )
-
-            if resultado.get("verified"):
-                logger.info(
-                    "R4notifica: Pago VERIFICADO ✅ pedido=%s monto=€%.2f ref=%s",
-                    pedido.id,
-                    float(payload.Monto),
-                    payload.Referencia,
-                )
-
-                # Registrar en audit log origen banco
-                with db.get_db() as conn:
-                    conn.execute(
-                        """
-                        INSERT INTO fs_audit_log
-                            (tabla, registro_id, accion, estado_nuevo, modificado_por, timestamp)
-                        VALUES
-                            ('fs_pedidos', ?, 'PAGO_BANCO_R4',
-                             json_object(
-                                 'estado_pago', 'pagado',
-                                 'monto_pagado_eur', ?,
-                                 'referencia_banco', ?
-                             ),
-                             'banco_r4', datetime('now'))
-                        """,
-                        (pedido.id, float(payload.Monto), payload.Referencia),
-                    )
-
-                return {"abono": True}
-            else:
-                logger.warning(
-                    "R4notifica: Financial Shield NO verificó pago pedido=%s: %s",
-                    pedido.id,
-                    resultado.get("mensaje", "sin mensaje"),
-                )
-                return {"abono": False}
-
-        except Exception as e:
-            logger.error("R4notifica: Error procesando verificación: %s", e, exc_info=True)
+    # 5. Llamar Financial Shield - verificación atómica (pedido pendiente)
+    try:
+        fs_pedido_id = pedido.id
+        if fs_pedido_id is None:
+            logger.error("Pedido sin ID válido")
             return {"abono": False}
+
+        monto = float(payload.Monto)
+        logger.info(
+            "Match pedido fs_id=%d cliente=%s monto=%.2f",
+            fs_pedido_id,
+            pedido.cliente_nombre,
+            monto,
+        )
+
+        resultado = await verificacion.verificar_pago_manual(
+            fs_pedido_id=fs_pedido_id,
+            monto_eur=float(payload.Monto),
+            metodo_pago="pagomovil",
+            referencia=payload.Referencia,
+            verificado_por="banco_r4",
+        )
+
+        if resultado.get("verified"):
+            logger.info(
+                "R4notifica: Pago VERIFICADO ✅ pedido=%s monto=€%.2f ref=%s",
+                pedido.id,
+                float(payload.Monto),
+                payload.Referencia,
+            )
+
+            # Registrar en audit log origen banco
+            with db.get_db() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO fs_audit_log
+                        (tabla, registro_id, accion, estado_nuevo, modificado_por, timestamp)
+                    VALUES
+                        ('fs_pedidos', ?, 'PAGO_BANCO_R4',
+                         json_object(
+                             'estado_pago', 'pagado',
+                             'monto_pagado_eur', ?,
+                             'referencia_banco', ?
+                         ),
+                         'banco_r4', datetime('now'))
+                    """,
+                    (pedido.id, float(payload.Monto), payload.Referencia),
+                )
+
+            return {"abono": True}
+        else:
+            logger.warning(
+                "R4notifica: Financial Shield NO verificó pago pedido=%s: %s",
+                pedido.id,
+                resultado.get("mensaje", "sin mensaje"),
+            )
+            return {"abono": False}
+
+    except Exception as e:
+        logger.error("R4notifica: Error procesando verificación: %s", e, exc_info=True)
+        return {"abono": False}
 
 
 async def procesar_consulta_cliente(payload: Any) -> dict[str, Any]:
