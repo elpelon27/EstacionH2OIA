@@ -33,6 +33,10 @@ from telegram.ext import (
     ContextTypes,
 )
 
+# El raíz del proyecto DEBE ir en sys.path ANTES de importar skills.*
+# (ver: ModuleNotFoundError: No module named 'skills' al correr como python skills/dispatcher.py)
+sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+
 from skills.dispatch.route_engine import check_operation_perimeter
 
 # Cargar .env
@@ -43,8 +47,6 @@ if env_path.exists():
         if line and not line.startswith("#") and "=" in line:
             key, _, val = line.partition("=")
             os.environ.setdefault(key.strip(), val.strip())
-
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
 logging.basicConfig(
     level=logging.INFO,

@@ -14,6 +14,11 @@ StartLimitAction=none
 
 [Service]
 Type=simple
+# WatchdogSec REMOVIDO (2026-08-12): el watchdog sd_notify mataba el servicio
+# con SIGABRT cada 30s aunque el bridge estaba sano. El loop asyncio que envia
+# WATCHDOG=1 se quedaba sin CPU por el scan recovery/consumer (SQLite sincrono)
+# y no despertaba a tiempo -> systemd lo mataba. Con Restart=always + StartLimitAction=none,
+# systemd ya cubre el crash recovery sin false-positives de watchdog.
 User=root
 Group=root
 WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/api
@@ -23,7 +28,6 @@ ExecStartPre=/mnt/ssd_trabajo/hermes-agent/venv/bin/python -c "import uvicorn, f
 ExecStart=/bin/bash /mnt/ssd_trabajo/hermes-agent/api/start_bridge.sh
 Restart=always
 RestartSec=5 10 20 30 60
-WatchdogSec=30
 
 # Resource limits
 MemoryMax=1G
