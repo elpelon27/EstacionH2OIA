@@ -140,3 +140,64 @@ curl http://localhost:8000/webhook/r4/health
 
 **Firma:** 💧
 **Estado:** LISTO PARA CORTES - Trabajo persistido en branch local y worklog
+---
+
+# Worklog FASE 8–10 + Fixes Bloqueadores (2026-08-12, Piloto Automático)
+**Autor:** Prometeo (Hermes Agent) — DeepSeek V4 Flash vía OpenRouter
+**Branch:** feat/odoo-r4-integration
+
+## 🛠 Fixes de bloqueadores en producción (crash loops)
+1. **valentina-bridge** — 113 reinicios. Causa raíz: unit systemd con `WatchdogSec=30`
+   mataba el servicio sano con SIGABRT cada 30s (loop asyncio de WATCHDOG no despertaba
+   por scan recovery/consumer con SQLite síncrono). Fix: `Type=simple` sin WatchdogSec,
+   `Restart=always` + `StartLimitAction=none`. → active, uptime >90min.
+2. **dispatcher-bot** — 99+ reinicios. Causa raíz: `ModuleNotFoundError: No module named
+   'skills'` en skills/dispatcher.py:36 (sys.path insertado DESPUÉS del import). Fix:
+   mover `sys.path.insert` antes del import. → active, 0 restarts.
+
+## 🐛 Bug crítico FASE 6 (R4) — encontrado via test E2E
+`banco_verificador.procesar_notifica_pago_movil`: el bloque de verificación real estaba
+indentado DENTRO del `if pedido ya pagado` (que ya retorna) → código muerto. Para pedidos
+pendientes la función retornaba `None` y el pago NUNCA se verificaba. Corregida la
+indentación. Confirmado por test E2E.
+
+## ✅ Migración v3.1 commiteada
+`core/crypto.py` (single source of truth phone_hash), bridge/consumer/seed_data unificados,
+`scripts/migrate_v31.py` (idempotente, backup ok), informe en docs/03-sesiones/.
+
+## 🧪 FASE 8: Tests E2E — 4 PASSED
+`tests/e2e/test_fase8_e2e.py` corregido (4 passed):
+- Pago móvil (mocks R4 sobre el procesador REAL banco_verificador)
+- Conversión nota→factura (Odoo 17: move inline + button_validate skip_sms)
+- Reportes automáticos (estructura)
+- Algoritmo decisión documento (regla corregida: factura = solicita + rif + pago movil)
+Requisito: `stock_sms` desactivado en res.company (stock_move_sms_validation=False)
+para que button_validate no abra wizard.
+
+## 📊 FASE 9: Monitoreo
+- `/health`: +checks `odoo` (TCP :8069), `dispatch_db`, `dispatch_queue_pending`
+- helpers `_check_tcp_up()` (500ms), `_count_pending_queue()`
+- `/metrics`: +gauges `valentina_odoo_up`, `valentina_dispatch_queue_pending`
+
+## 📚 FASE 10: Documentación
+- ADR-008 (Odoo 17), ADR-009 (R4), ADR-010 (Monitoreo)
+- README-integr-odoo-r4.md, RUNBOOK_Integraciones-Odoo-R4.md
+
+## 📦 Commits (5, listos localmente)
+```
+5c30e15 feat(core): Migración v3.1
+f2c7660 fix(infra): Crash loops valentina-bridge + dispatcher-bot
+da37248 fix(r4): Bug crítico FASE 6 — verificación de pagos nunca corría
+da561ad feat(monitor): FASE 8 E2E + FASE 9 health/métricas extendidos
+e3ba6e4 docs: FASE 10 — ADRs 008/009/010 + README/Runbook
+```
+
+## ⚠️ Push PENDIENTE (requiere Líder: autenticación GitHub)
+`~/.git-credentials` está VACÍO. Push bloqueado por falta de PAT.
+Ver bloque de comandos del Líder.
+
+## 🔍 Hallazgo adicional
+`cloudflared.service` también tiene watchdog (cayó 1 vez con result='watchdog' tras
+reinicio, ya running active). Revisar su unit con el mismo criterio que valentina.
+
+**Firma:** 💧 Prometeo — Piloto Automático
