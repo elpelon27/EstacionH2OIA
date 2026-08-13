@@ -13,6 +13,10 @@ Pobla:
 import logging
 import sqlite3
 from datetime import UTC, datetime
+from typing import Any
+
+# Inicializar LOG_SALT en módulo crypto centralizado
+from core.crypto import hash_phone as _hash_phone
 
 logger = logging.getLogger("dispatch.seed_data")
 
@@ -24,7 +28,7 @@ DISPATCH_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
 # Zona 4: Oeste — Industrial + B2B
 # Zona 5: San Francisco — Residencial + mixto
 
-ZONES = [
+ZONES: list[dict[str, Any]] = [
     {
         "id": 1,
         "name": "Norte",
@@ -89,7 +93,7 @@ VEHICLES = [
 # 16 clientes piloto:
 # Semana 1-2: B2B + multifamiliares
 # Semana 3: unifamiliares
-CLIENTS = [
+CLIENTS: list[dict[str, Any]] = [
     # B2B / Comercial (semana 1-2)
     {
         "phone": "+584140000001",
@@ -342,11 +346,7 @@ def init_clients(conn: sqlite3.Connection) -> None:
                 best_dist = dist
                 best_zone = zone["id"]
 
-        phone_hash = (
-            __import__("hashlib")
-            .sha256(f"change-this-in-production:{client['phone']}".encode())
-            .hexdigest()[:32]
-        )
+        phone_hash = _hash_phone(client["phone"])
 
         conn.execute(
             """
@@ -415,5 +415,11 @@ def run_seed() -> None:
 
 
 if __name__ == "__main__":
+    import os
+
+    from core.crypto import set_log_salt
+
+    LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")
+    set_log_salt(LOG_SALT)
     logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
     run_seed()

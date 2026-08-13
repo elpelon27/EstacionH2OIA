@@ -57,6 +57,8 @@ from slowapi.util import get_remote_address
 
 # Local imports
 from api.meta_client import get_meta_client, set_http_client
+from core.crypto import hash_phone as _hash_phone
+from core.crypto import set_log_salt
 from src.integrations.r4.webhooks import include_r4_webhooks
 
 try:
@@ -178,6 +180,9 @@ if _INSECURE_LOG_SALT and not os.getenv("BRIDGE_ALLOW_INSECURE_SALT"):
         "BRIDGE_ALLOW_INSECURE_SALT=1\n\n"
     )
     raise RuntimeError("LOG_SALT default inseguro - abortando startup (fail-closed r5)")
+
+# Inicializar LOG_SALT en módulo crypto centralizado (single source of truth)
+set_log_salt(LOG_SALT)
 
 # Telegram (alerts + kill switch). Opcional: si no está configurado, se omite.
 TELEGRAM_BOT_TOKEN = os.getenv("TELEGRAM_BOT_TOKEN", "")
@@ -542,8 +547,9 @@ def _get_db_with_fk(path: str = SQLITE_PATH, row_factory: bool = False) -> sqlit
 
 
 def _phone_hash(phone: str) -> str:
-    """Hash determinístico del teléfono para almacenar sin exponer PII."""
-    return hashlib.sha256(f"{LOG_SALT}:{phone}".encode()).hexdigest()[:32]
+    """Hash determinístico del teléfono para almacenar sin exponer PII.
+    Delegado a core.crypto.hash_phone (single source of truth)."""
+    return _hash_phone(phone)
 
 
 def _get_conversation_id(phone: str) -> str | None:
@@ -577,6 +583,7 @@ def _save_conversation_id(phone: str, conv_id: str) -> None:
 # ============================================================================
 # Rate limiting
 # ============================================================================
+
 
 def _get_phone_key(request: Request) -> str:
     """Extrae el teléfono del payload de Meta para rate limiting por teléfono.
@@ -725,12 +732,11 @@ def _sanitize_input_text(text: str) -> str:
 
     # Remover caracteres de control peligrosos (ASCII 0-31 excepto \n \r \t)
     # \x00-\x08, \x0b-\x0c, \x0e-\x1f
-    text = "".join(
-        ch for ch in text if ord(ch) >= 32 or ch in ("\n", "\r", "\t")
-    )
+    text = "".join(ch for ch in text if ord(ch) >= 32 or ch in ("\n", "\r", "\t"))
 
     # Normalizar whitespace excesivo
     import re
+
     text = re.sub(r"[\s]+", " ", text).strip()
 
     return text

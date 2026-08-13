@@ -42,6 +42,9 @@ if env_path.exists():
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
+# Inicializar LOG_SALT en módulo crypto centralizado
+from core.crypto import hash_phone as _hash_phone  # noqa: E402  (require sys.path previo)
+
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("dispatch_consumer")
 
@@ -96,9 +99,7 @@ def _find_or_create_client(
     conn: sqlite3.Connection, name: str, phone: str, lat: float, lng: float, address: str
 ) -> int:
     """Busca client por phone, o lo crea si no existe. Retorna client_id."""
-    import hashlib
-
-    phone_hash = hashlib.sha256(phone.encode()).hexdigest()[:16] if phone else ""
+    phone_hash = _hash_phone(phone) if phone else ""
 
     row = conn.execute("SELECT id FROM clients WHERE phone = ?", (phone,)).fetchone()
     if row:
@@ -548,6 +549,12 @@ async def consumer_loop(poll_interval: int = 5) -> None:
 
 
 if __name__ == "__main__":
+    import os
+
+    from core.crypto import set_log_salt
+
+    LOG_SALT = os.getenv("LOG_SALT", "change-this-in-production")
+    set_log_salt(LOG_SALT)
     # Ejecución standalone (cron)
     result = asyncio.run(consume_pending_orders(max_orders=20))
     print(f"Consumer result: {result}")
