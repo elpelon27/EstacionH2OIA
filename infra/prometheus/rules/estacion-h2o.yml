@@ -1,0 +1,109 @@
+# ============================================================
+# Reglas de alerta — Estación H2O (Prometheus)
+# Creadas 2026-08-13 (P2-5a)
+# Métricas fuente: bridge (/metrics :8000), node_exporter (:9100), textfile GPU
+# ============================================================
+
+groups:
+  - name: estacion_h2o_valentina
+    rules:
+      # --- Valentina Bridge: servicio caído (hermes job) ---
+      - alert: ValentinaBridgeDown
+        expr: up{job="hermes"} == 0
+        for: 60s
+        labels:
+          severity: critical
+          team: h2o
+        annotations:
+          summary: "Valentina Bridge caído (job=hermes)"
+          description: "El bridge :8000 no responde a Prometheus desde hace más de 1 min. WhatsApp puede estar fuera de servicio."
+
+      # --- Orden/activación: sin pedidos nuevos en 24h (sin tráfico) ---
+      - alert: ValentinaSinPedidos24h
+        expr: increase(valentina_messages_total[24h]) == 0
+        for: 24h
+        labels:
+          severity: warning
+          team: h2o
+        annotations:
+          summary: "Sin mensajes WhatsApp en 24h"
+          description: "Valentina no recibió mensajes en 24h. Posible webhook Meta caído o negocio sin demanda."
+
+      # --- Escalamiento alto (posible sobrecarga/confusión IA) ---
+      - alert: ValentinaEscalamientoAlto
+        expr: increase(valentina_escalations_total[1h]) > 5
+        for: 5m
+        labels:
+          severity: warning
+          team: h2o
+        annotations:
+          summary: "Escalamientos a humano elevados"
+          description: ">5 escalamientos en la última hora. Revisar prompt/máquina de estados de Valentina."
+
+      # --- Odoo caído ---
+      - alert: ValentinaOdooDown
+        expr: valentina_odoo_up == 0
+        for: 5m
+        labels:
+          severity: warning
+          team: h2o
+        annotations:
+          summary: "Odoo no responde"
+          description: "El bridge reporta Odoo :8069 caído durante 5 min."
+
+      # --- Cola de despacho atascada ---
+      - alert: DispatchQueueAtascada
+        expr: valentina_dispatch_queue_pending > 0
+        for: 30m
+        labels:
+          severity: warning
+          team: h2o
+        annotations:
+          summary: "Cola de despacho con pedidos pendientes"
+          description: "Hay pedidos pending en dispatch_queue sin procesar en 30 min."
+
+  - name: estacion_h2o_infra
+    rules:
+      # --- Disco raíz alto (~/sda) ---
+      - alert: DiscoRaizAlto
+        expr: (1 - node_filesystem_avail_bytes{mountpoint="/"} / node_filesystem_size_bytes{mountpoint="/"}) * 100 > 80
+        for: 10m
+        labels:
+          severity: critical
+          team: h2o
+        annotations:
+          summary: "Disco raíz supera 80%"
+          description: "Disco raíz a más de 80%. Riesgo de saturación."
+
+      # --- CPU load alto ---
+      - alert: CpuLoadAlto
+        expr: node_load1 > 0.9 * count(node_cpu_seconds_total{mode="system"}) by (instance)
+        for: 10m
+        labels:
+          severity: warning
+          team: h2o
+        annotations:
+          summary: "CPU load alto"
+          description: "Load1 elevado en las últimas 10 min."
+
+      # --- GPU: uso de VRAM alto (textfile collector) ---
+      - alert: GpuVramAlto
+        expr: nvidia_gpu_memory_used_bytes / nvidia_gpu_memory_total_bytes * 100 > 90
+        for: 5m
+        labels:
+          severity: warning
+          team: h2o
+        annotations:
+          summary: "VRAM GPU > 90%"
+          description: "Uso de memoria de video por encima del 90% durante 5 min."
+
+      # --- GPU: uso de cómputo alto sostenido ---
+      - alert: GpuComputeAlto
+        expr: nvidia_gpu_utilization_percent > 95
+        for: 15m
+        labels:
+          severity: info
+          team: h2o
+        annotations:
+          summary: "GPU en cómputo alto sostenido"
+          description: "Utilización GPU >95% durante 15 min."

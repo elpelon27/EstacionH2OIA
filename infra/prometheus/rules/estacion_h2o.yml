@@ -1,0 +1,146 @@
+groups:
+  - name: estacion_h2o.rules
+    interval: 30s
+    rules:
+      # =============================================================================
+      # INFRASTRUCTURE ALERTS
+      # =============================================================================
+      - alert: ServiceDown
+        expr: up{job=~"hermes|node|prometheus"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Servicio {{ $labels.job }} ({{ $labels.instance }}) caído"
+          description: "{{ $labels.job }} en {{ $labels.instance }} lleva más de 1 minuto sin responder"
+
+      - alert: BridgeHighResponseTime
+        expr: histogram_quantile(0.95, rate(valentina_response_time_seconds_bucket[5m])) > 10
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Valentina Bridge latencia P95 alta"
+          description: "Latencia P95 = {{ $value | printf \"%.2f\" }}s (>10s)"
+
+      - alert: BridgeHighErrorRate
+        expr: rate(valentina_messages_total{status="error"}[5m]) > 0.1
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Valentina Bridge tasa de errores alta"
+          description: "Error rate = {{ $value | printf \"%.4f\" }} req/s"
+
+      # =============================================================================
+      # BUSINESS ALERTS
+      # =============================================================================
+      - alert: KillSwitchActive
+        expr: valentina_active_conversations < 0 or absent(valentina_active_conversations) == 1
+        for: 30s
+        labels:
+          severity: critical
+        annotations:
+          summary: "🛑 KILL SWITCH ACTIVO - Valentina no responde"
+          description: "Kill switch detectado via métricas. Revisar /health endpoint."
+
+      - alert: NoOrdersInHours
+        expr: increase(valentina_orders_total[1h]) == 0 and hour() > 8 and hour() < 18
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Sin pedidos en horario laboral"
+          description: "No se han confirmado pedidos en la última hora (8am-6pm)"
+
+      - alert: HighDedupRate
+        expr: rate(valentina_dedup_hits_total[5m]) > 5
+        for: 5m
+        labels:
+          severity: info
+        annotations:
+          summary: "Alta tasa de mensajes duplicados"
+          description: "Dedup hits = {{ $value | printf \"%.2f\" }}/s - posible reintentos Meta"
+
+      # =============================================================================
+      # DISPATCH ALERTS
+      # =============================================================================
+      - alert: VehicleSaturated
+        expr: |
+          sum by (vehicle_id) (deliveries_pending) > 8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Vehículo {{ $labels.vehicle_id }} saturado"
+          description: "{{ $value | printf \"%.0f\" }} entregas pendientes (>8)"
+
+      - alert: DeliveryStuckPending
+        expr: |
+          sum by (delivery_id) (delivery_status_pending) > 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Entrega {{ $labels.delivery_id }} atascada en pending"
+          description: "Lleva más de 30 min sin actualización de estado"
+
+      - alert: BottleInventoryLow
+        expr: bottle_tracker_available < 20
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Inventario botellones bajo"
+          description: "Solo {{ $value | printf \"%.0f\" }} botellones disponibles (<20)"
+
+      - alert: BottleOverdueHigh
+        expr: bottle_tracker_overdue > 5
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Muchos botellones vencidos"
+          description: "{{ $value | printf \"%.0f\" }} botellones overdue (>5)"
+
+      # =============================================================================
+      # DATABASE / SYSTEM ALERTS
+      # =============================================================================
+      - alert: SQLiteDiskSpaceLow
+        expr: (node_filesystem_avail_bytes{mountpoint="/mnt/ssd_trabajo"} / node_filesystem_size_bytes{mountpoint="/mnt/ssd_trabajo"}) < 0.1
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Disco SSD <10% libre"
+          description: "Espacio libre: {{ $value | printf \"%.1%\" }}"
+
+      - alert: HighMemoryUsage
+        expr: (process_resident_memory_bytes{job="hermes"} / 1024 / 1024 / 1024) > 0.8
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Valentina Bridge memoria alta"
+          description: "RSS = {{ $value | printf \"%.2f\" }}GB (>80% límite 1GB)"
+
+      - alert: CPUThrottling
+        expr: rate(process_cpu_seconds_total{job="hermes"}[5m]) > 1.0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: "CPU throttling detectado"
+          description: "CPU usage > 100% (1 core)"
+
+      # =============================================================================
+      # FINANCIAL ALERTS
+      # =============================================================================
+      - alert: PaymentsStuckVerifying
+        expr: increase(financial_payments_verifying[1h]) > 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Muchos pagos atascados en verificando"
+          description: "{{ $value | printf \"%.0f\" }} pagos en 'verificando' última hora"

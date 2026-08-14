@@ -1,0 +1,22 @@
+[Unit]
+Description=GPU Exporter — NVIDIA GTX 1070 (nvidia-smi → Prometheus :9101)
+After=network.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=skynet
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python /mnt/ssd_trabajo/hermes-agent/monitoring/gpu_exporter.py
+Restart=always
+RestartSec=5
+# Seguridad / contención
+MemoryMax=128M
+CPUQuota=20%
+NoNewPrivileges=true
+ProtectSystem=strict
+# nvidia-smi necesita leer /proc/driver/nvidia — permitir acceso limitado
+ProtectHome=read-only
+
+[Install]
+WantedBy=multi-user.target

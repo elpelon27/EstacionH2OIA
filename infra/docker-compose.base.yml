@@ -60,6 +60,7 @@ services:
       - "127.0.0.1:9090:9090"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/rules:/etc/prometheus/rules:ro
       - /mnt/ssd_trabajo/prometheus/data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'

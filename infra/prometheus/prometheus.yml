@@ -2,6 +2,7 @@ global:
   scrape_interval: 15s
   evaluation_interval: 15s
 
+# Reglas de alerta (Estación H2O) — infra/prometheus/rules/
 rule_files:
   - "/etc/prometheus/rules/*.yml"
 
@@ -14,8 +15,14 @@ scrape_configs:
     static_configs:
       - targets: ['node_exporter:9100']
 
-  # Hermes Agent metrics
+  # Hermes Agent metrics (bridge :8000)
   - job_name: 'hermes'
     static_configs:
       - targets: ['172.17.0.1:8000']
+    metrics_path: /metrics
+
+  # GPU Exporter (nvidia-smi vía systemd gpu-exporter :9101)
+  - job_name: 'gpu'
+    static_configs:
+      - targets: ['172.17.0.1:9101']
     metrics_path: /metrics
