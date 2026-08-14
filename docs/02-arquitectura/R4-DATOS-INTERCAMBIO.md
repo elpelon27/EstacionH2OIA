@@ -1,12 +1,45 @@
-# 🏦 R4 CONECTA — Matriz de Intercambio de Datos (bidireccional)
+## 🏦 R4 CONECTA — Matriz de Intercambio de Datos (bidireccional)
 
 **Proyecto**: Integración R4 Conecta V3.0 — Estación H2O Maracaibo
-**Revisión**: 2026-08-13 · Prometeo
-**Estado**: Infraestructura lista · parte de credenciales recibidas, parte pendiente
+**Revisión**: 2026-08-13 (actualización 2) · Prometeo
+**Estado**: Infraestructura lista · **3 datos entregados al banco** · pendiente lo que el banco debe enviarnos
 
-> Objetivo: tener clara, en UNA hoja, (A) qué nos debe dar el banco y
+> Objetivo: tener clara, EN UNA hoja, (A) qué nos debe dar el banco y
 > (B) qué nos pedirá el banco a nosotros — para no frenar la activación
 > por falta de un dato puntual.
+
+---
+
+## A.0 — DATOS ENTREGADOS AL BANCO (2026-08-13) ✅
+
+> Estos son los valores que el banco pidió de nosotros. Verificados vía
+> `curl` al health público por el tunnel Cloudflare (HTTP 200, service ok).
+
+### A.0.1 — URL de NOTIFICACIÓN (R4notifica — pago móvil entrante)
+```
+https://valentina.estacionh2o.com/webhook/r4/notifica
+```
+- Método: POST · Content-Type: application/json
+- Response: `{"abono": true|false}`
+
+### A.0.2 — URL de CONSULTA (R4consulta — validación de cliente)
+```
+https://valentina.estacionh2o.com/webhook/r4/consulta
+```
+- Método: POST · Content-Type: application/json
+- Response: `{"status": true|false}`
+
+### A.0.3 — TOKEN de AUTORIZACIÓN (para que el banco nos llame)
+```
+d878a28a-186e-432f-93b2-e7f16522174c
+```
+- Header: `Authorization: Bearer d878a28a-186e-432f-93b2-e7f16522174c`
+- ⚠️ Secreto. Entregar por canal seguro. Está en `config/.env` como `R4_WEBHOOK_AUTH_TOKEN`. Si se filtra → regenerar (T2).
+
+### A.0.4 — POLÍTICA DE IP ALA ENTRADA (estrategia estricta de seguridad)
+- El banco SOLO llamará desde estas IPs: `45.175.213.98, 200.74.203.91, 204.199.249.3`.
+- **Cualquier otra IP de origen se BLOQUEA con HTTP 403** (aplica antes de auth token y HMAC).
+- No se hacen excepciones. Si el banco necesita llamar desde otra IP → pedirnos actualizar la whitelist primero (T2) y NO abrir el acceso.
 
 ---
 

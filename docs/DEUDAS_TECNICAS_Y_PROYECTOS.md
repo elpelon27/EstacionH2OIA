@@ -1,5 +1,5 @@
 # 📋 DEUDAS TÉCNICAS Y PROYECTOS - Estación H2O / Valentina
-**Última actualización:** 2026-08-12 | **Commit:** `6877602` | **Estado CI:** ✅ GREEN
+**Última actualización:** 2026-08-13 (corte Fase A/B/C/D) | **Commit:** `6877602` | **Estado CI:** ✅ GREEN
 
 ---
 
@@ -32,6 +32,20 @@
 | **DT-25** | `E501`/`W293`/`B008` residual en r4/webhooks.py | Código comentado refactorizado, `Depends` singleton, `field_validator`, newline | `e6768fc` |
 | **DT-26** | `E501` docstrings en orchestrator.py | 5 docstrings refactorizadas a strings concatenadas | `e6768fc` |
 | **FASE 7 Seguridad** | Hardening bridge.py + infra | Rate limiting dual (IP + teléfono), payload validation, input sanitization, logrotate, backup_daily.sh, fail2ban script | `f30037c` |
+
+## 🎯 AUDITORÍA MILIMÉTRICA + SANITIZACIÓN COMPLETA (2026-08-13) — RESUELTO
+| Ítem | Deuda | Acción tomada |
+|------|-------|---------------|
+| **H1-P0** | 5 cron jobs "fantasma" (analytics, route, checkin, fs_reporte, recordatorios) NO se ejecutaban | Reactivados en crontab + verificados manualmente (todos exit 0) |
+| **H2-P0** | 22 NULLs en fs_pedidos.monto_total_ves | Backfill idempotente eur×tasa → 0 NULLs, auditado |
+| **H3-P1** | INSERT fs_pagos referenciaba columna `tasa_eur_ves` inexistente (schema v3.1) | **BUG REAL PRODUCCIÓN**: corregido a `tasa_eur_ves_pago` en database.py:794,860. Habría roto toda verificación de pago |
+| **H4-P1** | 37 tests rotos pre-existentes | Suite completa: **316 passed, 0 failed** |
+| **H8-P0** | Disco raíz 68%; journald sin límite (523M) | límites journald (SystemMaxUse=200M) + vacuum → 117M |
+| **H10-P1** | Cron Hermes vacío / scheduling disperso | Inventario único de orquestación + diagrama creados |
+| **P2-5a** | Sin alertas Prometheus | 23 reglas (9 nuevas + 14 recuperadas), 0 errores |
+| **P2-5b** | Sin monitoreo GPU/VRAM | gpu-exporter systemd (:9101), job 'gpu' up |
+| **P2 mypy** | 46 errores core/api | 46 → **0** (tipado en 10 archivos + fix import financial_agent) |
+| **P2 ruff** | E501 en archivos tocados | Divididas líneas largas (tests); quedan 7 E402 intencionales |
 
 ---
 

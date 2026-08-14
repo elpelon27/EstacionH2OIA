@@ -1,9 +1,116 @@
+# Worklog — CIERRE RUTINARIO 2026-08-13: Auditoría Milimétrica + Sanitización
+**Fecha:** 2026-08-13
+**Autor:** Prometeo
+**Branch:** feat/odoo-r4-integration
+
+---
+
+## REPARACIONES ADICIONALES (misma sesión, post-Fase D)
+
+### P2-5a — Alertas Prometheus (completado)
+- 9 reglas nuevas en `infra/prometheus/rules/estacion-h2o.yml` (bridge down, sin pedidos 24h,
+  escalamiento alto, odoo down, cola atascada, disco raíz, GPU VRAM, GPU compute).
+- +14 reglas pre-existentes recuperadas (`estacion_h2o.yml` estaba solo en el contenedor,
+  no en repo → copiado al repo para persistencia).
+- Total: **23 reglas, 0 errores** verificadas via `promtool check rules`.
+- Prometheus recreado con el nuevo volumen rules (bind mount de archivo no reflejaba edición).
+
+### P2-5b — Monitoreo GPU/VRAM (completado)
+- `monitoring/gpu_exporter.py` (systemd `gpu-exporter.service`): expone nvidia-smi en :9101
+  (util %, VRAM used/total, temp). Verificado: GPU 12-13%, VRAM 401MB/8.6GB, 44°C.
+- Prometheus scrapea nuevo job `gpu` → **target gpu:up**.
+- 6to servicio systemd activo + enabled para arranque.
+
+### P2 — Deuda mypy (completado): 46 → 0 errores en core/ + api/
+Archivos corregidos (solo anotaciones de tipos + ignores controlados, sin cambiar lógica):
+- api/guardrail.py (7): tipar globals, type-ignore import-untyped llm_guard, asserts, returns.
+- api/bridge.py (12): anotaciones _get_prometheus_metrics, _notify_driver_async, haversine, _run_recovery_scan.
+- core/fusion.py, judge.py, workload_router.py: type: ignore[arg-type] en chat().
+- src/integrations/r4/webhooks.py (17): anotaciones __init__/_validate_config/validators/health.
+- src/financial/verificacion.py (8): type-ignore pynvml/pytesseract, floats, asserts pedido.id, dict-typing.
+- src/agents/financial_agent.py (1): **BUG latente de import** `from .database` → `from src.financial.database`
+  (src/agents/database.py no existe → rompía ejecución).
+- skills/dispatcher.py + dispatch/telegram_bot.py: asserts + type-ignore[attr-defined] (patrón skill).
+
+### P2 — Deuda ruff (completado en archivos tocados)
+- E501: divididas líneas largas en tests (gps, bottle_tracker, dispatch_telegram_bot, workload_router).
+- SIM117: auto-fixed. Quedan 7 E402 intencionales en workload_router (mock antes de imports, por diseño).
+
+### VERIFICACIÓN
+- Suite completa: **316 passed, 14 skipped, 0 failed**.
+- mypy core/api: **Success, 0 issues** (era 46).
+- Servicios: **6 activos** (valentina, dispatcher, telegram-bot, prometeo, cloudflared, gpu-exporter).
+- Prometheus: **4 targets up**, **23 reglas alerta 0 errores**.
+
+---
+
+## RESUMEN DE LA JORNADA
+Sesión completa: auditoría milimétrica + reparación por fases + sanitización + cierre.
+**Suite de tests: 316 passed, 0 failed** (antes 37 failed).
+
+### FASE A — Cableado roto (reactivación)
+- **A1**: 5 cron jobs "fantasma" reactivados en crontab (analytics 07:00, route 07:45,
+  checkin 08:00, fs_reporte 18:30, recordatorios */30). Verificados manualmente (todos exit 0).
+- **A2**: Backfill monto_total_ves (22 NULLs → 0) en fs_pedidos, auditado.
+- **A3**: auditado fs_pagos — NO bug (estado correcto del negocio).
+
+### FASE B — Estabilidad (tests)
+- bottle_tracker 10/10, dispatch_telegram_bot 22/22, workload_router 36/36, financial 8/8.
+- **BUG REAL PRODUCCIÓN corregido**: INSERT fs_pagos con columna legacy `tasa_eur_ves`
+  inexistente en schema v3.1 → habría roto toda verificación de pago.
+
+### FASE C — Orquestación y observabilidad
+- **C2**: journald límites (SystemMaxUse=200M) + vacuum: 523M → 117M.
+- **C1/C4**: Inventario único de orquestación + diagrama creados
+  (`docs/02-arquitectura/INVENTARIO-ORQUESTACION.md`). Alertas Prometheus: pendiente.
+
+### FASE D — Sanitización y verificación
+- **D1**: 5 servicios activos, 7 timers, 7 cron jobs, bridge health ok.
+- **D3**: Deuda técnica y memoria actualizadas.
+
+### Docs generados/actualizados
+- docs/02-arquitectura/ANALISIS-MILIMETRICO-2026-08-13.md (nuevo)
+- docs/02-arquitectura/INVENTARIO-ORQUESTACION.md (nuevo)
+- docs/DEUDAS_TECNICAS_Y_PROYECTOS.md (actualizado)
+- docs/02-arquitectura/GUARDRAILS-DICTAMEN.md (de sesión previa)
+
+### PENDIENTES (documentados, no bloqueantes)
+- DT-01: chat_ids choferes (bloquea Sprint 3 Swap)
+- Alertas Prometheus + GPU/VRAM (P2-5)
+- mypy 46 errores (bridge.py + legacy, P2) / ruff 25 E501 (P2)
+
+Sin commits (regla: no commits sin orden).
+
+---
+
 # Worklog - FASE 7: Security & Test Fixes (Pre-corte eléctrico)
 **Fecha:** 2026-08-11
 **Autor:** Prometeo
 **Branch:** feat/odoo-r4-integration
 
 ---
+
+## ENTRADA 2026-08-13 — R4 Conecta: entrega de datos al banco + política de IP
+
+**Estado del proyecto R4 al día:** infraestructura completa y montada en el bridge
+(`include_r4_webhooks` en bridge.py:2897). Webhooks verificados por curl público.
+
+**Entregado al banco (A.0.1–A.0.3):**
+- URL notificación: `https://valentina.estacionh2o.com/webhook/r4/notifica`
+- URL consulta: `https://valentina.estacionh2o.com/webhook/r4/consulta`
+- Token auth (Bearer): `d878a28a-186e-432f-93b2-e7f16522174c` (⚠️ secreto, canal seguro)
+
+**Política de IP ALA ENTRADA (estricta):** el banco SOLO llama desde
+`45.175.213.98, 200.74.203.91, 204.199.249.3`. Cualquier otra IP → HTTP 403
+(bloqueo antes de token y HMAC). Sin excepciones; nueva IP ⇒ whitelist T2 primero.
+
+**PENDIENTE que el banco nos envíe (bloquea salir de mock):**
+- `R4_BASE_URL` (producción) — el único bloqueante duro
+- `R4_SANDBOX_URL` si existe
+- Confirmar si `R4_HMAC_KEY` es secret separado del commerce token (hoy la firma usa COMMERCE_TOKEN)
+- Códigos de banco (3 dígitos) para validar BancoEmisor
+- Confirmar header de firma entrante (X-Signature / X-Hmac-Signature / Authorization: HMAC)
+- IP pública de SALIDA del servidor hacia el banco
 
 ## Resumen Ejecutivo
 Completada FASE 7: Seguridad + Fix de tests pre-existentes. Sistema listo para producción.
