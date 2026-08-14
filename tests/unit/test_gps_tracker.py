@@ -17,9 +17,8 @@ TEST_DB = "/tmp/test_gps_tracker.db"
 os.environ["DISPATCH_DB_PATH"] = TEST_DB
 
 
-@pytest.fixture(scope="function")
-def test_db():
-    """Crea BD de test limpia para cada test."""
+def _create_test_db() -> str:
+    """Crea una BD de test limpia con el esquema completo de dispatch (gps)."""
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
     conn = sqlite3.connect(TEST_DB)
@@ -71,32 +70,38 @@ def test_db():
         )
     """)
     conn.execute(
-        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)"
+        "INSERT INTO vehicles (id, name, operator_name, active)"
+        " VALUES (1, 'Triciclo 1', 'YORDANIS', 1)"
     )
     conn.execute(
-        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)"
+        "INSERT INTO zones (id, name, center_lat, center_lng,"
+        " radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)"
     )
     conn.execute(
-        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)"
+        "INSERT INTO zones (id, name, center_lat, center_lng,"
+        " radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)"
     )
     conn.commit()
     conn.close()
-
-    yield TEST_DB
-
-    if os.path.exists(TEST_DB):
-        os.remove(TEST_DB)
+    return TEST_DB
 
 
 @pytest.fixture(autouse=True)
-def patch_gps_db(test_db):
-    """Parchea DISPATCH_DB en el módulo gps_tracker."""
+def patch_gps_db():
+    """Crea la BD de test y parchea DISPATCH_DB en gps_tracker.
+
+    Autocontenido: NO depende del fixture 'test_db' (que los conftests superiores
+    sobreescriben a None), para evitar el bug de DISPATCH_DB=None.
+    """
+    _create_test_db()
     import skills.dispatch.gps_tracker as gps_module
 
-    gps_module.DISPATCH_DB = test_db
+    gps_module.DISPATCH_DB = TEST_DB
     gps_module._gps_tracker_instance = None
     yield
     gps_module._gps_tracker_instance = None
+    if os.path.exists(TEST_DB):
+        os.remove(TEST_DB)
 
 
 from skills.dispatch.gps_tracker import (

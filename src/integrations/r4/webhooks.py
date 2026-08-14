@@ -42,7 +42,7 @@ logger = logging.getLogger("r4.webhooks")
 class R4WebhookConfig:
     """Configuración de seguridad para webhooks R4."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # IP whitelist del banco (configurable)
         ips_env = os.getenv("R4_WEBHOOK_ALLOWED_IPS", "")
         self.allowed_ips = {ip.strip() for ip in ips_env.split(",") if ip.strip()}
@@ -67,7 +67,7 @@ class R4WebhookConfig:
         # Validación
         self._validate_config()
 
-    def _validate_config(self):
+    def _validate_config(self) -> None:
         if not self.auth_token:
             logger.warning(
                 "R4_WEBHOOK_AUTH_TOKEN no configurado - webhooks sin auth token"
@@ -90,7 +90,7 @@ def get_webhook_config() -> R4WebhookConfig:
     return _webhook_config
 
 
-def reset_webhook_config():
+def reset_webhook_config() -> None:
     global _webhook_config
     _webhook_config = None
 
@@ -98,7 +98,7 @@ def reset_webhook_config():
 # Rate Limiting simple en memoria
 # ============================================================
 
-_rate_limit_store: dict[str, list] = defaultdict(list)
+_rate_limit_store: dict[str, list[float]] = defaultdict(list)
 
 
 def check_rate_limit(ip: str, config: R4WebhookConfig) -> bool:
@@ -136,7 +136,7 @@ class R4ConsultaRequest(BaseModel):
 
     @field_validator("Monto")
     @classmethod
-    def validate_monto(cls, v):
+    def validate_monto(cls, v: str) -> str:
         # Validar formato decimal con 2 decimales
         try:
             float(v)
@@ -168,7 +168,7 @@ class R4NotificaRequest(BaseModel):
 
     @field_validator("Monto")
     @classmethod
-    def validate_monto(cls, v):
+    def validate_monto(cls, v: str) -> str:
         try:
             float(v)
             if "." in v:
@@ -181,7 +181,7 @@ class R4NotificaRequest(BaseModel):
 
     @field_validator("CodigoRed")
     @classmethod
-    def validate_codigo_red(cls, v):
+    def validate_codigo_red(cls, v: str) -> str:
         if not v.isdigit() or len(v) != 2:
             raise ValueError("CodigoRed debe ser 2 dígitos")
         return v
@@ -592,7 +592,7 @@ async def r4_notifica_webhook(
 )
 async def r4_webhook_health(
     config: R4WebhookConfig = _webhook_config_singleton,
-):
+) -> dict[str, Any]:
     """Health check para webhooks R4."""
     return {
         "status": "ok",
@@ -624,7 +624,7 @@ async def r4_webhook_health(
 # ============================================================
 
 
-def include_r4_webhooks(app) -> None:
+def include_r4_webhooks(app: Any) -> None:
     """
     Registra los webhooks R4 en la aplicación FastAPI.
     Llamar en FASE 6 desde bridge.py o main.py
@@ -643,7 +643,7 @@ def include_r4_webhooks(app) -> None:
 if __name__ == "__main__":
     import asyncio
 
-    async def test_webhooks():
+    async def test_webhooks() -> None:
         print("=== Test R4 Webhooks (config only) ===")
 
         config = get_webhook_config()

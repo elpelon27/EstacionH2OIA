@@ -126,7 +126,7 @@ class Judge:
         client = await get_openrouter()
         try:
             result = await client.chat(
-                messages=judge_messages,
+                messages=judge_messages,  # type: ignore[arg-type]
                 model=self.settings.openrouter_judge_model,
                 temperature=0.0,
                 max_tokens=2048,

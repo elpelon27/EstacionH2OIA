@@ -471,13 +471,16 @@ class BottleTracker:
         Envía botellón vacío a lavado en planta.
         in_transit_empty → maintenance
         """
-        bottle = self._update_bottle_status(
-            bottle_code=bottle_code,
-            new_status=BottleStatus.MAINTENANCE,
-            performed_by=performed_by,
-            notes=notes,
-        )
-        return {"success": True, "bottle": bottle.to_dict()}
+        try:
+            bottle = self._update_bottle_status(
+                bottle_code=bottle_code,
+                new_status=BottleStatus.MAINTENANCE,
+                performed_by=performed_by,
+                notes=notes,
+            )
+            return {"success": True, "bottle": bottle.to_dict()}
+        except ValueError as e:
+            return {"success": False, "error": str(e), "bottle": None}
 
     async def wash_complete(
         self,

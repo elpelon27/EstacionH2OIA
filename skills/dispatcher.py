@@ -637,6 +637,7 @@ async def cmd_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Ayuda."""
+    assert update.message is not None
     await update.message.reply_text(
         "🤖 COMANDOS DISPATCHER\n"
         "━━━━━━━━━━━━━━━━\n"
@@ -657,6 +658,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     """Health check endpoint para kill-switch bot."""
+    assert update.message is not None
     import sqlite3
 
     # Check dispatch DB connectivity

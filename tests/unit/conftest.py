@@ -39,10 +39,9 @@ def tracker():
 # OVERRIDE TEST_DISPATCH_TELEGRAM_BOT.PY FIXTURES
 # =============================================================================
 
-@pytest.fixture(autouse=True)
-def patch_bot_db():
-    """Override test file's fixture - root conftest handles DB patching."""
-    pass
+# NOTE (2026-08-13): el fixture patch_bot_db del archivo test_dispatch_telegram_bot.py
+# ya es autocontenido (crea su propia BD de test). Se elimina el override 'pass'
+# para que el fixture real del archivo mande.
 
 
 # =============================================================================

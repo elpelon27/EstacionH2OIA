@@ -790,15 +790,15 @@ def add_pago_and_update_pedido(
     """
     now = now_iso()
     with get_db() as conn:
-        # 1. Insertar pago (incluye tasa_eur_ves legacy para compatibilidad)
+        # 1. Insertar pago (schema v3.1: solo tasa_eur_ves_pago, sin legacy tasa_eur_ves)
         cursor = conn.execute(
             """
             INSERT INTO fs_pagos (
                 fs_pedido_id, cliente_telefono, cliente_nombre,
-                monto_eur, monto_ves, tasa_eur_ves, tasa_eur_ves_pago, metodo_pago,
+                monto_eur, monto_ves, tasa_eur_ves_pago, metodo_pago,
                 referencia, comprobante_phash, verificacion_metodo,
                 verificado, verificado_at, verificado_por, creado_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?, ?)
             """,
             (
                 fs_pedido_id,
@@ -806,7 +806,6 @@ def add_pago_and_update_pedido(
                 "",  # cliente_telefono/nombre se llenan desde el pedido si hace falta
                 monto_eur,
                 monto_ves,
-                tasa_eur_ves_pago,
                 tasa_eur_ves_pago,
                 metodo_pago,
                 referencia,
@@ -858,7 +857,7 @@ def create_pago(pago: Pago) -> int:
             """
             INSERT INTO fs_pagos (
                 fs_pedido_id, cuenta_cobrar_id, cliente_telefono, cliente_nombre,
-                monto_eur, monto_ves, metodo_pago, referencia, tasa_eur_ves,
+                monto_eur, monto_ves, metodo_pago, referencia, tasa_eur_ves_pago,
                 verificacion_metodo, verificado, verificado_at, verificado_por,
                 comprobante_url, creado_at
             ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)

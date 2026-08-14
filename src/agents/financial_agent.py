@@ -275,7 +275,7 @@ class FinancialShieldAgent:
         cuenta_id = cobranzas.crear_cuenta_cobrar(pedido, tipo_credito)
 
         # Actualizar pedido con tipo de crédito
-        from .database import get_db
+        from src.financial.database import get_db
 
         now = datetime.now(CARACAS_TZ).isoformat()
         venc = cobranzas.calcular_fecha_vencimiento(tipo_credito)

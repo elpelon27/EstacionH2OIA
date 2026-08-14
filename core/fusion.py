@@ -108,7 +108,10 @@ class FusionTournament:
         client = await get_openrouter()
 
         tasks = [
-            client.chat(messages=messages, model=m, temperature=temperature, max_tokens=max_tokens)
+            client.chat(
+                messages=messages,  # type: ignore[arg-type]
+                model=m, temperature=temperature, max_tokens=max_tokens
+            )
             for m in models
         ]
 

@@ -40,7 +40,7 @@ META_API_VERSION = os.getenv("META_API_VERSION", "v25.0")
 # VRAM Guard para Qwen2.5-VL fallback
 NVML_AVAILABLE = False
 try:
-    import pynvml  # nvidia-ml-py (paquete renombrado, mismo módulo)
+    import pynvml  # type: ignore[import-untyped]  # nvidia-ml-py (módulo renombrado)
 
     pynvml.nvmlInit()
     NVML_AVAILABLE = True
@@ -70,7 +70,7 @@ def _compute_phash(image_data: bytes) -> str | None:
         img = Image.open(io.BytesIO(image_data))
         # Convertir a RGB si es RGBA
         if img.mode in ("RGBA", "LA", "P"):
-            img = img.convert("RGB")
+            img = img.convert("RGB")  # type: ignore[assignment]
         phash = imagehash.phash(img, hash_size=16)  # 256 bits
         return str(phash)
     except Exception as e:
@@ -85,7 +85,7 @@ def _check_vram() -> bool:
     try:
         handle = pynvml.nvmlDeviceGetHandleByIndex(0)
         info = pynvml.nvmlDeviceGetMemoryInfo(handle)
-        free_mb = info.free / (1024 * 1024)
+        free_mb = float(info.free) / (1024 * 1024)
         return free_mb >= VRAM_LIMIT_MB
     except Exception as e:
         logger.warning("VRAM check falló: %s", e)
@@ -202,6 +202,7 @@ async def _process_reminder_cycle(pedido: PedidoFinanciero) -> dict[str, Any]:
             (intento, now, now, pedido.id),
         )
 
+        assert pedido.id is not None
         db.log_verificacion(
             pedido.id,
             intento,
@@ -228,6 +229,7 @@ async def _escalar_humano(pedido: PedidoFinanciero, intento: int) -> dict[str, A
         """,
             (now, pedido.id),
         )
+        assert pedido.id is not None
         db.log_verificacion(
             pedido.id,
             intento,
@@ -344,7 +346,7 @@ async def verificar_pago_ocr(
     try:
         import io
 
-        import pytesseract
+        import pytesseract  # type: ignore[import-untyped]
         from PIL import Image
 
         img = Image.open(io.BytesIO(image_data))
@@ -407,7 +409,7 @@ async def verificar_pago_ocr(
     return {"success": False, "mensaje": "OCR no pudo extraer datos válidos", "needs_manual": True}
 
 
-async def _ocr_qwen_vl(image_data: bytes) -> dict | None:
+async def _ocr_qwen_vl(image_data: bytes) -> dict[str, Any] | None:
     """Llamada a Ollama/Qwen2.5-VL con imagen base64."""
     b64 = base64.b64encode(image_data).decode()
     payload = {
@@ -432,7 +434,8 @@ async def _ocr_qwen_vl(image_data: bytes) -> dict | None:
             import json
 
             content = resp.json()["message"]["content"]
-            return json.loads(content)
+            parsed: dict[str, Any] = json.loads(content)
+            return parsed
     return None
 
 

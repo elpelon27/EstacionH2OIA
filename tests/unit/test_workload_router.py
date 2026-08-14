@@ -7,10 +7,13 @@ mock_payment_skill = MagicMock()
 mock_payment_skill.PaymentSkill = MagicMock()
 sys.modules["skills.payment_skill"] = mock_payment_skill
 
-# Also mock parent skills module
-mock_skills = MagicMock()
-mock_skills.payment_skill = mock_payment_skill
-sys.modules["skills"] = mock_skills
+# NOTE (2026-08-13): NO se mockea el paquete 'skills' completo (sys.modules['skills'])
+# — eso rompía 'from skills.inventory_skill import ...' y 'skills.self_improve_skill'
+# con "skills is not a package". Solo payment_skill necesita mock (depende de ollama),
+# y se expone como atributo del paquete skills real para que 'skills.payment_skill' funcione.
+import skills as _skills
+
+_skills.payment_skill = mock_payment_skill
 
 from datetime import time
 from unittest.mock import AsyncMock, MagicMock, patch
@@ -85,7 +88,10 @@ def test_resolve_self_improve_allowed_after_hours(router):
 @pytest.mark.asyncio
 async def test_execute_inventory_skill(router):
     """execute() con trigger inventory_check debe llamar a InventorySkill."""
-    with patch("skills.inventory_skill.InventorySkill.execute", new=AsyncMock(return_value={"success": True})):
+    with patch(
+        "skills.inventory_skill.InventorySkill.execute",
+        new=AsyncMock(return_value={"success": True}),
+    ):
         result = await router.execute(trigger="inventory_check", action="get_stock")
     assert result["success"] is True
 
@@ -110,9 +116,11 @@ async def test_execute_payment_skill(router):
 @pytest.mark.asyncio
 async def test_execute_self_improve_skill(router):
     """execute() con trigger self_improve_request debe llamar a SelfImproveSkill."""
-    with patch("skills.self_improve_skill.SelfImproveSkill.execute", new=AsyncMock(return_value={"improved": True})):
-        with patch.object(router, "_is_business_hours", return_value=False):
-            result = await router.execute(trigger="self_improve_request")
+    with patch(
+        "skills.self_improve_skill.SelfImproveSkill.execute",
+        new=AsyncMock(return_value={"improved": True}),
+    ), patch.object(router, "_is_business_hours", return_value=False):
+        result = await router.execute(trigger="self_improve_request")
     assert result["improved"] is True
 
 
@@ -207,7 +215,9 @@ async def test_execute_fusion_blocked_by_cost_guard(mock_get_cost_guard, router)
 @patch("core.workload_router.get_cost_guard")
 @patch("core.workload_router.get_rate_limiter")
 @pytest.mark.asyncio
-async def test_execute_openrouter_rate_limited_fallback(mock_get_rate_limiter, mock_get_cost_guard, router):
+async def test_execute_openrouter_rate_limited_fallback(
+    mock_get_rate_limiter, mock_get_cost_guard, router
+):
     """OpenRouter debe caer a Qwen local si rate limiter bloquea."""
     mock_guard = MagicMock()
     mock_guard.check = AsyncMock(return_value={"status": "ok", "spent_today": 0.0})
@@ -233,7 +243,9 @@ async def test_execute_openrouter_rate_limited_fallback(mock_get_rate_limiter, m
 @patch("core.workload_router.get_rate_limiter")
 @patch("core.workload_router.get_circuit_breaker_registry")
 @pytest.mark.asyncio
-async def test_execute_openrouter_circuit_open_fallback(mock_get_cb, mock_get_rate, mock_get_cost, router):
+async def test_execute_openrouter_circuit_open_fallback(
+    mock_get_cb, mock_get_rate, mock_get_cost, router
+):
     """OpenRouter debe caer a Qwen local si circuit breaker está abierto."""
     from core.circuit_breaker import CircuitOpenError
 
@@ -265,7 +277,9 @@ async def test_execute_openrouter_circuit_open_fallback(mock_get_cb, mock_get_ra
 @patch("core.workload_router.get_rate_limiter")
 @patch("core.workload_router.get_circuit_breaker_registry")
 @pytest.mark.asyncio
-async def test_execute_openrouter_general_exception_fallback(mock_get_cb, mock_get_rate, mock_get_cost, router):
+async def test_execute_openrouter_general_exception_fallback(
+    mock_get_cb, mock_get_rate, mock_get_cost, router
+):
     """OpenRouter debe caer a Qwen local ante cualquier excepción."""
     mock_guard = MagicMock()
     mock_guard.check = AsyncMock(return_value={"status": "ok", "spent_today": 0.0})
@@ -370,7 +384,9 @@ async def test_execute_openrouter_claude_success(mock_get_cb, mock_get_rate, moc
 @patch("core.workload_router.get_rate_limiter")
 @patch("core.workload_router.get_circuit_breaker_registry")
 @pytest.mark.asyncio
-async def test_execute_openrouter_deepseek_success(mock_get_cb, mock_get_rate, mock_get_cost, router):
+async def test_execute_openrouter_deepseek_success(
+    mock_get_cb, mock_get_rate, mock_get_cost, router
+):
     """execute() con OPENROUTER_DEEPSEEK debe llamar a OpenRouter chat."""
     mock_guard = MagicMock()
     mock_guard.check = AsyncMock(return_value={"status": "ok", "spent_today": 0.0})
@@ -536,4 +552,6 @@ async def test_execute_qwen_local_fallback(router):
         )
 
     assert result["response"] == "Direct Qwen"
-    mock_qwen.chat.assert_called_once_with(messages=[{"role": "user", "content": "direct"}], temperature=0.5)
+    mock_qwen.chat.assert_called_once_with(
+        messages=[{"role": "user", "content": "direct"}], temperature=0.5
+    )

@@ -41,7 +41,8 @@ tbot_module = importlib.util.module_from_spec(spec2)
 sys.modules["tests.unit.test_dispatch_telegram_bot"] = tbot_module
 spec2.loader.exec_module(tbot_module)
 
-del tbot_module.patch_bot_db
+# NOTE (2026-08-13): el fixture patch_bot_db del archivo ya es autocontenido
+# (crea su propia BD de test, no depende de test_db), así que NO se elimina aquí.
 
 # Disable test_gps_tracker.py's fixtures at import time
 spec3 = importlib.util.spec_from_file_location(

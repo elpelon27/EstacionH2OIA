@@ -88,8 +88,13 @@ def test_db():
 
     # 165 botellones
     for i in range(1, 166):
-        conn.execute("INSERT INTO bottles (bottle_code, status) VALUES (?, 'available')", (f"H2O-{i:03d}",))
-    conn.execute("INSERT INTO clients (id, name) VALUES (1, 'Test Client 1'), (2, 'Test Client 2')")
+        conn.execute(
+            "INSERT INTO bottles (bottle_code, status) VALUES (?, 'available')",
+            (f"H2O-{i:03d}",),
+        )
+    conn.execute(
+        "INSERT INTO clients (id, name) VALUES (1, 'Test Client 1'), (2, 'Test Client 2')"
+    )
     conn.commit()
     conn.close()
 
@@ -231,9 +236,12 @@ class TestBottleTracker:
 
     @pytest.mark.asyncio
     async def test_send_to_wash(self, tracker):
-        """Envía botellones a lavado."""
+        """Envía botellones a lavado
+        (flujo correcto: with_client → in_transit_empty → maintenance).
+        """
         await tracker.assign_to_client("H2O-060", client_id=1, delivery_id=700)
         await tracker.confirm_delivery("H2O-060", client_id=1)
+        await tracker.return_from_client("H2O-060", client_id=1, delivery_id=701)
 
         # Enviar a lavado
         result = await tracker.send_to_wash(
@@ -330,7 +338,8 @@ class TestBottleTracker:
         conn = sqlite3.connect("/tmp/test_bottle_tracker.db")
         conn.row_factory = sqlite3.Row
         movements = conn.execute(
-            "SELECT from_status, to_status FROM bottle_movements WHERE bottle_code = 'H2O-090' ORDER BY created_at"
+            "SELECT from_status, to_status FROM bottle_movements"
+            " WHERE bottle_code = 'H2O-090' ORDER BY created_at"
         ).fetchall()
         conn.close()
 

@@ -19,9 +19,12 @@ sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 TEST_DB = "/tmp/test_dispatch_bot.db"
 
 
-@pytest.fixture(scope="function")
-def test_db():
-    """Crea BD de test limpia para cada test."""
+def _create_test_db() -> str:
+    """Crea BD de test limpia con el esquema completo de dispatch.
+
+    Autocontenido: NO depende del fixture 'test_db' (que los conftests superiores
+    sobrescriben a None), evitando el bug de DISPATCH_DB=None.
+    """
     if os.path.exists(TEST_DB):
         os.remove(TEST_DB)
     conn = sqlite3.connect(TEST_DB)
@@ -141,48 +144,58 @@ def test_db():
 
     # Datos semilla
     conn.execute(
-        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)"
+        "INSERT INTO vehicles (id, name, operator_name, active)"
+        " VALUES (1, 'Triciclo 1', 'YORDANIS', 1)"
     )
     conn.execute(
-        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (2, 'Triciclo 2', 'EVERT', 1)"
+        "INSERT INTO vehicles (id, name, operator_name, active)"
+        " VALUES (2, 'Triciclo 2', 'EVERT', 1)"
     )
     conn.execute(
-        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)"
+        "INSERT INTO zones (id, name, center_lat, center_lng,"
+        " radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)"
     )
     conn.execute(
-        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)"
+        "INSERT INTO zones (id, name, center_lat, center_lng,"
+        " radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)"
     )
     conn.execute(
-        "INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type, priority, zone_id) VALUES (1, '+584121234567', 'hash1', 'Restaurante El Portal', 10.6500, -71.6200, 'b2b', 1, 1)"
+        "INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type,"
+        " priority, zone_id) VALUES (1, '+584121234567', 'hash1', 'Restaurante El"
+        " Portal', 10.6500, -71.6200, 'b2b', 1, 1)"
     )
     conn.execute(
-        "INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type, priority, zone_id) VALUES (2, '+584122345678', 'hash2', 'Sra. González', 10.6400, -71.6150, 'residential', 5, 2)"
+        "INSERT INTO clients (id, phone, phone_hash, name, lat, lng, client_type,"
+        " priority, zone_id) VALUES (2, '+5841256785678', 'hash2', 'Sra. González',"
+        " 10.6400, -71.6150, 'residential', 5, 2)"
     )
     conn.execute(
-        "INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full) VALUES (1, 1, 1, 1, 1, 'pending', 6)"
+        "INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id,"
+        " order_sequence, status, bottles_full) VALUES (1, 1, 1, 1, 1, 'pending', 6)"
     )
     conn.execute(
-        "INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full) VALUES (2, 1, 2, 1, 2, 'pending', 3)"
+        "INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id,"
+        " order_sequence, status, bottles_full) VALUES (2, 1, 2, 1, 2, 'pending', 3)"
     )
     conn.commit()
     conn.close()
 
-    yield TEST_DB
-
-    if os.path.exists(TEST_DB):
-        os.remove(TEST_DB)
+    return TEST_DB
 
 
 @pytest.fixture(autouse=True)
-def patch_bot_db(test_db):
-    """Parchea las constantes del módulo telegram_bot."""
+def patch_bot_db():
+    """Parchea las constantes del módulo telegram_bot (BD autocontenida)."""
+    _create_test_db()
     import skills.dispatch.telegram_bot as tbot_module
 
-    tbot_module.DISPATCH_DB = test_db
+    tbot_module.DISPATCH_DB = TEST_DB
     tbot_module.CONV_DB = "/tmp/test_conv.db"
     tbot_module._dispatcher_bot_instance = None
     yield
     tbot_module._dispatcher_bot_instance = None
+    if os.path.exists(TEST_DB):
+        os.remove(TEST_DB)
 
 
 # Importar después de los fixtures
