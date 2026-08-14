@@ -57,6 +57,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 # Local imports
+from api.guardrail import sanitize_input, scrub_output
 from api.meta_client import get_meta_client, set_http_client
 from core.crypto import hash_phone as _hash_phone
 from core.crypto import set_log_salt
@@ -287,7 +288,7 @@ def _is_within_business_hours() -> bool:
 # ============================================================================
 
 
-def _get_prometheus_metrics():
+def _get_prometheus_metrics() -> dict[str, Any]:
     """Crear o retornar métricas Prometheus existentes (lazy singleton).
 
     Evita ValueError: Duplicated timeseries cuando el módulo se importa
@@ -780,6 +781,8 @@ async def _send_whatsapp_message(phone: str, text: str) -> bool:
     if not META_ACCESS_TOKEN or not META_PHONE_NUMBER_ID:
         logger.error("META_ACCESS_TOKEN o META_PHONE_NUMBER_ID no configurados")
         return False
+    # Guardrail SALIDA: enmascarar secretos antes de enviar al cliente
+    text = scrub_output(text)
     url = f"https://graph.facebook.com/{META_API_VERSION}/{META_PHONE_NUMBER_ID}/messages"
     headers = {
         "Authorization": f"Bearer {META_ACCESS_TOKEN}",
@@ -1031,6 +1034,8 @@ async def _call_dify(query: str, phone: str, conv_id: str | None) -> dict[str, A
     if not DIFY_API_KEY:
         logger.error("DIFY_API_KEY no configurada")
         return None
+    # Guardrail ENTRADA: escanear prompt-injection antes de llegar al LLM
+    query = sanitize_input(query)
     headers = {
         "Authorization": f"Bearer {DIFY_API_KEY}",
         "Content-Type": "application/json",
@@ -1527,7 +1532,7 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
             router = get_router()
 
             # Ejecutar notificación de forma asíncrona (fire-and-forget)
-            async def _notify_driver_async():
+            async def _notify_driver_async() -> bool:
                 # Retry logic: 3 attempts with exponential backoff
                 max_retries = 3
                 base_delay = 0.5  # seconds
@@ -1677,7 +1682,7 @@ def _assign_vehicle_for_order(lat: float | None, lng: float | None, bottles_need
         # Haversine simple inline
         from math import atan2, cos, radians, sin, sqrt
 
-        def haversine(lat1, lng1, lat2, lng2):
+        def haversine(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
             r = 6371.0
             dlat = radians(lat2 - lat1)
             dlng = radians(lng2 - lng1)
@@ -1740,7 +1745,7 @@ def _assign_vehicle_for_order(lat: float | None, lng: float | None, bottles_need
             chosen["max_full_bottles"],
             bottles_needed,
         )
-        return chosen["id"]
+        return int(chosen["id"])
 
     except Exception as e:
         logger.error("Error en vehicle assignment: %s, defaulting to 1", e)
@@ -2833,7 +2838,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     # P0-B FIX: Recovery scan en background task POST-yield
     # (no bloquea startup, evita 'database is locked')
-    async def _run_recovery_scan():
+    async def _run_recovery_scan() -> None:
         # Pequeña pausa para que el bridge termine de arrancar y acepte requests
         await asyncio.sleep(2)
         try:
