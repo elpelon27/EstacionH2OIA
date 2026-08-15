@@ -67,7 +67,7 @@ class CheckGeofenceRequest(BaseModel):
 # ============================================================================
 
 
-@router.post("/route/compute")
+@router.post("/route/compute")  # type: ignore[misc]
 async def compute_route(request: ComputeRouteRequest) -> dict[str, Any]:
     """Calcula ruta optimizada (OR-Tools VRP)."""
     router = get_router()
@@ -86,7 +86,7 @@ async def compute_route(request: ComputeRouteRequest) -> dict[str, Any]:
     return result
 
 
-@router.post("/delivery/update")
+@router.post("/delivery/update")  # type: ignore[misc]
 async def update_delivery(request: UpdateDeliveryRequest) -> dict[str, Any]:
     """Actualiza estado de entrega."""
     router = get_router()
@@ -102,7 +102,7 @@ async def update_delivery(request: UpdateDeliveryRequest) -> dict[str, Any]:
     return result
 
 
-@router.post("/gps")
+@router.post("/gps")  # type: ignore[misc]
 async def record_gps(request: RecordGPSRequest) -> dict[str, Any]:
     """Registra punto GPS (Tasker o Telegram)."""
     router = get_router()
@@ -123,7 +123,7 @@ async def record_gps(request: RecordGPSRequest) -> dict[str, Any]:
     return result
 
 
-@router.get("/vehicles/status")
+@router.get("/vehicles/status")  # type: ignore[misc]
 async def get_vehicles_status() -> dict[str, Any]:
     """Estado de todos los vehículos/choferes."""
     router = get_router()
@@ -139,7 +139,7 @@ async def get_vehicles_status() -> dict[str, Any]:
     return result
 
 
-@router.get("/bottles/inventory")
+@router.get("/bottles/inventory")  # type: ignore[misc]
 async def get_bottles_inventory() -> dict[str, Any]:
     """Inventario de botellones loaner (SWAP)."""
     router = get_router()
@@ -154,7 +154,7 @@ async def get_bottles_inventory() -> dict[str, Any]:
     return result
 
 
-@router.post("/geofence/check")
+@router.post("/geofence/check")  # type: ignore[misc]
 async def check_geofence(request: CheckGeofenceRequest) -> dict[str, Any]:
     """Verifica si punto está dentro del perímetro de operación."""
     router = get_router()
@@ -169,7 +169,7 @@ async def check_geofence(request: CheckGeofenceRequest) -> dict[str, Any]:
     return result
 
 
-@router.post("/notify/driver")
+@router.post("/notify/driver")  # type: ignore[misc]
 async def notify_driver(request: NotifyDriverRequest) -> dict[str, Any]:
     """Envía notificación a chofer por Telegram."""
     router = get_router()
@@ -197,7 +197,7 @@ async def notify_driver(request: NotifyDriverRequest) -> dict[str, Any]:
 # ============================================================================
 
 
-@router.post("/telegram/webhook")
+@router.post("/telegram/webhook")  # type: ignore[misc]
 async def telegram_webhook(request: Request) -> dict[str, Any]:
     """Webhook para bot Telegram de operadores."""
     try:
@@ -215,7 +215,7 @@ async def telegram_webhook(request: Request) -> dict[str, Any]:
         return {"ok": False, "error": str(e)}
 
 
-@router.get("/health")
+@router.get("/health")  # type: ignore[misc]
 async def health_check() -> dict[str, Any]:
     """Health check del dispatcher."""
     return {
@@ -230,7 +230,7 @@ async def health_check() -> dict[str, Any]:
 # ============================================================================
 
 
-@router.post("/process-queue")
+@router.post("/process-queue")  # type: ignore[misc]
 async def process_queue(max_orders: int = 20) -> dict[str, Any]:
     """Procesa pedidos pending de dispatch_queue en tiempo real.
 

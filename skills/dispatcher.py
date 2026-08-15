@@ -301,7 +301,7 @@ async def callback_registro(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> N
     vehicle_id = int(data.replace("reg_", ""))
     message = query.message
     assert message is not None
-    chat_id = message.chat_id  # type: ignore[attr-defined]
+    chat_id = message.chat_id
 
     conn = get_dispatch_db()
     vehicle = conn.execute("SELECT * FROM vehicles WHERE id = ?", (vehicle_id,)).fetchone()
@@ -415,7 +415,7 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
     assert data is not None
     message = query.message
     assert message is not None
-    chat_id = message.chat_id  # type: ignore[attr-defined]
+    chat_id = message.chat_id
     chofer = get_chofer_by_chat_id(chat_id)
 
     if not chofer:

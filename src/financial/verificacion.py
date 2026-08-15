@@ -18,7 +18,7 @@ import logging
 import os
 import re
 from datetime import UTC, datetime, timedelta, timezone
-from typing import Any
+from typing import Any, cast
 
 import httpx
 
@@ -40,7 +40,7 @@ META_API_VERSION = os.getenv("META_API_VERSION", "v25.0")
 # VRAM Guard para Qwen2.5-VL fallback
 NVML_AVAILABLE = False
 try:
-    import pynvml  # type: ignore[import-untyped]  # nvidia-ml-py (módulo renombrado)
+    import pynvml  # nvidia-ml-py (módulo renombrado)
 
     pynvml.nvmlInit()
     NVML_AVAILABLE = True
@@ -70,7 +70,7 @@ def _compute_phash(image_data: bytes) -> str | None:
         img = Image.open(io.BytesIO(image_data))
         # Convertir a RGB si es RGBA
         if img.mode in ("RGBA", "LA", "P"):
-            img = img.convert("RGB")  # type: ignore[assignment]
+            img = img.convert("RGB")
         phash = imagehash.phash(img, hash_size=16)  # 256 bits
         return str(phash)
     except Exception as e:
@@ -346,7 +346,7 @@ async def verificar_pago_ocr(
     try:
         import io
 
-        import pytesseract  # type: ignore[import-untyped]
+        import pytesseract
         from PIL import Image
 
         img = Image.open(io.BytesIO(image_data))
@@ -457,7 +457,7 @@ async def _download_whatsapp_image(image_url: str, meta_token: str) -> bytes | N
                         url, headers={"Authorization": f"Bearer {meta_token}"}, timeout=30
                     )
                     if img_resp.status_code == 200:
-                        return img_resp.content
+                        return cast(bytes, img_resp.content)
     except Exception as e:
         logger.error("Error descargando imagen: %s", e)
     return None

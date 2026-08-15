@@ -69,13 +69,9 @@ class R4WebhookConfig:
 
     def _validate_config(self) -> None:
         if not self.auth_token:
-            logger.warning(
-                "R4_WEBHOOK_AUTH_TOKEN no configurado - webhooks sin auth token"
-            )
+            logger.warning("R4_WEBHOOK_AUTH_TOKEN no configurado - webhooks sin auth token")
         if not self.commerce_token:
-            logger.warning(
-                "R4_COMMERCE_TOKEN no configurado - verificación HMAC deshabilitada"
-            )
+            logger.warning("R4_COMMERCE_TOKEN no configurado - verificación HMAC deshabilitada")
         logger.info(f"R4 Webhook IPs permitidas: {self.allowed_ips}")
 
 
@@ -94,6 +90,7 @@ def reset_webhook_config() -> None:
     global _webhook_config
     _webhook_config = None
 
+
 # ============================================================
 # Rate Limiting simple en memoria
 # ============================================================
@@ -107,9 +104,7 @@ def check_rate_limit(ip: str, config: R4WebhookConfig) -> bool:
     window_start = now - config.rate_limit_window
 
     # Limpiar entradas viejas
-    _rate_limit_store[ip] = [
-        ts for ts in _rate_limit_store[ip] if ts > window_start
-    ]
+    _rate_limit_store[ip] = [ts for ts in _rate_limit_store[ip] if ts > window_start]
 
     # Verificar límite
     if len(_rate_limit_store[ip]) >= config.rate_limit_requests:
@@ -117,6 +112,7 @@ def check_rate_limit(ip: str, config: R4WebhookConfig) -> bool:
 
     _rate_limit_store[ip].append(now)
     return True
+
 
 # ============================================================
 # Modelos Pydantic para validación de entrada
@@ -126,9 +122,7 @@ def check_rate_limit(ip: str, config: R4WebhookConfig) -> bool:
 class R4ConsultaRequest(BaseModel):
     """Request para webhook /consulta (R4consulta)."""
 
-    IdCliente: str = Field(
-        ..., min_length=1, max_length=20, description="Identificación cliente"
-    )
+    IdCliente: str = Field(..., min_length=1, max_length=20, description="Identificación cliente")
     Monto: str = Field(..., description="Monto con 2 decimales")
     TelefonoComercio: str = Field(
         ..., min_length=11, max_length=11, description="Teléfono comercio 11 dígitos"
@@ -162,9 +156,7 @@ class R4NotificaRequest(BaseModel):
     Monto: str = Field(..., description="Monto con 2 decimales")
     FechaHora: str = Field(..., description="ISO 8601 UTC")
     Referencia: str = Field(..., min_length=1, max_length=36)
-    CodigoRed: str = Field(
-        ..., min_length=2, max_length=2, description="Código red interbancaria"
-    )
+    CodigoRed: str = Field(..., min_length=2, max_length=2, description="Código red interbancaria")
 
     @field_validator("Monto")
     @classmethod
@@ -198,6 +190,7 @@ class R4NotificaResponse(BaseModel):
 
     abono: bool
 
+
 # ============================================================
 # Resultado de procesamiento interno
 # ============================================================
@@ -219,6 +212,7 @@ class WebhookProcessResult:
     def to_notifica_response(self) -> R4NotificaResponse:
         return R4NotificaResponse(abono=self.success)
 
+
 # ============================================================
 # Funciones de verificación de seguridad
 # ============================================================
@@ -236,12 +230,9 @@ async def verify_ip_whitelist(request: Request, config: R4WebhookConfig) -> None
 
     if client_ip not in config.allowed_ips:
         logger.warning(
-            f"R4 Webhook IP rechazada: {client_ip} "
-            f"(permitidas: {config.allowed_ips})"
+            f"R4 Webhook IP rechazada: {client_ip} " f"(permitidas: {config.allowed_ips})"
         )
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN, detail="IP no autorizada"
-        )
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP no autorizada")
 
     logger.debug(f"R4 Webhook IP autorizada: {client_ip}")
 
@@ -249,9 +240,7 @@ async def verify_ip_whitelist(request: Request, config: R4WebhookConfig) -> None
 async def verify_auth_token(authorization: str | None, config: R4WebhookConfig) -> None:
     """Verifica Authorization header (Bearer token UUID)."""
     if not config.auth_token:
-        logger.warning(
-            "R4_WEBHOOK_AUTH_TOKEN no configurado - saltando verificación auth"
-        )
+        logger.warning("R4_WEBHOOK_AUTH_TOKEN no configurado - saltando verificación auth")
         return
 
     if not authorization:
@@ -264,9 +253,7 @@ async def verify_auth_token(authorization: str | None, config: R4WebhookConfig) 
     # Formato: "Bearer <uuid>"
     parts = authorization.split()
     if len(parts) != 2 or parts[0].lower() != "bearer":
-        logger.warning(
-            f"R4 Webhook Authorization formato inválido: {authorization[:20]}"
-        )
+        logger.warning(f"R4 Webhook Authorization formato inválido: {authorization[:20]}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Formato Authorization inválido (esperado: Bearer <token>)",
@@ -275,9 +262,7 @@ async def verify_auth_token(authorization: str | None, config: R4WebhookConfig) 
     provided_token = parts[1]
     if not hmac.compare_digest(provided_token, config.auth_token):
         logger.warning("R4 Webhook token inválido")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
 
     logger.debug("R4 Webhook Authorization token válido")
 
@@ -296,27 +281,21 @@ async def verify_hmac_signature_webhook(
     auth_header = request.headers.get("Authorization", "")
     # Authorization ya verificado como Bearer token, buscar X-Signature o similar
     # El banco puede enviar la firma en header separado
-    signature = request.headers.get("X-Signature") or request.headers.get(
-        "X-Hmac-Signature"
-    )
+    signature = request.headers.get("X-Signature") or request.headers.get("X-Hmac-Signature")
 
     if not signature and auth_header.startswith("HMAC "):
         signature = auth_header[5:]
 
     if not signature:
         logger.warning(f"R4 Webhook {endpoint.value} sin firma HMAC")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma HMAC requerida"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma HMAC requerida")
 
     # Verificar con hmac.compare_digest (timing-safe)
     is_valid = verify_hmac_signature(payload, endpoint, signature, config.commerce_token)
 
     if not is_valid:
         logger.warning(f"R4 Webhook {endpoint.value} firma HMAC inválida")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma HMAC inválida"
-        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma HMAC inválida")
 
     logger.debug(f"R4 Webhook {endpoint.value} firma HMAC válida")
 
@@ -334,6 +313,7 @@ async def verify_rate_limit(request: Request, config: R4WebhookConfig) -> None:
             status_code=status.HTTP_429_TOO_MANY_REQUESTS,
             detail="Rate limit excedido",
         )
+
 
 # ============================================================
 # Dependencia combinada de seguridad
@@ -363,6 +343,7 @@ async def security_dependency(
 
     return config
 
+
 # ============================================================
 # Lógica de negocio (placeholders para FASE 6)
 # ============================================================
@@ -379,9 +360,7 @@ async def process_r4consulta(
     - Verificar monto coincide
     - Retornar status=true si hay pedido pendiente válido
     """
-    logger.info(
-        f"R4consulta recibido: IdCliente={payload.IdCliente}, Monto={payload.Monto}"
-    )
+    logger.info(f"R4consulta recibido: IdCliente={payload.IdCliente}, Monto={payload.Monto}")
 
     # PLACEHOLDER - FASE 6
     # from src.integrations.fs_client import FSClient
@@ -480,6 +459,7 @@ async def process_r4notifica(
         reference=payload.Referencia,
     )
 
+
 # ============================================================
 # Router FastAPI
 # ============================================================
@@ -491,7 +471,7 @@ router = APIRouter(prefix="/webhook/r4", tags=["R4 Webhooks"])
 _webhook_config_singleton = Depends(get_webhook_config)
 
 
-@router.post(
+@router.post(  # type: ignore[misc]  # FastAPI decorador no tipado
     "/consulta",
     response_model=R4ConsultaResponse,
     summary="R4consulta - Validación cliente para pago móvil",
@@ -524,9 +504,7 @@ async def r4_consulta_webhook(
     await verify_ip_whitelist(request, config)
     await verify_rate_limit(request, config)
     await verify_auth_token(authorization, config)
-    await verify_hmac_signature_webhook(
-        request, payload.dict(), R4Endpoint.R4CONSULTA, config
-    )
+    await verify_hmac_signature_webhook(request, payload.dict(), R4Endpoint.R4CONSULTA, config)
 
     # Procesar lógica de negocio
     result = await process_r4consulta(payload, config)
@@ -535,7 +513,7 @@ async def r4_consulta_webhook(
     return result.to_consulta_response()
 
 
-@router.post(
+@router.post(  # type: ignore[misc]  # FastAPI decorador no tipado
     "/notifica",
     response_model=R4NotificaResponse,
     summary="R4notifica - Notificación pago móvil entrante",
@@ -570,9 +548,7 @@ async def r4_notifica_webhook(
     await verify_ip_whitelist(request, config)
     await verify_rate_limit(request, config)
     await verify_auth_token(authorization, config)
-    await verify_hmac_signature_webhook(
-        request, payload.dict(), R4Endpoint.R4NOTIFICA, config
-    )
+    await verify_hmac_signature_webhook(request, payload.dict(), R4Endpoint.R4NOTIFICA, config)
 
     # Procesar lógica de negocio
     result = await process_r4notifica(payload, config)
@@ -580,12 +556,13 @@ async def r4_notifica_webhook(
     logger.info(f"R4notifica respuesta: abono={result.success}")
     return result.to_notifica_response()
 
+
 # ============================================================
 # Health check endpoint
 # ============================================================
 
 
-@router.get(
+@router.get(  # type: ignore[misc]  # FastAPI decorador no tipado
     "/health",
     summary="Health check de webhooks R4",
     description="Verifica configuración y conectividad básica",
@@ -601,9 +578,7 @@ async def r4_webhook_health(
             "allowed_ips_count": len(config.allowed_ips),
             "has_auth_token": bool(config.auth_token),
             "has_commerce_token": bool(config.commerce_token),
-            "rate_limit": (
-                f"{config.rate_limit_requests} req/{config.rate_limit_window}s"
-            ),
+            "rate_limit": (f"{config.rate_limit_requests} req/{config.rate_limit_window}s"),
         },
         "endpoints": [
             {
@@ -618,6 +593,7 @@ async def r4_webhook_health(
             },
         ],
     }
+
 
 # ============================================================
 # Función para registrar en FastAPI app (FASE 6)
@@ -635,6 +611,7 @@ def include_r4_webhooks(app: Any) -> None:
     """
     app.include_router(router)
     logger.info("R4 Webhooks registrados en FastAPI app")
+
 
 # ============================================================
 # Test rápido

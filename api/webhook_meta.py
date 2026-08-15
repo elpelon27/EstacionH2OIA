@@ -61,7 +61,7 @@ def register_webhook_meta_routes(app: FastAPI) -> None:
     """Registra los endpoints del webhook Meta en la app FastAPI."""
     settings = get_settings()
 
-    @app.get("/webhook/meta")
+    @app.get("/webhook/meta")  # type: ignore[misc]  # FastAPI decorador no tipado
     async def verify_webhook(
         request: Request,
         hub_mode: str = Query(..., alias="hub.mode"),
@@ -79,7 +79,7 @@ def register_webhook_meta_routes(app: FastAPI) -> None:
                 detail="Verification failed",
             )
 
-    @app.post("/webhook/meta")
+    @app.post("/webhook/meta")  # type: ignore[misc]  # FastAPI decorador no tipado
     async def webhook_meta(request: Request) -> JSONResponse:
         """Recibe webhook de Meta Cloud API."""
         # 1. Verificar HMAC-SHA256 (seguridad crítica)
