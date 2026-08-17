@@ -59,7 +59,7 @@ SYSTEM_PROMPT = (
     "- Tono: profesional pero amable, venezolano natural\n"
     "- Idioma: español de Venezuela exclusivamente\n"
     "- Firma: 💧 al final de mensajes importantes\n"
-    "- Estilo: honesto técnico, si no sabes algo dices \"no sé\" y verificas\n\n"
+    '- Estilo: honesto técnico, si no sabes algo dices "no sé" y verificas\n\n'
     "## Proyecto\n"
     "- Ruta: /mnt/ssd_trabajo/hermes-agent\n"
     "- Stack: Python 3.12 + FastAPI + SQLite + Telegram Bot + WhatsApp Meta Cloud API\n"
@@ -102,15 +102,10 @@ SYSTEM_PROMPT = (
 # Cliente OpenAI compatible
 # ============================================================================
 
-client = OpenAI(
-    base_url=BASE_URL,
-    api_key=API_KEY
-)
+client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
 
 # Historial de conversación
-messages = [
-    {"role": "system", "content": SYSTEM_PROMPT}
-]
+messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
 
 def chat(user_input: str) -> str:
@@ -119,15 +114,11 @@ def chat(user_input: str) -> str:
 
     try:
         completion = client.chat.completions.create(
-            model=MODEL,
-            messages=messages,
-            temperature=0.7,
-            max_tokens=4096,
-            stream=False
+            model=MODEL, messages=messages, temperature=0.7, max_tokens=4096, stream=False
         )
         response = completion.choices[0].message.content
         messages.append({"role": "assistant", "content": response})
-        return response
+        return str(response) if response is not None else ""
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -136,17 +127,19 @@ def save_session() -> Path:
     """Guarda conversación actual en memory/sessions/."""
     filename = MEMORY_DIR / f"prometeo_{datetime.now().strftime('%Y-%m-%d_%H%M')}.json"
     with open(filename, "w", encoding="utf-8") as f:
-        json.dump({
-            "timestamp": datetime.now().isoformat(),
-            "model": MODEL,
-            "messages": messages
-        }, f, ensure_ascii=False, indent=2)
+        json.dump(
+            {"timestamp": datetime.now().isoformat(), "model": MODEL, "messages": messages},
+            f,
+            ensure_ascii=False,
+            indent=2,
+        )
     return filename
 
 
 # ============================================================================
 # Loop principal
 # ============================================================================
+
 
 def main() -> None:
     print("=" * 60)

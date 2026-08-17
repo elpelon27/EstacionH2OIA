@@ -5,7 +5,7 @@ import re
 from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
-from api.banking_webhooks import R4NotificaRequest
+from src.banking.r4_models import R4NotificaRequest  # noqa: F401 (reexport compatible)
 from src.financial import database as db
 from src.financial import verificacion
 from src.financial.models import PedidoFinanciero
@@ -359,7 +359,7 @@ def crear_payload_test_notifica(
     }
 
 
-async def test_flujo_completo():
+async def test_flujo_completo() -> None:
     """Test E2E simulando webhook → verificación"""
     print("🧪 Test R4 Banco: Flujo completo simulado")
 
@@ -390,8 +390,6 @@ async def test_flujo_completo():
         monto="10.00",
         referencia="TEST123456",
     )
-
-    from api.banking_webhooks import R4NotificaRequest
 
     r4_payload = R4NotificaRequest(**payload)
 

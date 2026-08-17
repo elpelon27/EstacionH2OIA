@@ -18,13 +18,18 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 # Import our internal systems
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent/src")
 
-from memory import MemoryType, UnifiedMemory
-from orchestration.skill_registry import SkillRegistry, SkillScope, SkillSpec, create_skill_registry
+from src.memory.unified_memory import MemoryType, UnifiedMemory
+from src.orchestration.skill_registry import (
+    SkillRegistry,
+    SkillScope,
+    SkillSpec,
+    create_skill_registry,
+)
 
 # Disable telemetry for external libs
 os.environ.setdefault("MEM0_TELEMETRY", "False")
@@ -81,9 +86,9 @@ class SkillNetConnector(SkillLibraryConnector):
     def __init__(self, api_key: str | None = None, base_url: str | None = None):
         self.api_key = api_key or os.getenv("SKILLNET_API_KEY") or os.getenv("API_KEY")
         self.base_url = base_url or os.getenv("BASE_URL") or "https://api.openai.com/v1"
-        self._client = None
+        self._client: Any = None
 
-    def _get_client(self):
+    def _get_client(self) -> Any:
         """Lazy load SkillNet client"""
         if self._client is None:
             try:
@@ -132,7 +137,10 @@ class SkillNetConnector(SkillLibraryConnector):
 
                 resp = requests.get(
                     "http://api-skillnet.openkg.cn/v1/search",
-                    params={"q": query, "mode": "vector", "threshold": 0.75, "limit": limit},
+                    params=cast(
+                        Any,
+                        {"q": query, "mode": "vector", "threshold": 0.75, "limit": limit},
+                    ),
                     timeout=10,
                 )
                 if resp.status_code == 200:
@@ -159,7 +167,7 @@ class SkillNetConnector(SkillLibraryConnector):
             client = self._get_client()
 
             if client != "rest_only" and hasattr(client, "download"):
-                return client.download(skill.source_url, target_dir=target_dir)
+                return cast(str, client.download(skill.source_url, target_dir=target_dir))
 
             # Fallback: use downloader directly
             skillnet_path = (
@@ -171,7 +179,7 @@ class SkillNetConnector(SkillLibraryConnector):
             from skillnet_ai.downloader import SkillDownloader
 
             downloader = SkillDownloader()
-            return downloader.download(skill.source_url, target_dir=target_dir)
+            return cast(str, downloader.download(skill.source_url, target_dir=target_dir))
 
         except Exception as e:
             logging.error(f"SkillNet download failed: {e}")
@@ -192,7 +200,7 @@ class SkillNetConnector(SkillLibraryConnector):
             from skillnet_ai import SkillNetClient
 
             client = SkillNetClient(api_key=self.api_key, base_url=self.base_url)
-            return client.evaluate(skill_path)
+            return cast(dict[str, Any], client.evaluate(skill_path))
         except Exception as e:
             logging.error(f"SkillNet evaluation failed: {e}")
             return {"error": str(e)}
@@ -209,7 +217,7 @@ class SkillNetConnector(SkillLibraryConnector):
             from skillnet_ai import SkillNetClient
 
             client = SkillNetClient(api_key=self.api_key, base_url=self.base_url)
-            return client.analyze(skills_dir)
+            return cast(dict[str, Any], client.analyze(skills_dir))
         except Exception as e:
             logging.error(f"SkillNet analysis failed: {e}")
             return {"error": str(e)}
@@ -264,13 +272,16 @@ class ADKSkillsConnector(SkillLibraryConnector):
 
             content = skill_file.read_text(encoding="utf-8")
 
-            frontmatter = {}
+            frontmatter: dict[str, Any] = {}
             instructions = content
 
             if content.startswith("---"):
                 parts = content.split("---", 2)
                 if len(parts) >= 3:
-                    frontmatter = yaml.safe_load(parts[1]) or {}
+                    parsed = yaml.safe_load(parts[1]) or {}
+                    if not isinstance(parsed, dict):
+                        parsed = {}
+                    frontmatter = parsed
                     instructions = parts[2].strip()
 
             name = frontmatter.get("name", skill_dir.name)
@@ -354,13 +365,16 @@ class AnthropicSkillsConnector(SkillLibraryConnector):
 
             content = skill_file.read_text(encoding="utf-8")
 
-            frontmatter = {}
+            frontmatter: dict[str, Any] = {}
             instructions = content
 
             if content.startswith("---"):
                 parts = content.split("---", 2)
                 if len(parts) >= 3:
-                    frontmatter = yaml.safe_load(parts[1]) or {}
+                    parsed = yaml.safe_load(parts[1]) or {}
+                    if not isinstance(parsed, dict):
+                        parsed = {}
+                    frontmatter = parsed
                     instructions = parts[2].strip()
 
             name = frontmatter.get("name", skill_dir.name)
@@ -416,7 +430,7 @@ class AnthropicSkillsConnector(SkillLibraryConnector):
 
             from skills_ref import validate
 
-            return validate(Path(skill_path))
+            return cast(list[str], validate(Path(skill_path)))
         except Exception as e:
             logging.error(f"Skills-ref validation failed: {e}")
             return [f"Validation error: {e}"]
@@ -427,9 +441,9 @@ class SkillCreator:
 
     def __init__(self, memory: UnifiedMemory):
         self.memory = memory
-        self._skillnet_creator = None
+        self._skillnet_creator: Any = None
 
-    def _get_skillnet_creator(self):
+    def _get_skillnet_creator(self) -> Any:
         """Lazy load SkillNet creator"""
         if self._skillnet_creator is None:
             try:
@@ -457,7 +471,7 @@ class SkillCreator:
             return self._create_basic_skill(trajectory, output_dir)
 
         try:
-            return creator.create_from_trajectory(trajectory, output_dir)
+            return cast(list[str], creator.create_from_trajectory(trajectory, output_dir))
         except Exception as e:
             logging.error(f"SkillNet creation failed: {e}")
             return self._create_basic_skill(trajectory, output_dir)
@@ -700,7 +714,7 @@ def create_external_skill_integrator(
 # ============================================================
 
 
-def demo():
+def demo() -> None:
     """Demo the external skill integration"""
     print("=== External Skill Library Integration Demo ===\n")
 

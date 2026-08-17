@@ -89,7 +89,7 @@ class SkillRegistry:
     def _parse_skill_file(self, skill_file: Path) -> SkillSpec | None:
         content = skill_file.read_text(encoding="utf-8")
 
-        frontmatter = {}
+        frontmatter: dict[str, Any] = {}
         instructions = content
 
         if content.startswith("---"):
@@ -125,7 +125,7 @@ class SkillRegistry:
 
     def _load_python_skills(self) -> int:
         count = 0
-        py_skills = {
+        py_skills: dict[str, dict[str, Any]] = {
             "dispatcher_skill": {
                 "name": "dispatcher_skill",
                 "description": (
@@ -248,7 +248,7 @@ class SkillRegistry:
             return {}
 
         skill_dir = Path(skill.file_path).parent
-        resources = {"scripts": {}, "references": {}, "assets": {}}
+        resources: dict[str, dict[str, str]] = {"scripts": {}, "references": {}, "assets": {}}
 
         scripts_dir = skill_dir / "scripts"
         if scripts_dir.exists():
@@ -308,7 +308,7 @@ class SkillRegistry:
                 relevant.append(skill)
         return relevant
 
-    def register_skill(self, skill: SkillSpec):
+    def register_skill(self, skill: SkillSpec) -> None:
         self.skills[skill.name] = skill
 
     def create_skill_file(self, skill: SkillSpec, target_dir: str | None = None) -> Path:
@@ -346,7 +346,9 @@ class ExternalSkillIntegrator:
     def __init__(self, registry: SkillRegistry):
         self.registry = registry
 
-    def import_from_skillnet(self, skillnet_client, query: str, limit: int = 10) -> list[SkillSpec]:
+    def import_from_skillnet(
+        self, skillnet_client: Any, query: str, limit: int = 10
+    ) -> list[SkillSpec]:
         return []
 
     def import_from_adk_skills(self, adk_skills_path: str) -> list[SkillSpec]:

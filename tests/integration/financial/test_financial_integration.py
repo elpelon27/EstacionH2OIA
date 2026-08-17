@@ -4,6 +4,8 @@ Requieren BD real (sqlite) y conexiones externas mockeadas
 """
 
 from datetime import UTC, datetime
+import contextlib
+import os
 from unittest.mock import patch
 
 import pytest
@@ -14,6 +16,27 @@ from src.financial.verificacion import (
     recovery_scan_stuck_payments,
     verificar_pago_manual,
 )
+
+
+@pytest.fixture(autouse=True, scope="module")
+def _isolated_financial_db(tmp_path_factory):
+    """Aísla la BD financiera en un tempfile por corrida (NUNCA producción).
+
+    database.py desvía a /tmp/test_financial.db solo con CI/GITHUB_ACTIONS; en
+    local toca data/conversations.db real (dejó pedido 90010 persistido → UNIQUE
+    en re-corridas). Aquí redirigimos db.DB_PATH a una BD fresca y aplicamos el
+    schema, SIN tocar SQLITE_PATH (que api/bridge.py usa para dispatch_queue).
+    """
+    import tempfile
+
+    tmp_db = tempfile.mktemp(suffix="_financial_test.db")
+    original_db_path = db.DB_PATH
+    db.DB_PATH = tmp_db
+    db.init_database_v3()
+    yield
+    db.DB_PATH = original_db_path
+    with contextlib.suppress(OSError):
+        os.unlink(tmp_db)
 
 
 class TestAtomicPaymentFlow:

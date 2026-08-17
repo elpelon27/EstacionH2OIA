@@ -124,7 +124,7 @@ ALLOWED_SHELL_COMMANDS = {
 def _is_authorized(update: Update) -> bool:
     chat = update.effective_chat
     assert chat is not None
-    return chat.id == TELEGRAM_CHAT_ID
+    return bool(chat.id == TELEGRAM_CHAT_ID)
 
 
 async def _unauthorized(update: Update) -> None:
@@ -356,6 +356,32 @@ async def cmd_memory(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         if not query:
             msg = "Uso: /memory semantic <término de búsqueda>"
         else:
+            # 1er intento: búsqueda SEMÁNTICA vectorial vía UnifiedMemory (Qdrant).
+            # (Integración DT-12/F6: la memoria certificada conectada al bot activo.)
+            semantic_hits: list[tuple[float, str, str]] = []
+            semantic_failed = False
+            try:
+                from src.memory.unified_memory import UnifiedMemory
+
+                mem = UnifiedMemory()
+                for hit in mem.search(query, limit=5):
+                    src = hit.entry.metadata.get("source") or hit.entry.metadata.get("title") or ""
+                    semantic_hits.append((hit.score, str(src)[:60], hit.entry.content[:160]))
+            except Exception as e:
+                logger.warning("Memoria semántica no disponible, fallback a grep: %s", e)
+                semantic_failed = True
+
+            if semantic_hits and not semantic_failed:
+                msg = f"🔍 Memoria semántica (Qdrant) para '{query}':\n\n"
+                for score, src, content in semantic_hits:
+                    msg += f"• [{score:.3f}] {src or '(fuente desconocida)'}\n  {content}\n\n"
+                if len(msg) > 3500:
+                    msg = msg[:3500] + "\n... (truncado)"
+            elif semantic_failed:
+                msg = "⚠️ Memoria semántica (Qdrant) no disponible; usando búsqueda literal:"
+            else:
+                msg = ""
+            # Fallback: búsqueda literal en vault (comportamiento histórico)
             vault = Path("/mnt/ssd_trabajo/hermes-agent/docs")
             results = []
             for md_file in vault.rglob("*.md"):
@@ -374,9 +400,9 @@ async def cmd_memory(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
                 except Exception:
                     pass
             if results:
-                msg = f"🔍 Resultados semánticos para '{query}':\n\n" + "\n\n".join(results)
-            else:
-                msg = "Sin resultados."
+                msg = msg + "\n\n" + "🔍 Resultados (vault):\n\n" + "\n\n".join(results)
+            elif not semantic_hits and not semantic_failed:
+                msg = "Sin resultados semánticos ni en vault."
     elif args[0] == "episodic":
         query = " ".join(args[1:]) if len(args) > 1 else ""
         if not query:

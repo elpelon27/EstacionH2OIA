@@ -10,15 +10,17 @@ import socket
 import subprocess
 import sys
 from pathlib import Path
+from typing import Any
 
 # Cargar configuración desde variables de entorno o archivo
 CONFIG_PATH = Path("/mnt/ssd_trabajo/hermes-agent/config/boot_alert.json")
 
 
-def load_config():
+def load_config() -> dict[str, Any]:
     if CONFIG_PATH.exists():
         with open(CONFIG_PATH) as f:
-            return json.load(f)
+            data = json.load(f)
+            return data if isinstance(data, dict) else {}
     # Fallback a variables de entorno
     return {
         "bot_token": os.getenv("TELEGRAM_BOOT_BOT_TOKEN"),
@@ -26,7 +28,7 @@ def load_config():
     }
 
 
-def get_uptime():
+def get_uptime() -> float | None:
     try:
         with open("/proc/uptime") as f:
             secs = float(f.read().split()[0])
@@ -35,7 +37,7 @@ def get_uptime():
         return None
 
 
-def get_boot_time():
+def get_boot_time() -> str:
     try:
         out = subprocess.check_output(["who", "-b"], text=True).strip()
         return out.replace("system boot", "").strip()
@@ -43,7 +45,7 @@ def get_boot_time():
         return "desconocido"
 
 
-def get_last_boot_info():
+def get_last_boot_info() -> str:
     """Obtiene info del boot anterior desde journalctl."""
     try:
         out = subprocess.check_output(
@@ -58,7 +60,7 @@ def get_last_boot_info():
     return "no disponible"
 
 
-def get_public_ip():
+def get_public_ip() -> str:
     try:
         out = subprocess.check_output(
             ["curl", "-s", "--max-time", "5", "https://api.ipify.org"],
@@ -70,7 +72,7 @@ def get_public_ip():
         return "no disponible"
 
 
-def send_telegram(config, message):
+def send_telegram(config: dict[str, Any], message: str) -> bool:
     """Envía mensaje via Telegram Bot API."""
     if not config.get("bot_token") or not config.get("chat_id"):
         print("Config incompleta: falta bot_token o chat_id", file=sys.stderr)
@@ -85,13 +87,13 @@ def send_telegram(config, message):
         data = urllib.parse.urlencode(payload).encode()
         req = urllib.request.Request(url, data=data)
         with urllib.request.urlopen(req, timeout=10) as resp:
-            return resp.status == 200
+            return bool(resp.status == 200)
     except Exception as e:
         print(f"Error enviando Telegram: {e}", file=sys.stderr)
         return False
 
 
-def main():
+def main() -> int:
     config = load_config()
 
     hostname = socket.gethostname()

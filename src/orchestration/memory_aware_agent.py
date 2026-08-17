@@ -68,7 +68,7 @@ class MemoryAwareAgent(BaseAgent):
                 success=False, agent_name=self.config.name, error=f"Execution error: {str(e)}"
             )
 
-    async def _retrieve_memories(self, task: str, context: dict[str, Any]):
+    async def _retrieve_memories(self, task: str, context: dict[str, Any]) -> None:
         """Retrieve relevant memories for the task"""
         self.memory_context = MemoryContext(raw_query=task)
 
@@ -99,7 +99,7 @@ class MemoryAwareAgent(BaseAgent):
         # Deduplicate by content hash
         self._deduplicate_memories()
 
-    def _deduplicate_memories(self):
+    def _deduplicate_memories(self) -> None:
         """Remove duplicate memories by content hash"""
         for attr in [
             "semantic_memories",
@@ -156,7 +156,9 @@ class MemoryAwareAgent(BaseAgent):
         """Agent-specific execution logic with memory context"""
         pass
 
-    def _store_execution_memories(self, task: str, result: TaskResult, context: dict[str, Any]):
+    def _store_execution_memories(
+        self, task: str, result: TaskResult, context: dict[str, Any]
+    ) -> None:
         """Store memories from task execution"""
         # Store episodic memory of this execution
         status = "success" if result.success else "failed"

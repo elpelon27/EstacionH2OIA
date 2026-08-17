@@ -101,6 +101,9 @@ class ApprovalRequest:
             timeout_seconds=data.get("timeout_seconds", 3600),
             request_id=data["id"],
         )
+        # Restaurar created_at: el __init__ lo resetea a now, pero para la
+        # detección de expiración necesitamos el timestamp persistido.
+        req.created_at = data.get("created_at", req.created_at)
         req.status = data.get("status", "pending")
         req.response = data.get("response")
         req.responded_at = data.get("responded_at")

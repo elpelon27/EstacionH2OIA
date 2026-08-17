@@ -1,0 +1,44 @@
+[
+  {
+    "id": 1,
+    "tema": "motor",
+    "hecho": "Motor actual de Prometeo: deepseek-v4-flash via OpenRouter (confirmado 2026-08-15)",
+    "confianza": "certain",
+    "fecha": "2026-08-15"
+  },
+  {
+    "id": 2,
+    "tema": "verificacion-memoria-2026-08-16",
+    "hecho": "Ciclo completo de las 4 capas de memoria verificado en vivo contra Qdrant 1.12.4 y state.db",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 3,
+    "tema": "sesion-2026-08-16-ciclo",
+    "hecho": "Sesión de verificación de arquitectura de memoria completada: 4 capas operativas, cableado Qdrant+state.db+Redis+vault confirmado, ciclo de inicio a cierre validado",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 4,
+    "tema": "cierre-actualizacion-2026-08-16",
+    "hecho": "Actualización de arquitectura de memoria completada y certificada: cableado Qdrant alineado (1.12.2), 4 capas verificadas de inicio a cierre, ciclo de sesión validado, memoria operativa",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 5,
+    "tema": "campana-dt2026-08-16",
+    "hecho": "Campaña multi-frentes completada: deuda mypy a 0 (16 archivos), brecha seguridad NVIDIA cerrada (botones eliminados), DT-12 cobertura +84 tests (bridge 28→38%, prometeo_approval 65→75%), UnifiedMemory conectada al agente activo y desplegada. Suite 429 passed.",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 6,
+    "tema": "reanudacion-2026-08-16-b",
+    "hecho": "Sesion retomada: deuda mypy scripts memoria cerrada (54 errores gate real -> 0), helper _now extraido en odoo_sync:register_payment, suite 430/13/0, smoke SMOKE_OK, Qdrant 402 pts vivo",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  }
+]

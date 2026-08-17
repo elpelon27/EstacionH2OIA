@@ -13,7 +13,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 from src.memory.unified_memory import MemoryEntry, MemoryType, SearchResult, UnifiedMemory
 
@@ -92,7 +92,7 @@ class BaseAgent(ABC):
         """Execute a task. Must be implemented by subclasses."""
         pass
 
-    async def load_context(self):
+    async def load_context(self) -> None:
         """Load full instructions and relevant memories (activation phase)"""
         if self._context_loaded:
             return
@@ -110,7 +110,9 @@ class BaseAgent(ABC):
         query = f"{self.config.agent_type.value} procedure workflow"
         return self.memory.search(query, memory_types=[MemoryType.PROCEDURAL], limit=5)
 
-    async def store_memory(self, content: str, memory_type: MemoryType, **metadata) -> dict:
+    async def store_memory(
+        self, content: str, memory_type: MemoryType, **metadata: Any
+    ) -> dict[str, Any]:
         """Store a memory via the unified memory system"""
         return self.memory.add(
             content=content,
@@ -140,14 +142,14 @@ class Orchestrator:
         self.memory = memory
         self.agents: dict[str, BaseAgent] = {}
         self.agent_configs: dict[AgentType, AgentConfig] = {}
-        self.message_bus: asyncio.Queue = asyncio.Queue()
-        self.active_workflows: dict[str, dict] = {}
+        self.message_bus: asyncio.Queue[Any] = asyncio.Queue()
+        self.active_workflows: dict[str, dict[str, Any]] = {}
         self._running = False
 
         # Register default agents
         self._register_default_agents()
 
-    def _register_default_agents(self):
+    def _register_default_agents(self) -> None:
         """Register the default specialist agents for H2O operations"""
 
         # Dispatcher Agent
@@ -248,7 +250,7 @@ class Orchestrator:
             )
         )
 
-    def register_agent(self, config: AgentConfig):
+    def register_agent(self, config: AgentConfig) -> None:
         """Register an agent configuration"""
         self.agent_configs[config.agent_type] = config
 
@@ -287,7 +289,7 @@ class Orchestrator:
             agent = self.create_agent(agent_type)
             if agent:
                 self.agents[key] = agent
-        return self.agents.get(key)
+        return cast(BaseAgent, self.agents.get(key))
 
     async def delegate(
         self,
@@ -313,7 +315,7 @@ class Orchestrator:
 
         # Store workflow memory
         status = "success" if result.success else f"failed: {result.error or 'unknown'}"
-        await self.memory.add(
+        self.memory.add(
             content=f"Delegated to {to_agent.value}: {task} -> {status}",
             memory_type=MemoryType.EPISODIC,
             metadata={
@@ -329,7 +331,10 @@ class Orchestrator:
         return result
 
     async def execute_workflow(
-        self, workflow_name: str, steps: list[dict], initial_context: dict[str, Any]
+        self,
+        workflow_name: str,
+        steps: list[dict[str, Any]],
+        initial_context: dict[str, Any],
     ) -> list[TaskResult]:
         """Execute a multi-step workflow across agents"""
         workflow_id = str(uuid.uuid4())
@@ -360,7 +365,7 @@ class Orchestrator:
             context["last_success"] = result.success
 
             # Store step memory
-            await self.memory.add(
+            self.memory.add(
                 content=f"Workflow {workflow_name} step: {agent_type.value} executed {task}",
                 memory_type=MemoryType.EPISODIC,
                 metadata={

@@ -123,7 +123,7 @@ MAPA_CALOR_HEADERS = [
 async def _save_mapa_calor_async(data: list[dict[str, Any]]) -> None:
     """Guarda puntos GPS en hoja Mapa_Calor (fire-and-forget)."""
 
-    def _sync():
+    def _sync() -> None:
         spreadsheet = _get_client()
         if not spreadsheet:
             return
@@ -180,7 +180,7 @@ FEEDBACK_HEADERS = [
 async def _save_feedback_async(data: list[dict[str, Any]]) -> None:
     """Guarda feedback de clientes en hoja Feedback_Clientes (fire-and-forget)."""
 
-    def _sync():
+    def _sync() -> None:
         spreadsheet = _get_client()
         if not spreadsheet:
             return
@@ -240,7 +240,7 @@ BOTELLAS_HEADERS = [
 async def _save_botellas_control_async(data: list[dict[str, Any]]) -> None:
     """Guarda inventario de botellones en hoja Botellas_Control (fire-and-forget)."""
 
-    def _sync():
+    def _sync() -> None:
         spreadsheet = _get_client()
         if not spreadsheet:
             return

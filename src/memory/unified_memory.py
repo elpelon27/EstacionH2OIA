@@ -18,7 +18,7 @@ os.environ.setdefault("DO_NOT_TRACK", "1")
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from typing import Any, Optional
+from typing import Any, Optional, cast
 
 from mem0 import Memory
 
@@ -56,17 +56,22 @@ class UnifiedMemory:
     Telemetría PostHog DESHABILITADA por defecto para evitar bloqueos.
     """
 
-    def __init__(self, config: dict | None = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or self._default_config()
-        self._memory = None
+        self._memory: Any = None
         self._initialized = False
 
-    def _default_config(self) -> dict:
+    def _default_config(self) -> dict[str, Any]:
+        # CANÓNICO: alineado con ~/.hermes/mem0.json y la capa semántica del agente.
+        # La memoria real de prometeo vive en Qdrant `hermes_memory` @6333 (verificado
+        # 402 points). Previamente esto hardcodeaba FAISS en una ruta inexistente
+        # (/mnt/valentina_ssd/mem0_faiss) → el bridge escribía en el vacío y se perdía
+        # la continuidad. Qdrant es el único vector store vivo del entorno.
         return {
             "embedder": {
                 "provider": "ollama",
                 "config": {
-                    "model": "nomic-embed-text:latest",
+                    "model": "nomic-embed-text",
                     "ollama_base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434"),
                     "embedding_dims": 768,
                 },
@@ -81,11 +86,11 @@ class UnifiedMemory:
                 },
             },
             "vector_store": {
-                "provider": "faiss",
+                "provider": "qdrant",
                 "config": {
-                    "path": "/mnt/valentina_ssd/mem0_faiss",
-                    "collection_name": "hermes-agent",
-                    "embedding_model_dims": 768,
+                    "url": "http://localhost:6333",
+                    "api_key": None,
+                    "collection_name": "hermes_memory",
                 },
             },
         }
@@ -100,7 +105,7 @@ class UnifiedMemory:
             print(f"Error inicializando memoria unificada: {e}")
             return False
 
-    def _ensure_initialized(self):
+    def _ensure_initialized(self) -> None:
         if not self._initialized:
             self.initialize()
 
@@ -111,7 +116,7 @@ class UnifiedMemory:
         metadata: dict[str, Any] | None = None,
         tags: list[str] | None = None,
         importance: float = 1.0,
-        user_id: str = "hermes-agent",
+        user_id: str = "obsidian_docs",
     ) -> dict[str, Any]:
         """Añade una entrada de memoria (síncrono)."""
         self._ensure_initialized()
@@ -127,18 +132,18 @@ class UnifiedMemory:
             }
         )
 
-        return self._memory.add(
+        return cast(dict[str, Any], self._memory.add(
             messages=[{"role": "user", "content": content}],
             user_id=user_id,
             metadata=enriched_metadata,
-        )
+        ))
 
     def search(
         self,
         query: str,
         memory_types: list["MemoryType"] | None = None,
         limit: int = 10,
-        user_id: str = "hermes-agent",
+        user_id: str = "obsidian_docs",
     ) -> list[SearchResult]:
         """Busca en memoria (síncrono)."""
         self._ensure_initialized()
@@ -147,7 +152,8 @@ class UnifiedMemory:
 
         search_results = []
         for r in results.get("results", []):
-            mem_type_str = r.get("metadata", {}).get("memory_type", "semantic")
+            metadata = r.get("metadata") or {}
+            mem_type_str = metadata.get("memory_type", "semantic")
             try:
                 mem_type = MemoryType(mem_type_str)
             except ValueError:
@@ -157,9 +163,9 @@ class UnifiedMemory:
                 id=r.get("id", ""),
                 type=mem_type,
                 content=r.get("memory", ""),
-                metadata=r.get("metadata", {}),
+                metadata=metadata,
                 timestamp=datetime.fromisoformat(r.get("created_at", datetime.now().isoformat())),
-                tags=r.get("metadata", {}).get("tags", []),
+                tags=metadata.get("tags", []),
             )
             search_results.append(SearchResult(entry=entry, score=r.get("score", 0.0)))
 
@@ -168,11 +174,16 @@ class UnifiedMemory:
     def get_all(
         self,
         memory_type: Optional["MemoryType"] = None,
-        user_id: str = "hermes-agent",
+        user_id: str = "obsidian_docs",
         limit: int = 100,
     ) -> list[MemoryEntry]:
         """Obtiene todas las memorias (via search con query vacío)."""
-        return self.search("", [memory_type] if memory_type else None, limit, user_id)
+        return [
+            r.entry
+            for r in self.search(
+                "", [memory_type] if memory_type else None, limit, user_id
+            )
+        ]
 
     def health_check(self) -> dict[str, Any]:
         """Verifica salud del sistema de memoria."""
@@ -184,20 +195,19 @@ class UnifiedMemory:
             return {
                 "healthy": True,
                 "initialized": self._initialized,
-                "vector_store": "faiss",
+                "vector_store": "qdrant:hermes_memory@localhost:6333",
                 "embedder": "ollama:nomic-embed-text",
                 "llm": "ollama:qwen2.5:7b",
-                "storage_path": "/mnt/valentina_ssd/mem0_faiss",
                 "test_search_results": len(test_result),
             }
         except Exception as e:
             return {"healthy": False, "error": str(e)}
 
-    def close(self):
+    def close(self) -> None:
         pass
 
 
-def create_unified_memory(config: dict | None = None) -> UnifiedMemory:
+def create_unified_memory(config: dict[str, Any] | None = None) -> UnifiedMemory:
     """Factory function para crear e inicializar memoria unificada."""
     memory = UnifiedMemory(config)
     memory.initialize()
@@ -209,7 +219,7 @@ def create_unified_memory(config: dict | None = None) -> UnifiedMemory:
 # ============================================================
 
 
-def demo():
+def demo() -> None:
     print("=== Inicializando Memoria Unificada ===")
 
     memory = create_unified_memory()

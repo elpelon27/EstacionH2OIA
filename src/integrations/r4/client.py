@@ -52,7 +52,7 @@ logger = logging.getLogger("r4.client")
 class R4Config:
     """Configuración del cliente R4 desde variables de entorno."""
 
-    def __init__(self):
+    def __init__(self) -> None:
         # URL base del API R4
         self.base_url = os.getenv("R4_BASE_URL", "https://r4conecta.mibanco.com.ve")
 
@@ -69,7 +69,7 @@ class R4Config:
         # Validación de credenciales (warning pero no fallar)
         self._validate_credentials()
 
-    def _validate_credentials(self):
+    def _validate_credentials(self) -> None:
         """Valida credenciales - solo warning si faltan."""
         missing = []
         if not self.commerce_token:
@@ -122,7 +122,7 @@ def get_config() -> R4Config:
     return _config
 
 
-def reset_config():
+def reset_config() -> None:
     """Resetea configuración (para tests)."""
     global _config
     _config = None
@@ -181,16 +181,18 @@ class R4Client:
             )
         return self._client
 
-    async def close(self):
+    async def close(self) -> None:
         """Cierra cliente HTTP."""
         if self._client and not self._client.is_closed:
             await self._client.aclose()
             self._client = None
 
-    async def __aenter__(self):
+    async def __aenter__(self) -> "R4Client":
         return self
 
-    async def __aexit__(self, exc_type, exc_val, exc_tb):
+    async def __aexit__(
+        self, exc_type: Any, exc_val: Any, exc_tb: Any
+    ) -> None:
         await self.close()
 
     # ============================================================
@@ -211,7 +213,7 @@ class R4Client:
         url = f"{self.config.base_url}{self._get_endpoint_path(endpoint)}"
         headers = build_auth_headers(payload, endpoint, self.config.commerce_token)
 
-        last_exception = None
+        last_exception: BaseException | None = None
 
         for attempt in range(self.config.max_retries):
             try:
@@ -771,7 +773,7 @@ def get_r4_client(config: R4Config | None = None) -> R4Client:
     return _r4_client
 
 
-def reset_r4_client():
+def reset_r4_client() -> None:
     """Resetea cliente singleton (para tests)."""
     global _r4_client
     if _r4_client:
@@ -790,7 +792,7 @@ def reset_r4_client():
 if __name__ == "__main__":
     import asyncio
 
-    async def test_client():
+    async def test_client() -> None:
         print("=== Test R4Client ===")
 
         # Test sin credenciales (modo mock)

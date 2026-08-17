@@ -9,7 +9,7 @@ import xmlrpc.client
 from dataclasses import dataclass
 from datetime import datetime
 from enum import Enum
-from typing import Any
+from typing import Any, cast
 
 logger = logging.getLogger("odoo_sync")
 
@@ -32,20 +32,23 @@ class OdooClient:
 
     def __init__(self, config: OdooConfig | None = None):
         self.config = config or OdooConfig()
-        self._common = None
-        self._models = None
-        self._uid = None
+        self._common: xmlrpc.client.ServerProxy | None = None
+        self._models: xmlrpc.client.ServerProxy | None = None
+        self._uid: int | None = None
 
     def connect(self) -> bool:
         """Conecta y autentica con Odoo"""
         try:
-            self._common = xmlrpc.client.ServerProxy(f"{self.config.url}/xmlrpc/2/common")
-            self._models = xmlrpc.client.ServerProxy(f"{self.config.url}/xmlrpc/2/object")
-            self._uid = self._common.authenticate(
+            common = xmlrpc.client.ServerProxy(f"{self.config.url}/xmlrpc/2/common")
+            models = xmlrpc.client.ServerProxy(f"{self.config.url}/xmlrpc/2/object")
+            uid = cast(int | None, common.authenticate(
                 self.config.db, self.config.username, self.config.password, {}
-            )
-            if self._uid:
-                logger.info(f"Odoo connected successfully (uid={self._uid})")
+            ))
+            if uid:
+                self._common = common
+                self._models = models
+                self._uid = uid
+                logger.info(f"Odoo connected successfully (uid={uid})")
                 return True
             else:
                 logger.error("Odoo authentication failed")
@@ -58,13 +61,20 @@ class OdooClient:
     def connected(self) -> bool:
         return self._uid is not None
 
-    def _ensure_connected(self):
+    def _ensure_connected(self) -> None:
         if not self.connected and not self.connect():
             raise RuntimeError("Cannot connect to Odoo")
 
-    def execute_kw(self, model: str, method: str, args: list, kwargs: dict = None) -> Any:
+    def execute_kw(
+        self,
+        model: str,
+        method: str,
+        args: list[Any],
+        kwargs: dict[str, Any] | None = None,
+    ) -> Any:
         """Ejecuta método en modelo Odoo"""
         self._ensure_connected()
+        assert self._models is not None and self._uid is not None
         return self._models.execute_kw(
             self.config.db, self._uid, self.config.password, model, method, args, kwargs or {}
         )
@@ -93,7 +103,7 @@ class OdooClient:
             )
             if partners:
                 logger.info(f"Partner existente: {partners[0]['name']} (ID={partners[0]['id']})")
-                return partners[0]["id"]
+                return cast(int, partners[0]["id"])
 
         # Buscar por nombre + teléfono
         if phone:
@@ -108,7 +118,7 @@ class OdooClient:
                     f"Partner existente por teléfono: "
                     f"{partners[0]['name']} (ID={partners[0]['id']})"
                 )
-                return partners[0]["id"]
+                return cast(int, partners[0]["id"])
 
         # Crear nuevo
         partner_vals = {
@@ -124,13 +134,13 @@ class OdooClient:
         }
         partner_id = self.execute_kw("res.partner", "create", [partner_vals])
         logger.info(f"Partner creado: {name} (ID={partner_id})")
-        return partner_id
+        return cast(int, partner_id)
 
     # ============================================================
     # PRODUCTOS
     # ============================================================
 
-    def get_product_by_name(self, name: str) -> dict | None:
+    def get_product_by_name(self, name: str) -> dict[str, Any] | None:
         """Busca producto por nombre exacto"""
         products = self.execute_kw(
             "product.template",
@@ -150,7 +160,11 @@ class OdooClient:
     # ============================================================
 
     def create_sale_order(
-        self, partner_id: int, order_lines: list[dict], payment_term_id: int = None, note: str = ""
+        self,
+        partner_id: int,
+        order_lines: list[dict[str, Any]],
+        payment_term_id: int | None = None,
+        note: str = "",
     ) -> int:
         """
         Crea sale.order (factura) en Odoo
@@ -166,9 +180,11 @@ class OdooClient:
             order_vals["payment_term_id"] = payment_term_id
         order_id = self.execute_kw("sale.order", "create", [order_vals])
         logger.info(f"Sale order creado: ID={order_id}")
-        return order_id
+        return cast(int, order_id)
 
-    def create_delivery_note(self, partner_id: int, items: list[dict], origin: str = "") -> int:
+    def create_delivery_note(
+        self, partner_id: int, items: list[dict[str, Any]], origin: str = ""
+    ) -> int:
         """
         Crea stock.picking (nota de entrega) en Odoo
         items: [{'product_id': int, 'quantity': float, 'location_id': int, 'location_dest_id': int}]
@@ -237,7 +253,7 @@ class OdooClient:
         }
         picking_id = self.execute_kw("stock.picking", "create", [picking_vals])
         logger.info(f"Delivery note (stock.picking) creado: ID={picking_id}")
-        return picking_id
+        return cast(int, picking_id)
 
     def confirm_delivery_note(self, picking_id: int) -> bool:
         """Confirma y valida la nota de entrega (descuenta inventario)"""
@@ -424,7 +440,7 @@ class OdooClient:
                 f"{picking['name']} convertida a Sale Order "
                 f"{order_id} + Invoice {invoice_id}"
             )
-            return order_id
+            return cast(int, order_id)
 
         except Exception as e:
             logger.error(f"Error convirtiendo picking {picking_id} a factura: {e}")
@@ -434,13 +450,18 @@ class OdooClient:
     # PAGOS
     # ============================================================
 
+    @staticmethod
+    def _now() -> str:
+        """Fecha actual en formato YYYY-MM-DD (extraída para pureza/testabilidad)."""
+        return datetime.now().strftime("%Y-%m-%d")
+
     def register_payment(
         self,
         invoice_id: int,
         amount: float,
         payment_method: str = "pago_movil",
         reference: str = "",
-        date: str = None,
+        date: str | None = None,
     ) -> int | None:
         """Registra un pago en Odoo para una factura"""
         try:
@@ -471,7 +492,7 @@ class OdooClient:
                 "journal_id": journal[0]["id"],
                 "payment_method_id": self._get_payment_method_id("manual"),
                 "ref": reference or f"Pago {payment_method}",
-                "date": date or datetime.now().strftime("%Y-%m-%d"),
+                "date": date or self._now(),
             }
 
             payment_id = self.execute_kw("account.payment", "create", [payment_vals])
@@ -481,7 +502,7 @@ class OdooClient:
             self.execute_kw("account.payment", "reconcile", [[payment_id]])
 
             logger.info(f"Pago registrado: ID={payment_id} para factura {invoice_id}")
-            return payment_id
+            return cast(int, payment_id)
 
         except Exception as e:
             logger.error(f"Error registrando pago para factura {invoice_id}: {e}")
@@ -496,18 +517,18 @@ class OdooClient:
             {"fields": ["id"], "limit": 1},
         )
         if methods:
-            return methods[0]["id"]
+            return cast(int, methods[0]["id"])
         # Fallback: primer método disponible
         all_methods = self.execute_kw(
             "account.payment.method", "search_read", [], {"fields": ["id"], "limit": 1}
         )
-        return all_methods[0]["id"] if all_methods else 1
+        return cast(int, all_methods[0]["id"]) if all_methods else 1
 
     # ============================================================
     # REPORTES / CONSULTAS
     # ============================================================
 
-    def get_sales_report(self, date_from: str, date_to: str) -> list:
+    def get_sales_report(self, date_from: str, date_to: str) -> list[dict[str, Any]]:
         """Reporte de ventas por período"""
         orders = self.execute_kw(
             "sale.order",
@@ -528,9 +549,9 @@ class OdooClient:
                 ]
             },
         )
-        return orders
+        return cast(list[dict[str, Any]], orders)
 
-    def get_driver_commissions(self, date_from: str, date_to: str) -> dict:
+    def get_driver_commissions(self, date_from: str, date_to: str) -> dict[str, Any]:
         """
         Calcula comisiones por chofer basado en entregas confirmadas
         """
@@ -547,7 +568,7 @@ class OdooClient:
             {"fields": ["name", "partner_id", "move_ids_without_package", "date_done"]},
         )
 
-        commissions = {}
+        commissions: dict[str, Any] = {}
         for _ in pickings:
             # Aquí se sumaría por chofer (requiere campo chofer en picking o en move)
             # Por ahora retorna estructura base
@@ -555,7 +576,7 @@ class OdooClient:
 
         return commissions
 
-    def get_inventory_levels(self) -> dict:
+    def get_inventory_levels(self) -> dict[str, float]:
         """Niveles actuales de inventario"""
         quants = self.execute_kw(
             "stock.quant",
@@ -564,12 +585,12 @@ class OdooClient:
             {"fields": ["product_id", "quantity", "location_id"]},
         )
 
-        inventory = {}
+        inventory: dict[str, float] = {}
         for q in quants:
             prod_name = q["product_id"][1] if q["product_id"] else "Unknown"
             if prod_name not in inventory:
-                inventory[prod_name] = 0
-            inventory[prod_name] += q["quantity"]
+                inventory[prod_name] = 0.0
+            inventory[prod_name] += float(q["quantity"])
 
         return inventory
 
@@ -587,7 +608,7 @@ def get_odoo_client(config: OdooConfig | None = None) -> OdooClient:
     return _odoo_client
 
 
-def reset_odoo_client():
+def reset_odoo_client() -> None:
     global _odoo_client
     _odoo_client = None
 

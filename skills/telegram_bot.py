@@ -59,7 +59,7 @@ BRIDGE_HEALTH_URL = os.getenv("BRIDGE_HEALTH_URL", "http://localhost:8000/health
 def _is_authorized(update: Update) -> bool:
     chat = update.effective_chat
     assert chat is not None
-    return chat.id == TELEGRAM_CHAT_ID
+    return bool(chat.id == TELEGRAM_CHAT_ID)
 
 
 async def _unauthorized(update: Update) -> None:

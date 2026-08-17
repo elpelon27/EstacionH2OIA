@@ -1,0 +1,472 @@
+{
+ "done": [
+  {
+   "source": "docs/01-proyecto/AGENTS-catalogo.md",
+   "title": "AGENTS-catalogo",
+   "chunks": 1,
+   "ts": 1786809552.6113746
+  },
+  {
+   "source": "docs/01-proyecto/BOOTSTRAP.md",
+   "title": "BOOTSTRAP",
+   "chunks": 1,
+   "ts": 1786809592.420151
+  },
+  {
+   "source": "docs/01-proyecto/SOUL-hermes.md",
+   "title": "SOUL-hermes",
+   "chunks": 2,
+   "ts": 1786809656.5944438
+  },
+  {
+   "source": "docs/01-proyecto/SOUL-valentina.md",
+   "title": "SOUL-valentina",
+   "chunks": 1,
+   "ts": 1786809762.4985604
+  },
+  {
+   "source": "docs/01-proyecto/USER-lider.md",
+   "title": "USER-lider",
+   "chunks": 1,
+   "ts": 1786809903.4094825
+  },
+  {
+   "source": "docs/02-arquitectura/ANALISIS-MILIMETRICO-2026-08-13.md",
+   "title": "ANALISIS-MILIMETRICO-2026-08-13",
+   "chunks": 1,
+   "ts": 1786809943.3728306
+  },
+  {
+   "source": "docs/02-arquitectura/ANALISIS_GOOGLE_SHEETS.md",
+   "title": "ANALISIS_GOOGLE_SHEETS",
+   "chunks": 1,
+   "ts": 1786810002.1889305
+  },
+  {
+   "source": "docs/02-arquitectura/ARQUITECTURA-ODOO-ESTACION-H2O.md",
+   "title": "ARQUITECTURA-ODOO-ESTACION-H2O",
+   "chunks": 4,
+   "ts": 1786810230.0188138
+  },
+  {
+   "source": "docs/02-arquitectura/ARQUITECTURA_2026-08-07.md",
+   "title": "ARQUITECTURA_2026-08-07",
+   "chunks": 1,
+   "ts": 1786810246.033566
+  },
+  {
+   "source": "docs/02-arquitectura/BLINDAJE_SERVICIOS_2026-08-03.md",
+   "title": "BLINDAJE_SERVICIOS_2026-08-03",
+   "chunks": 1,
+   "ts": 1786810277.8983831
+  },
+  {
+   "source": "docs/02-arquitectura/FINANCIAL_SHIELD_v3_ARQUITECTURA_DEFINITIVA.md",
+   "title": "FINANCIAL_SHIELD_v3_ARQUITECTURA_DEFINITIVA",
+   "chunks": 4,
+   "ts": 1786810329.7622476
+  },
+  {
+   "source": "docs/02-arquitectura/FINANCIAL_SHIELD_v3_ARQUITECTURA_FUSIONADA.md",
+   "title": "FINANCIAL_SHIELD_v3_ARQUITECTURA_FUSIONADA",
+   "chunks": 3,
+   "ts": 1786810448.313867
+  },
+  {
+   "source": "docs/02-arquitectura/GUARDRAILS-DICTAMEN.md",
+   "title": "GUARDRAILS-DICTAMEN",
+   "chunks": 1,
+   "ts": 1786810501.7904549
+  },
+  {
+   "source": "docs/02-arquitectura/HEARTBEAT.md",
+   "title": "HEARTBEAT",
+   "chunks": 1,
+   "ts": 1786810509.4383757
+  },
+  {
+   "source": "docs/02-arquitectura/INVENTARIO-ORQUESTACION.md",
+   "title": "INVENTARIO-ORQUESTACION",
+   "chunks": 1,
+   "ts": 1786810537.422144
+  },
+  {
+   "source": "docs/02-arquitectura/MANUAL-ODOO-SENIAT.md",
+   "title": "MANUAL-ODOO-SENIAT",
+   "chunks": 3,
+   "ts": 1786810674.994535
+  },
+  {
+   "source": "docs/02-arquitectura/PLAN-DESARROLLO-HERMES.md",
+   "title": "PLAN-DESARROLLO-HERMES",
+   "chunks": 3,
+   "ts": 1786810767.5461068
+  },
+  {
+   "source": "docs/02-arquitectura/PLAN_UNIFICADO_F24_SWAP.md",
+   "title": "PLAN_UNIFICADO_F24_SWAP",
+   "chunks": 2,
+   "ts": 1786810875.6467836
+  },
+  {
+   "source": "docs/02-arquitectura/QUICK_REFERENCE.md",
+   "title": "QUICK_REFERENCE",
+   "chunks": 1,
+   "ts": 1786810878.840737
+  },
+  {
+   "source": "docs/02-arquitectura/R4-DATOS-INTERCAMBIO.md",
+   "title": "R4-DATOS-INTERCAMBIO",
+   "chunks": 1,
+   "ts": 1786811022.7642963
+  },
+  {
+   "source": "docs/02-arquitectura/R4BANCO_INTEGRACION_PLAN.md",
+   "title": "R4BANCO_INTEGRACION_PLAN",
+   "chunks": 1,
+   "ts": 1786811052.006784
+  },
+  {
+   "source": "docs/02-arquitectura/README-integr-odoo-r4.md",
+   "title": "README-integr-odoo-r4",
+   "chunks": 1,
+   "ts": 1786811056.4190774
+  },
+  {
+   "source": "docs/02-arquitectura/ROADMAP-plan.md",
+   "title": "ROADMAP-plan",
+   "chunks": 1,
+   "ts": 1786811107.694833
+  },
+  {
+   "source": "docs/02-arquitectura/ROADMAP-vivo.md",
+   "title": "ROADMAP-vivo",
+   "chunks": 1,
+   "ts": 1786811148.5721707
+  },
+  {
+   "source": "docs/02-arquitectura/RUNBOOK-operacional.md",
+   "title": "RUNBOOK-operacional",
+   "chunks": 1,
+   "ts": 1786811171.551106
+  },
+  {
+   "source": "docs/02-arquitectura/RUNBOOKS.md",
+   "title": "RUNBOOKS",
+   "chunks": 1,
+   "ts": 1786811182.2642965
+  },
+  {
+   "source": "docs/02-arquitectura/RUNBOOK_FINANCIAL_SHIELD_v3.md",
+   "title": "RUNBOOK_FINANCIAL_SHIELD_v3",
+   "chunks": 1,
+   "ts": 1786811207.2130613
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_BottleInventoryLow.md",
+   "title": "RUNBOOK_BottleInventoryLow",
+   "chunks": 1,
+   "ts": 1786811211.1001318
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_BottleOverdueHigh.md",
+   "title": "RUNBOOK_BottleOverdueHigh",
+   "chunks": 1,
+   "ts": 1786811213.2005017
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_BridgeHighErrorRate.md",
+   "title": "RUNBOOK_BridgeHighErrorRate",
+   "chunks": 1,
+   "ts": 1786811215.053783
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_BridgeHighResponseTime.md",
+   "title": "RUNBOOK_BridgeHighResponseTime",
+   "chunks": 1,
+   "ts": 1786811217.6280077
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_CPUThrottling.md",
+   "title": "RUNBOOK_CPUThrottling",
+   "chunks": 1,
+   "ts": 1786811219.446565
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_DeliveryStuckPending.md",
+   "title": "RUNBOOK_DeliveryStuckPending",
+   "chunks": 1,
+   "ts": 1786811222.0282774
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_HighDedupRate.md",
+   "title": "RUNBOOK_HighDedupRate",
+   "chunks": 1,
+   "ts": 1786811223.7181609
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_HighMemoryUsage.md",
+   "title": "RUNBOOK_HighMemoryUsage",
+   "chunks": 1,
+   "ts": 1786811225.2384226
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_Integraciones-Odoo-R4.md",
+   "title": "RUNBOOK_Integraciones-Odoo-R4",
+   "chunks": 1,
+   "ts": 1786811227.8362322
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_KillSwitchActive.md",
+   "title": "RUNBOOK_KillSwitchActive",
+   "chunks": 1,
+   "ts": 1786811252.128064
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_NoOrdersInHours.md",
+   "title": "RUNBOOK_NoOrdersInHours",
+   "chunks": 1,
+   "ts": 1786811259.6524935
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_PaymentsStuckVerifying.md",
+   "title": "RUNBOOK_PaymentsStuckVerifying",
+   "chunks": 1,
+   "ts": 1786811261.726776
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_SQLiteDiskSpaceLow.md",
+   "title": "RUNBOOK_SQLiteDiskSpaceLow",
+   "chunks": 1,
+   "ts": 1786811263.7170727
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_ServiceDown.md",
+   "title": "RUNBOOK_ServiceDown",
+   "chunks": 1,
+   "ts": 1786811266.5489876
+  },
+  {
+   "source": "docs/02-arquitectura/runbooks/RUNBOOK_VehicleSaturated.md",
+   "title": "RUNBOOK_VehicleSaturated",
+   "chunks": 1,
+   "ts": 1786811268.622078
+  },
+  {
+   "source": "docs/02-arquitectura/swap/SWAP_EXECUTION_TRACKER.md",
+   "title": "SWAP_EXECUTION_TRACKER",
+   "chunks": 1,
+   "ts": 1786811308.415262
+  },
+  {
+   "source": "docs/03-sesiones/ANALISIS_POST_CORTE_ELECTRICO_2026-07-30.md",
+   "title": "ANALISIS_POST_CORTE_ELECTRICO_2026-07-30",
+   "chunks": 1,
+   "ts": 1786811348.1442657
+  },
+  {
+   "source": "docs/03-sesiones/CIERRE_JORNADA_2026-07-05.md",
+   "title": "CIERRE_JORNADA_2026-07-05",
+   "chunks": 1,
+   "ts": 1786811385.7723057
+  },
+  {
+   "source": "docs/03-sesiones/CIERRE_JORNADA_2026-07-22.md",
+   "title": "CIERRE_JORNADA_2026-07-22",
+   "chunks": 1,
+   "ts": 1786811473.3103342
+  },
+  {
+   "source": "docs/03-sesiones/CIERRE_POST_SPRINT3_2026-07-30.md",
+   "title": "CIERRE_POST_SPRINT3_2026-07-30",
+   "chunks": 1,
+   "ts": 1786811516.849291
+  },
+  {
+   "source": "docs/03-sesiones/COMMIT_SUMMARY.md",
+   "title": "COMMIT_SUMMARY",
+   "chunks": 1,
+   "ts": 1786811567.2473667
+  },
+  {
+   "source": "docs/03-sesiones/CONVERSACION_COMPLETA_ZAI_HERMES.md",
+   "title": "CONVERSACION_COMPLETA_ZAI_HERMES",
+   "chunks": 1,
+   "ts": 1786811602.3129108
+  },
+  {
+   "source": "docs/03-sesiones/MASTER_MEMORY_CELL_PROMETEO.md",
+   "title": "MASTER_MEMORY_CELL_PROMETEO",
+   "chunks": 2,
+   "ts": 1786811658.2141678
+  },
+  {
+   "source": "docs/03-sesiones/MIGRACION_v31_INFORME_2026-08-12.md",
+   "title": "MIGRACION_v31_INFORME_2026-08-12",
+   "chunks": 1,
+   "ts": 1786811683.5999436
+  },
+  {
+   "source": "docs/03-sesiones/Migracion-Hermes-Prometeo-Contexto.md",
+   "title": "Migracion-Hermes-Prometeo-Contexto",
+   "chunks": 2,
+   "ts": 1786811761.4147027
+  },
+  {
+   "source": "docs/03-sesiones/PLAN_MIGRACION_SWAP_2026-07-30.md",
+   "title": "PLAN_MIGRACION_SWAP_2026-07-30",
+   "chunks": 1,
+   "ts": 1786811772.9912786
+  },
+  {
+   "source": "docs/03-sesiones/REPARACIONES_2026-07-21.md",
+   "title": "REPARACIONES_2026-07-21",
+   "chunks": 1,
+   "ts": 1786811776.11245
+  },
+  {
+   "source": "docs/04-sesiones/2026-07-28_avances.md",
+   "title": "2026-07-28_avances",
+   "chunks": 1,
+   "ts": 1786811886.8811505
+  },
+  {
+   "source": "docs/05-tech-debit/PLAN_MANANA_2026-07-29.md",
+   "title": "PLAN_MANANA_2026-07-29",
+   "chunks": 1,
+   "ts": 1786811937.2739465
+  },
+  {
+   "source": "docs/05-tech-debt/ANALISIS_ARQUITECTURA_2026-07-21.md",
+   "title": "ANALISIS_ARQUITECTURA_2026-07-21",
+   "chunks": 2,
+   "ts": 1786812028.903938
+  },
+  {
+   "source": "docs/05-tech-debt/DEUDA_TECNICA_DIA_15.md",
+   "title": "DEUDA_TECNICA_DIA_15",
+   "chunks": 1,
+   "ts": 1786812089.676065
+  },
+  {
+   "source": "docs/05-tech-debt/MEMORY-celda.md",
+   "title": "MEMORY-celda",
+   "chunks": 1,
+   "ts": 1786812129.18943
+  },
+  {
+   "source": "docs/05-tech-debt/RESUMEN_RETOMAR.md",
+   "title": "RESUMEN_RETOMAR",
+   "chunks": 1,
+   "ts": 1786812233.1670551
+  },
+  {
+   "source": "docs/06-manuales/PLAN-DESARROLLO-HERMES.md",
+   "title": "PLAN-DESARROLLO-HERMES",
+   "chunks": 4,
+   "ts": 1786812450.156896
+  },
+  {
+   "source": "docs/DEUDAS_TECNICAS_Y_PROYECTOS.md",
+   "title": "DEUDAS_TECNICAS_Y_PROYECTOS",
+   "chunks": 1,
+   "ts": 1786812529.6114397
+  },
+  {
+   "source": "docs/_index.md",
+   "title": "_index",
+   "chunks": 1,
+   "ts": 1786812534.3273668
+  },
+  {
+   "source": "docs/adr/001-openrouter-fusion.md",
+   "title": "001-openrouter-fusion",
+   "chunks": 1,
+   "ts": 1786812535.7703137
+  },
+  {
+   "source": "docs/adr/002-monorepo-modular.md",
+   "title": "002-monorepo-modular",
+   "chunks": 1,
+   "ts": 1786812536.7706
+  },
+  {
+   "source": "docs/adr/003-hot-failover-8min.md",
+   "title": "003-hot-failover-8min",
+   "chunks": 1,
+   "ts": 1786812537.6404111
+  },
+  {
+   "source": "docs/adr/004-markdown-as-truth.md",
+   "title": "004-markdown-as-truth",
+   "chunks": 1,
+   "ts": 1786812538.7692924
+  },
+  {
+   "source": "docs/adr/005-tdd-automatico.md",
+   "title": "005-tdd-automatico",
+   "chunks": 1,
+   "ts": 1786812539.5324578
+  },
+  {
+   "source": "docs/adr/006-waha-vs-openwa.md",
+   "title": "006-waha-vs-openwa",
+   "chunks": 1,
+   "ts": 1786812540.8298175
+  },
+  {
+   "source": "docs/adr/007-skills-over-multi-agent.md",
+   "title": "007-skills-over-multi-agent",
+   "chunks": 1,
+   "ts": 1786812583.332764
+  },
+  {
+   "source": "docs/adr/008-integr-odoo17.md",
+   "title": "008-integr-odoo17",
+   "chunks": 1,
+   "ts": 1786812590.7893713
+  },
+  {
+   "source": "docs/adr/009-integr-r4.md",
+   "title": "009-integr-r4",
+   "chunks": 1,
+   "ts": 1786812592.763892
+  },
+  {
+   "source": "docs/adr/010-monitoreo.md",
+   "title": "010-monitoreo",
+   "chunks": 1,
+   "ts": 1786812633.9906955
+  },
+  {
+   "source": "docs/clasificaciones/ESTUDIO_REPOSITORIOS_PLAN_ACCION.md",
+   "title": "ESTUDIO_REPOSITORIOS_PLAN_ACCION",
+   "chunks": 2,
+   "ts": 1786812689.483955
+  },
+  {
+   "source": "docs/clasificaciones/FASE3_EXTERNAL_SKILLS_INTEGRATION.md",
+   "title": "FASE3_EXTERNAL_SKILLS_INTEGRATION",
+   "chunks": 1,
+   "ts": 1786812759.39711
+  },
+  {
+   "source": "docs/clasificaciones/HERMES_AGENT_SUPERPOWERS_ARCHITECTURE.md",
+   "title": "HERMES_AGENT_SUPERPOWERS_ARCHITECTURE",
+   "chunks": 1,
+   "ts": 1786812843.551168
+  },
+  {
+   "source": "docs/development/minuta-workload-router-guards-20260807.md",
+   "title": "minuta-workload-router-guards-20260807",
+   "chunks": 1,
+   "ts": 1786812876.6015205
+  },
+  {
+   "source": "docs/prompts/valentina.v1.md",
+   "title": "valentina.v1",
+   "chunks": 1,
+   "ts": 1786812880.8667798
+  }
+ ]
+}

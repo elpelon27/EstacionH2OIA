@@ -27,7 +27,7 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(na
 logger = logging.getLogger("r4banco.test")
 
 
-async def test_endpoints_config():
+async def test_endpoints_config() -> None:
     """Test 1: Verificar configuración de endpoints"""
     print("\n=== TEST 1: Configuración endpoints ===")
 
@@ -41,7 +41,7 @@ async def test_endpoints_config():
     print("✅ Endpoints OK")
 
 
-async def test_ip_whitelist():
+async def test_ip_whitelist() -> None:
     """Test 2: Validar IP whitelist"""
     print("\n=== TEST 2: IP Whitelist ===")
 
@@ -59,7 +59,7 @@ async def test_ip_whitelist():
     print("✅ IP Whitelist OK")
 
 
-async def test_response_codes():
+async def test_response_codes() -> None:
     """Test 3: Códigos de respuesta"""
     print("\n=== TEST 3: Códigos de respuesta ===")
 
@@ -77,7 +77,7 @@ async def test_response_codes():
     print("✅ Códigos de respuesta OK")
 
 
-async def test_models_validation():
+async def test_models_validation() -> None:
     """Test 4: Validación de modelos Pydantic"""
     print("\n=== TEST 4: Modelos Pydantic ===")
 
@@ -97,8 +97,8 @@ async def test_models_validation():
     assert r.CodigoRed == "00"
     print(f"  ✅ R4NotificaRequest: emisor={r.TelefonoEmisor} monto={r.Monto}")
 
-    # R4ConsultaRequest
-    r2 = R4ConsultaRequest(IdCliente="12345678", Monto="10.00")
+    # R4ConsultaRequest (TelefonoComercio opcional en el modelo)
+    r2 = R4ConsultaRequest(IdCliente="12345678", Monto="10.00", TelefonoComercio="04129999999")
     assert r2.IdCliente == "12345678"
     print(f"  ✅ R4ConsultaRequest: cliente={r2.IdCliente}")
 
@@ -110,7 +110,7 @@ async def test_models_validation():
     print("✅ Modelos Pydantic OK")
 
 
-async def test_client_init():
+async def test_client_init() -> bool:
     """Test 5: Inicialización del cliente (sin credenciales reales)"""
     print("\n=== TEST 5: Cliente R4 (mock) ===")
 
@@ -130,11 +130,10 @@ async def test_client_init():
     return True
 
 
-async def test_mock_notifica():
+async def test_mock_notifica() -> None:
     """Test 6: Simular payload R4notifica"""
     print("\n=== TEST 6: Mock R4notifica ===")
 
-    from api.banking_webhooks import R4NotificaRequest
     from src.financial.banco_verificador import crear_payload_test_notifica
 
     payload = crear_payload_test_notifica(
@@ -143,6 +142,7 @@ async def test_mock_notifica():
         referencia="TEST123456",
     )
 
+    # R4NotificaRequest ya importado desde src.banking.r4_models (top del archivo)
     r = R4NotificaRequest(**payload)
     print(f"  Emisor: {r.TelefonoEmisor}")
     print(f"  Monto: {r.Monto}")
@@ -152,7 +152,7 @@ async def test_mock_notifica():
     print("✅ Mock payload OK")
 
 
-async def main():
+async def main() -> None:
     print("=" * 60)
     print("🏦 R4 BANCO - SUITE DE TESTING")
     print("=" * 60)

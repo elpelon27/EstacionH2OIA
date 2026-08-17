@@ -4,6 +4,7 @@ Health check script for watchdog.
 Returns 0 if all critical systems are healthy, non-zero otherwise.
 Used by watchdog via test-binary directive.
 """
+
 import os
 import socket
 import subprocess
@@ -13,12 +14,12 @@ import sys
 def check_service_active(name: str) -> bool:
     try:
         result = subprocess.run(
-            ["systemctl", "is-active", "--quiet", name],
-            capture_output=True, timeout=5
+            ["systemctl", "is-active", "--quiet", name], capture_output=True, timeout=5
         )
         return result.returncode == 0
     except Exception:
         return False
+
 
 def check_port_listening(port: int, host: str = "127.0.0.1") -> bool:
     try:
@@ -26,6 +27,7 @@ def check_port_listening(port: int, host: str = "127.0.0.1") -> bool:
             return True
     except Exception:
         return False
+
 
 def check_disk_space(path: str, min_percent: float = 5.0) -> bool:
     try:
@@ -35,9 +37,11 @@ def check_disk_space(path: str, min_percent: float = 5.0) -> bool:
     except Exception:
         return False
 
+
 def check_sqlite_accessible(path: str) -> bool:
     try:
         import sqlite3
+
         conn = sqlite3.connect(f"file:{path}?mode=ro", uri=True, timeout=3)
         conn.execute("SELECT 1").fetchone()
         conn.close()
@@ -45,7 +49,8 @@ def check_sqlite_accessible(path: str) -> bool:
     except Exception:
         return False
 
-def main():
+
+def main() -> int:
     checks = []
 
     # 1. Servicios críticos
@@ -106,6 +111,7 @@ def main():
 
     print("All checks passed")
     return 0
+
 
 if __name__ == "__main__":
     sys.exit(main())
