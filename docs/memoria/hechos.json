@@ -40,5 +40,26 @@
     "hecho": "Sesion retomada: deuda mypy scripts memoria cerrada (54 errores gate real -> 0), helper _now extraido en odoo_sync:register_payment, suite 430/13/0, smoke SMOKE_OK, Qdrant 402 pts vivo",
     "confianza": "certain",
     "fecha": "2026-08-16"
+  },
+  {
+    "id": 7,
+    "tema": "config-claude-code",
+    "hecho": "Claude Code configurado con API de OpenRouter (base_url https://openrouter.ai/api) para delegación via skill claude-code de Hermes.",
+    "confianza": "certain",
+    "fecha": "2026-08-17"
+  },
+  {
+    "id": 8,
+    "tema": "config-claude-code",
+    "hecho": "Modelo por defecto de Claude Code forzado a moonshotai/kimi-k3 (modelo de razonamiento con thinking tokens) via env ANTHROPIC_MODEL en ~/.claude/settings.json.",
+    "confianza": "certain",
+    "fecha": "2026-08-17"
+  },
+  {
+    "id": 9,
+    "tema": "config-claude-code",
+    "hecho": "Clave de OpenRouter para kimi-k3 almacenada en ~/.claude/settings.json (clave del usuario, verificada con acceso a cuenta de pago).",
+    "confianza": "certain",
+    "fecha": "2026-08-17"
   }
 ]
