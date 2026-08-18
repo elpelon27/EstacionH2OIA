@@ -471,7 +471,7 @@ router = APIRouter(prefix="/webhook/r4", tags=["R4 Webhooks"])
 _webhook_config_singleton = Depends(get_webhook_config)
 
 
-@router.post(  # type: ignore[misc]  # FastAPI decorador no tipado
+@router.post(
     "/consulta",
     response_model=R4ConsultaResponse,
     summary="R4consulta - Validación cliente para pago móvil",
@@ -513,7 +513,7 @@ async def r4_consulta_webhook(
     return result.to_consulta_response()
 
 
-@router.post(  # type: ignore[misc]  # FastAPI decorador no tipado
+@router.post(
     "/notifica",
     response_model=R4NotificaResponse,
     summary="R4notifica - Notificación pago móvil entrante",
@@ -562,7 +562,7 @@ async def r4_notifica_webhook(
 # ============================================================
 
 
-@router.get(  # type: ignore[misc]  # FastAPI decorador no tipado
+@router.get(
     "/health",
     summary="Health check de webhooks R4",
     description="Verifica configuración y conectividad básica",

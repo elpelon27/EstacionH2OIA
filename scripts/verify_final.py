@@ -17,6 +17,8 @@ print("config vectores:", info.config.params.vectors)
 res = c.scroll(collection_name="hermes_memory", limit=500, with_payload=["source"])[0]
 sources: dict[str, int] = {}
 for pt in res:
+    if pt.payload is None:
+        continue
     s = pt.payload.get("source")
     if s:
         sources[s] = sources.get(s, 0) + 1
@@ -49,9 +51,10 @@ for q in ["deuda técnica del proyecto", "arquitectura de Estación H2O", "agent
     ).points
     print(f"\nQUERY: {q!r}")
     for h in hits:
+        pl = h.payload or {}
         print(
-            f"  score={h.score:.3f} src={h.payload.get('source')} "
-            f"title={h.payload.get('title', '')}"
+            f"  score={h.score:.3f} src={pl.get('source')} "
+            f"title={pl.get('title', '')}"
         )
 
 print()

@@ -310,6 +310,7 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     )
     if bridge_ok and bridge_details:
         health_text += f"\n🔍 Checks: {bridge_details.get('checks', {})}"
+    assert update.message is not None
     await update.message.reply_text(health_text, parse_mode="HTML")
 
 

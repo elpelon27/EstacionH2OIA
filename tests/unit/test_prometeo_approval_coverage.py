@@ -9,7 +9,6 @@ ramas except de get_pending_approvals / complete_approval / cancel_approval.
 Usa fixtures propios (cov_*) para no colisionar con los del test original.
 """
 
-import json
 
 import pytest
 

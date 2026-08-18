@@ -15,10 +15,11 @@ Q_URL = "http://localhost:6333"
 COLL = "hermes_memory"
 
 
-def main():
+def main() -> None:
     c = QdrantClient(Q_URL)
     fixed = skipped = 0
-    off, have = 0, True
+    off: int | str | None = 0
+    have = True
     while have:
         pts, nxt = c.scroll(
             collection_name=COLL,
@@ -29,8 +30,9 @@ def main():
         )
         to_upsert = []
         for p in pts:
-            if p.payload.get("kind") != "obsidian_docs":
+            if p.payload is None or p.payload.get("kind") != "obsidian_docs":
                 continue
+            assert p.vector is not None
             now = datetime.now(UTC).isoformat()
             payload = dict(p.payload)
             old = payload.get("created_at")

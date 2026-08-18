@@ -35,6 +35,7 @@ async def send_telegram(message: str) -> bool:
     """Envía mensaje a Telegram @Skynet_27_bot."""
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN_HERMES") or os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID_HERMES") or os.getenv("TELEGRAM_CHAT_ID", "1663148211")
+    assert chat_id is not None
 
     if not bot_token:
         logger.warning("TELEGRAM_BOT_TOKEN no configurado - saltando envío Telegram")

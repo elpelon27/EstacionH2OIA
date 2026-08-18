@@ -10,7 +10,7 @@ res, nxt = c.scroll(
 )
 pts = res
 print("puntos scrolleados:", len(pts))
-has_src = sum(1 for p in pts if p.payload.get("source"))
+has_src = sum(1 for p in pts if p.payload is not None and p.payload.get("source"))
 print("puntos con payload[source]:", has_src)
 
 # mostrar estructura de payloads (claves) y ejemplos
@@ -19,6 +19,8 @@ from collections import Counter
 keycounter: Counter[tuple[str, ...]] = Counter()
 examples = {}
 for p in pts:
+    if p.payload is None:
+        continue
     k = tuple(sorted(p.payload.keys()))
     keycounter[k] += 1
     if k not in examples:
@@ -30,7 +32,8 @@ for k, n in keycounter.most_common():
 print("\n--- ejemplo de cada estruc ---")
 for k, p in list(examples.items())[:5]:
     print("  claves:", k)
-    print("   ", {kk: str(vv)[:90] for kk, vv in p.payload.items()})
+    pl = p.payload or {}
+    print("   ", {kk: str(vv)[:90] for kk, vv in pl.items()})
 
 # progreso json
 import json

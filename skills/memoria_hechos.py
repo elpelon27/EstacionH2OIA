@@ -134,7 +134,7 @@ def cmd_status() -> int:
     info = q.get_collection(COLLECTION)
     puntos = info.points_count
     res = q.scroll(collection_name=COLLECTION, limit=500, with_payload=["source"])[0]
-    fuentes = {p.payload.get("source") for p in res if p.payload.get("source")}
+    fuentes = {p.payload.get("source") for p in res if p.payload is not None and p.payload.get("source")}
     print(f"L3 Qdrant [{COLLECTION}]: {puntos} pts, {len(fuentes)} archivos indexados")
     # L1 + L2
     n_s, n_m = _state_db()
@@ -143,11 +143,10 @@ def cmd_status() -> int:
     # grafo versionable
     hechos = _load_hechos()
     print(f"grafo hechos (docs/memoria/hechos.json): {len(hechos)} hechos")
-    n = len(hechos)
     for h in hechos[-3:]:
         print(f"   #{h['id']} [{h['confianza']}] {h['tema']}: {h['hecho'][:70]}")
     print("═" * 58)
-    print("Verificación: OK" if (puntos > 0 and n_s >= 0) else "Verificación: revisar capas")
+    print("Verificación: OK" if (puntos is not None and puntos > 0 and n_s >= 0) else "Verificación: revisar capas")
     return 0
 
 
@@ -184,8 +183,8 @@ def cmd_recall(query: str, limit: int = 4) -> int:
     matches = [h for h in hechos if tokens.intersection(_split_tokens(h["tema"]))]
     if matches:
         print("\n  Grafo versionable (coincidencia por tema):")
-        for h in matches[-3:]:
-            print(f"    #{h['id']} [{h['confianza']}] {h['tema']}: {h['hecho'][:100]}")
+        for hh in matches[-3:]:
+            print(f"    #{hh['id']} [{hh['confianza']}] {hh['tema']}: {hh['hecho'][:100]}")
     return 0
 
 

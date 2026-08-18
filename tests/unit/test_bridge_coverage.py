@@ -41,7 +41,6 @@ os.environ.setdefault("DISPATCH_DB_PATH", "/tmp/bridge_test_dispatch.db")
 
 import bridge  # noqa: E402
 
-
 # ============================================================================
 # Fixtures de aislamiento SQLite
 # ============================================================================

@@ -18,7 +18,7 @@ import logging
 import os
 import re
 from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, cast
+from typing import Any
 
 import httpx
 
@@ -40,7 +40,7 @@ META_API_VERSION = os.getenv("META_API_VERSION", "v25.0")
 # VRAM Guard para Qwen2.5-VL fallback
 NVML_AVAILABLE = False
 try:
-    import pynvml  # nvidia-ml-py (módulo renombrado)
+    import pynvml  # type: ignore[import-untyped]  # nvidia-ml-py
 
     pynvml.nvmlInit()
     NVML_AVAILABLE = True
@@ -67,7 +67,7 @@ def _compute_phash(image_data: bytes) -> str | None:
     try:
         import io
 
-        img = Image.open(io.BytesIO(image_data))
+        img: Image.Image = Image.open(io.BytesIO(image_data))
         # Convertir a RGB si es RGBA
         if img.mode in ("RGBA", "LA", "P"):
             img = img.convert("RGB")
@@ -186,9 +186,28 @@ async def _process_reminder_cycle(pedido: PedidoFinanciero) -> dict[str, Any]:
         f"Por favor, envíe su comprobante. ¡Gracias! 💧"
     )
 
-    # TODO: Llamar a Valentina para enviar WhatsApp
-    # await valentina.send_whatsapp(pedido.cliente_telefono, mensaje_cliente)
-    logger.info("Recordatorio #%d enviado a %s", intento, pedido.cliente_telefono)
+    # Enviar WhatsApp via Meta Cloud API (fail-soft: no rompe el flujo si falla)
+    try:
+        from core.meta_client import get_meta_client
+
+        meta_client = await get_meta_client()
+        result = await meta_client.send_text_message(
+            to=pedido.cliente_telefono,
+            text=mensaje_cliente,
+        )
+        if result.get("success"):
+            logger.info(
+                "Recordatorio #%d enviado por WhatsApp a %s",
+                intento, pedido.cliente_telefono,
+            )
+        else:
+            logger.warning(
+                "Recordatorio #%d: WhatsApp falló para %s (error: %s), continuando flujo",
+                intento, pedido.cliente_telefono, result.get("error"),
+            )
+    except Exception as e:
+        logger.warning("Recordatorio #%d: no se pudo enviar WhatsApp a %s (%s), continuando flujo",
+                        intento, pedido.cliente_telefono, e)
 
     # Persistir
     now = datetime.now(UTC).isoformat()
@@ -346,7 +365,7 @@ async def verificar_pago_ocr(
     try:
         import io
 
-        import pytesseract
+        import pytesseract  # type: ignore[import-untyped]
         from PIL import Image
 
         img = Image.open(io.BytesIO(image_data))
@@ -457,7 +476,7 @@ async def _download_whatsapp_image(image_url: str, meta_token: str) -> bytes | N
                         url, headers={"Authorization": f"Bearer {meta_token}"}, timeout=30
                     )
                     if img_resp.status_code == 200:
-                        return cast(bytes, img_resp.content)
+                        return img_resp.content
     except Exception as e:
         logger.error("Error descargando imagen: %s", e)
     return None

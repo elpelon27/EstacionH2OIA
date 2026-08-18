@@ -3,9 +3,9 @@ Tests de integración para Financial Shield v3.0
 Requieren BD real (sqlite) y conexiones externas mockeadas
 """
 
-from datetime import UTC, datetime
 import contextlib
 import os
+from datetime import UTC, datetime
 from unittest.mock import patch
 
 import pytest

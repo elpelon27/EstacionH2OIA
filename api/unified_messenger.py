@@ -5,8 +5,9 @@ Requiere que el implementador registre un `sender` por canal usando run_in_execu
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable, Optional
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 
 MessageSender = Callable[[str, str], None]
 
@@ -25,6 +26,7 @@ class ObservabilityAggregator:
         # registro local mínimo: no red, no IO
         self.total_sent += 1
 
+
 @dataclass
 class UnifiedMessageSender:
     """
@@ -34,10 +36,10 @@ class UnifiedMessageSender:
     gateway: str = "blackhole"
     channel: str = "log"
 
-    def __init__(self, channel: str = "log", config: dict | None = None) -> None:
+    def __init__(self, channel: str = "log", config: dict[str, Any] | None = None) -> None:
         self.channel = channel
         self.config = config or {}
-        self.audit = ObservabilityAudit()
+        self.audit = ObservabilityAggregator()
         self._init_secure_config()
 
     def _init_secure_config(self) -> None:
@@ -45,10 +47,11 @@ class UnifiedMessageSender:
             "get_secure_config": lambda key: self.config.get(key),
             "get_secret": lambda key: f"sk-{key}",
         }
+        self.secure_name = self.channel
 
-    def _make_send(self, phone, message_text) -> None:
-        """Crea y envía el mensaje. No-op placeholders: sin side effects reales."""
-        return None
+    def _make_send(self, phone: str, message: str) -> None:
+        """Crea y envía el mensaje. No-op placeholder: sin side effects reales."""
+        print(f"[SANDBOX] {self.secure_name}: notificar {phone}: {message}")
 
     def send(self, phone: str, message: str) -> None:
         self._make_send(phone, message)
@@ -59,11 +62,5 @@ class UnifiedMessageSender:
     def notificar(self, phone: str, message: str) -> None:
         self._make_send(phone, message)
 
-    def _make_send(self, phone: str, message: str) -> None:
-        # No-op implementación segura que NO abre sockets ni toca la red.
-        print(f"[SANDBOX] {self.secure_name}: notificar {phone}: {message}")
-
-    def init_app(self, app) -> None:
+    def init_app(self, app: Any) -> None:
         return None  # integración Flask opcional
-</parameter>
-<parameter name="summary">Añade soporte legacy con init_app(self, app): no-op, para compatibilidad con el patrón de inicialización de la suite de tests unitarios</parameter>

@@ -9,11 +9,14 @@ res = c.scroll(collection_name="hermes_memory", limit=2000, with_payload=True, w
 ]
 
 # puntos y fuentes de los indexados (kind=obsidian o con source)
-mine = [p for p in res if p.payload.get("source")]
+mine = [p for p in res if p.payload is not None and p.payload.get("source")]
 srcs: dict[str, int] = {}
 for p in mine:
+    if p.payload is None:
+        continue
     s = p.payload.get("source")
-    srcs[s] = srcs.get(s, 0) + 1
+    if s is not None:
+        srcs[s] = srcs.get(s, 0) + 1
 
 print("total puntos en coleccion:", len(res))
 print("puntos indexados (con source):", len(mine))

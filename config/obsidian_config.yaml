@@ -1,0 +1,15 @@
+# Obsidian Vault Configuration
+obsidian:
+  vault_path: /mnt/ssd_trabajo/hermes-agent/docs
+  enabled: true
+  auto_index: true
+  follow_symlinks: false  # No es necesario, docs/ es la ruta real
+  index_on_startup: true
+
+memory:
+  enabled: true
+  provider: qdrant
+  session_persistence: true
+  auto_load: true
+  ttl: 86400
+  load_on_startup: true

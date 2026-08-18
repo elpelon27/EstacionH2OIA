@@ -42,7 +42,7 @@ import time
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager, suppress
 from datetime import UTC, datetime, timedelta, timezone
-from typing import Any, cast
+from typing import Any
 
 # System path for local imports
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
@@ -611,7 +611,7 @@ def _get_phone_key(request: Request) -> str:
     # parsear el JSON aquí. Usamos una aproximación: header X-Forwarded-For
     # o IP como fallback. El rate limit real por teléfono se hace DENTRO
     # del handler después de parsear.
-    return cast(str, get_remote_address(request))
+    return get_remote_address(request)
 
 
 def _get_rate_limit_key(request: Request) -> tuple[str, str]:
@@ -2896,7 +2896,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 app.state.limiter = limiter
-app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)  # type: ignore[arg-type]
 
 # Registrar webhooks R4 Conecta
 include_r4_webhooks(app)
@@ -2905,7 +2905,7 @@ include_r4_webhooks(app)
 app.include_router(dispatch_router)
 
 
-@app.get("/")  # type: ignore[misc]  # FastAPI decorador no tipado (patrón estándar)
+@app.get("/")
 async def root() -> dict[str, Any]:
     """Endpoint raíz — info básica para verificar que el puente está vivo."""
     return {
@@ -2925,7 +2925,7 @@ async def root() -> dict[str, Any]:
     }
 
 
-@app.get("/metrics")  # type: ignore[misc]  # FastAPI decorador no tipado
+@app.get("/metrics")
 async def metrics(request: Request) -> RawResponse:
     """Endpoint de métricas Prometheus para scrapeo.
 
@@ -2986,7 +2986,7 @@ def _count_pending_queue() -> int:
         return -1  # -1 = no disponible
 
 
-@app.get("/health")  # type: ignore[misc]  # FastAPI decorador no tipado
+@app.get("/health")
 async def health() -> JSONResponse:
     """Health check para systemd / Prometheus / Cloudflare.
 
@@ -3045,7 +3045,7 @@ async def health() -> JSONResponse:
     )
 
 
-@app.get("/webhook/meta", response_class=PlainTextResponse, response_model=None)  # type: ignore[misc]  # FastAPI decorador no tipado
+@app.get("/webhook/meta", response_class=PlainTextResponse, response_model=None)
 async def meta_verify(request: Request) -> PlainTextResponse:
     """Verificación del webhook de Meta Cloud API (paso de configuración único).
 
@@ -3069,8 +3069,8 @@ async def meta_verify(request: Request) -> PlainTextResponse:
     raise HTTPException(status_code=403, detail="Verification failed")
 
 
-@app.post("/webhook/meta")  # type: ignore[misc]  # FastAPI decorador no tipado
-@limiter.limit(f"{RATE_PER_IP}/minute")  # type: ignore[misc]  # slowapi decorador no tipado
+@app.post("/webhook/meta")
+@limiter.limit(f"{RATE_PER_IP}/minute")
 async def meta_webhook(request: Request) -> JSONResponse:
     """
     Recibe mensajes de WhatsApp desde Meta Cloud API.

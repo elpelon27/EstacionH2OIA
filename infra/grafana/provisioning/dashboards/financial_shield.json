@@ -1,0 +1,168 @@
+{
+  "dashboard": {
+    "title": "Financial Shield - Payments & Collections",
+    "tags": ["estacion-h2o", "financial", "payments"],
+    "timezone": "America/Caracas",
+    "panels": [
+      {
+        "title": "Total Sales (24h)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(fs_sales_total_eur{window=\"24h\"})",
+            "legendFormat": "EUR"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyEUR",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "title": "Total Collections (24h)",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(fs_collections_total_eur{window=\"24h\"})",
+            "legendFormat": "EUR"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyEUR",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "title": "Outstanding (Por Cobrar)",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(fs_outstanding_eur)",
+            "legendFormat": "EUR"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyEUR",
+            "decimals": 2
+          }
+        }
+      },
+      {
+        "title": "Overdue Amount",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(fs_overdue_eur)",
+            "legendFormat": "EUR"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "unit": "currencyEUR",
+            "decimals": 2,
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 100},
+                {"color": "red", "value": 500}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Payment Verification Status",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (verification_method) (fs_payments_total)",
+            "legendFormat": "{{verification_method}}"
+          }
+        ]
+      },
+      {
+        "title": "Pending Payments by Credit Type",
+        "type": "bargauge",
+        "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (tipo_credito) (fs_pending_by_credit_type)",
+            "legendFormat": "{{tipo_credito}}"
+          }
+        ]
+      },
+      {
+        "title": "Daily Sales vs Collections (7d)",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "fs_sales_total_eur",
+            "legendFormat": "Sales EUR"
+          },
+          {
+            "expr": "fs_collections_total_eur",
+            "legendFormat": "Collections EUR"
+          }
+        ]
+      },
+      {
+        "title": "EUR/VES Rate (7d)",
+        "type": "timeseries",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "fs_eur_ves_rate",
+            "legendFormat": "Rate"
+          }
+        ]
+      },
+      {
+        "title": "Reminders Sent (24h)",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 20, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "increase(fs_reminders_sent_total[24h])",
+            "legendFormat": "Count"
+          }
+        ]
+      },
+      {
+        "title": "Escalations to Human (24h)",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 20, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "increase(fs_escalations_total[24h])",
+            "legendFormat": "Count"
+          }
+        ]
+      },
+      {
+        "title": "Anti-Fraude: Duplicate References Blocked",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 20, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "increase(fs_fraude_duplicados_blocked[24h])",
+            "legendFormat": "Blocked"
+          }
+        ]
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "30s"
+  }
+}

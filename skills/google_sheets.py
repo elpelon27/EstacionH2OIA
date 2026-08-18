@@ -88,8 +88,8 @@ def _get_client() -> Any:
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/drive",
         ]
-        creds = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_PATH, scopes=scopes)
-        _sheets_client = gspread.authorize(creds)
+        creds = Credentials.from_service_account_file(GOOGLE_CREDENTIALS_PATH, scopes=scopes)  # type: ignore[no-untyped-call]
+        _sheets_client = gspread.authorize(creds)  # type: ignore[attr-defined]
         _spreadsheet = _sheets_client.open_by_key(GOOGLE_SPREADSHEET_ID)
         logger.info(
             "Google Sheets conectado: spreadsheet=%s hoja=%s",

@@ -11,6 +11,7 @@ parcialmente matcheados por patrones más genéricos (como phone).
 
 import logging
 import re
+from collections.abc import MutableMapping
 from typing import Any
 
 import structlog
@@ -44,7 +45,7 @@ def mask_pii(value: Any) -> Any:
     return value
 
 
-def _pii_processor(logger: Any, method_name: str, event_dict: dict[str, Any]) -> dict[str, Any]:
+def _pii_processor(logger: Any, method_name: str, event_dict: MutableMapping[str, Any]) -> MutableMapping[str, Any]:
     """Processor de structlog: enmascara PII antes de renderizar."""
     for key, value in event_dict.items():
         event_dict[key] = mask_pii(value)

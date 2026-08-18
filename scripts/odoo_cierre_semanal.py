@@ -33,6 +33,7 @@ CARACAS_TZ = timezone(timedelta(hours=-4))
 async def send_telegram(message: str) -> bool:
     bot_token = os.getenv("TELEGRAM_BOT_TOKEN_HERMES") or os.getenv("TELEGRAM_BOT_TOKEN")
     chat_id = os.getenv("TELEGRAM_CHAT_ID_HERMES") or os.getenv("TELEGRAM_CHAT_ID", "1663148211")
+    assert chat_id is not None
 
     if not bot_token:
         logger.warning("TELEGRAM_BOT_TOKEN no configurado")

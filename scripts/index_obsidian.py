@@ -75,7 +75,7 @@ def chunk_text(text: str) -> list[str]:
 
 
 def main() -> None:
-    from mem0 import Memory
+    from mem0 import Memory  # type: ignore[import-untyped]
 
     m = Memory.from_config(get_model_config())
     files = sorted(set(l.strip() for l in open("/tmp/doclist.txt") if l.strip()))

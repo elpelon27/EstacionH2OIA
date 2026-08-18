@@ -176,43 +176,22 @@
 
 ---
 
-## 🐍 DEUDA MYPY PENDIENTE (208 errores en producción — excluye external_repos y tests)
+## 🐍 DEUDA MYPY — RE-MEDICIÓN REAL 2026-08-17 (63 errores, bajando)
 
-> Contexto: core/ + api/ ya está en **0**. Estos son archivos de integración/orquestación/scripts
-> que el pre-commit mypy reporta (49 al commitear bridge por follow-imports; 208 scan total).
-> Anotaciones de tipos en su mayoría, sin cambiar lógica. Priorizado por archivo (mayor → menor).
+> Re-medición con gate mypy 1.20.2 (python3.12, strict=true). El doc anterior decía 208 errores;
+> la realidad eran 89 al medir. Se limpiaron 27 quick wins (25 unused-ignore + 2 redundant-cast).
+> Quedan **63 errores en 32 archivos**. Distribución por tipo: union-attr (14), arg-type (12),
+> import-untyped (9), attr-defined (6), import-not-found (4), assignment (4), no-untyped-call (3),
+> index (3), y 8 errores sueltos (list-item, dict-item, no-untyped-def, float, misc, operator, State, ChatCompletionChunk).
+>
+> Top archivos: scripts/fix_created_at.py (7), scripts/ensure_coverage.py (5), skills/memoria_hechos.py (5),
+> src/orchestration/external_skills.py (4), src/financial/verificacion.py (4), scripts/count_coverage.py (4),
+> scripts/audit_payload.py (4), scripts/prometeo/prometeo.py (3), scripts/verify_final.py (3).
+> Los archivos del doc anterior (odoo_sync, r4/client, orchestrator, etc.) YA están en 0 — eran datos desactualizados.
+>
+> Nota: api/unified_messenger.py tenía syntax error (tags XML pegados accidentalmente + _make_send duplicado) — reparado esta sesión.
+> api/bridge.py tenía 39 errores, bajó a 1 (arg-type en add_exception_handler de Starlette, pendiente).
 
-| Archivo | Errores | Tipo predominante |
-|---------|---------|-------------------|
-| src/integrations/odoo/odoo_sync.py | 28 | anotaciones faltantes, imports no-untyped |
-| src/orchestration/external_skills.py | 25 | imports no encontrados (skillnet_ai, skills_ref), diccionarios sin tipar |
-| src/integrations/r4/client.py | 16 | anotaciones faltantes (__init__, métodos) |
-| skills/r4banco_test.py | 16 | anotaciones de tests |
-| src/memory/unified_memory.py | 15 | var-annotated, imports faltantes |
-| scripts/boot_alert.py | 14 | anotaciones faltantes |
-| src/orchestration/orchestrator.py | 13 | dict/Queue sin tipar, await de no-awaitable, return-value |
-| scripts/r4_update_tasa_bcv.py | 11 | anotaciones faltantes |
-| src/orchestration/skill_registry.py | 10 | arg-type (Sequence vs list), yaml sin stubs, var-annotated |
-| scripts/prometeo/hybrid_llm.py | 8 | anotaciones faltantes |
-| scripts/odoo_inventario_insumos.py | 6 | anotaciones faltantes |
-| skills/dispatch/sheets_sync.py | 5 | anotaciones |
-| scripts/odoo_reporte_ventas_diarias.py | 5 | anotaciones |
-| src/orchestration/memory_aware_agent.py | 4 | anotaciones |
-| src/financial/banco_verificador.py | 4 | anotaciones |
-| scripts/prometeo/prometeo.py | 4 | anotaciones |
-| scripts/odoo_nomina_viernes.py | 4 | anotaciones |
-| scripts/odoo_inventario_hielo.py | 4 | anotaciones |
-| scripts/odoo_cierre_semanal.py | 4 | anotaciones |
-| scripts/ci/security_check.py | 4 | anotaciones |
-| scripts/health_check.py | 2 | anotaciones |
-| api/guardrail.py | 2 | import-untyped (lazy, ignorable) |
-| skills/telegram_bot.py | 1 | anotación |
-
-**Recomendación de abordaje**: empezar por los top-3 que concentran mayoría
-(odoo_sync 28, external_skills 25, r4/client 16 = 69 errores de 208) con el patrón
-de esta sesión: anotaciones + type-ignore controlados, verificando mypy y pytest por archivo.
-Los de `scripts/` odoo_* y prometeo_* son mecánicos (anotaciones de retorno).
-Objetivo: llevarlos a 0 para que el pre-commit pase limpio sin `--no-verify`.
 
 ---
 

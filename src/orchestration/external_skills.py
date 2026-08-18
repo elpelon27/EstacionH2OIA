@@ -99,7 +99,7 @@ class SkillNetConnector(SkillLibraryConnector):
                 if skillnet_path not in sys.path:
                     sys.path.insert(0, skillnet_path)
 
-                from skillnet_ai import SkillNetClient
+                from skillnet_ai import SkillNetClient  # type: ignore[import-not-found]
 
                 self._client = SkillNetClient(api_key=self.api_key, base_url=self.base_url)
             except ImportError:
@@ -176,7 +176,7 @@ class SkillNetConnector(SkillLibraryConnector):
             if skillnet_path not in sys.path:
                 sys.path.insert(0, skillnet_path)
 
-            from skillnet_ai.downloader import SkillDownloader
+            from skillnet_ai.downloader import SkillDownloader  # type: ignore[import-not-found]
 
             downloader = SkillDownloader()
             return cast(str, downloader.download(skill.source_url, target_dir=target_dir))
@@ -428,7 +428,7 @@ class AnthropicSkillsConnector(SkillLibraryConnector):
 
             from pathlib import Path
 
-            from skills_ref import validate
+            from skills_ref import validate  # type: ignore[import-not-found]
 
             return cast(list[str], validate(Path(skill_path)))
         except Exception as e:

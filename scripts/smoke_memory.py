@@ -32,7 +32,7 @@ def get_model_config() -> dict[str, object]:
 
 
 t0 = time.time()
-from mem0 import Memory
+from mem0 import Memory  # type: ignore[import-untyped]
 
 m = Memory.from_config(get_model_config())
 print(f"[init] mem0 client ok in {time.time()-t0:.1f}s")

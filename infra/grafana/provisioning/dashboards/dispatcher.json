@@ -1,0 +1,132 @@
+{
+  "dashboard": {
+    "title": "Dispatcher - Operations",
+    "tags": ["estacion-h2o", "dispatcher", "operations"],
+    "timezone": "America/Caracas",
+    "panels": [
+      {
+        "title": "Dispatcher Bot Status",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "up{job=\"hermes\"}",
+            "legendFormat": "Dispatcher"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "mappings": [
+              {"type": "value", "options": {"0": {"text": "DOWN", "color": "red"}, "1": {"text": "UP", "color": "green"}}}
+            ]
+          }
+        }
+      },
+      {
+        "title": "Active Vehicles",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "count(vehicle_active == 1)",
+            "legendFormat": "Active"
+          }
+        ]
+      },
+      {
+        "title": "Pending Deliveries",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "sum(deliveries_pending)",
+            "legendFormat": "Pending"
+          }
+        ]
+      },
+      {
+        "title": "Completed Today",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "increase(deliveries_completed_total[24h])",
+            "legendFormat": "24h"
+          }
+        ]
+      },
+      {
+        "title": "Vehicle Load (Pending Deliveries)",
+        "type": "bargauge",
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "deliveries_pending by (vehicle_id, operator_name)",
+            "legendFormat": "{{operator_name}} (V{{vehicle_id}})"
+          }
+        ]
+      },
+      {
+        "title": "Delivery Status Distribution",
+        "type": "piechart",
+        "gridPos": {"x": 12, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "sum by (status) (deliveries_total)",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Deliveries Over Time (24h)",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(deliveries_completed_total[5m])",
+            "legendFormat": "Completed/min"
+          },
+          {
+            "expr": "rate(deliveries_failed_total[5m])",
+            "legendFormat": "Failed/min"
+          }
+        ]
+      },
+      {
+        "title": "Bottle Inventory by Status",
+        "type": "bargauge",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "bottle_tracker_by_status",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "GPS Tracks Ingested",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(gps_tracks_total[5m])",
+            "legendFormat": "Tracks/min"
+          }
+        ]
+      },
+      {
+        "title": "Geofence Events",
+        "type": "timeseries",
+        "gridPos": {"x": 12, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(geofence_events_total[5m])",
+            "legendFormat": "{{event_type}}"
+          }
+        ]
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "30s"
+  }
+}

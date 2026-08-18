@@ -28,7 +28,7 @@ def cfg() -> dict[str, object]:
     }
 
 
-from mem0 import Memory
+from mem0 import Memory  # type: ignore[import-untyped]
 
 m = Memory.from_config(cfg())
 for q in [

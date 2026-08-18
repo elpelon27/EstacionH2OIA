@@ -20,7 +20,7 @@ from datetime import datetime
 from enum import Enum
 from typing import Any, Optional, cast
 
-from mem0 import Memory
+from mem0 import Memory  # type: ignore[import-untyped]
 
 
 class MemoryType(Enum):

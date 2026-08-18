@@ -259,7 +259,7 @@ class WorkloadRouter:
 
         async def _or_call() -> dict[str, Any]:
             return await or_client.chat(
-                messages=messages or [],
+                messages=messages or [],  # type: ignore[arg-type]
                 model=model,
                 temperature=temperature,
                 max_tokens=max_tokens,

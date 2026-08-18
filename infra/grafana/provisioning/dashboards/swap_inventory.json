@@ -1,0 +1,169 @@
+{
+  "dashboard": {
+    "title": "SWAP - Bottle Inventory Tracking",
+    "tags": ["estacion-h2o", "swap", "bottles", "inventory"],
+    "timezone": "America/Caracas",
+    "panels": [
+      {
+        "title": "Total Bottles",
+        "type": "stat",
+        "gridPos": {"x": 0, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "bottle_tracker_total",
+            "legendFormat": "Total"
+          }
+        ]
+      },
+      {
+        "title": "Available",
+        "type": "stat",
+        "gridPos": {"x": 6, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "bottle_tracker_available",
+            "legendFormat": "Available"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "red", "value": null},
+                {"color": "yellow", "value": 20},
+                {"color": "green", "value": 50}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "With Client",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "bottle_tracker_with_client",
+            "legendFormat": "With Client"
+          }
+        ]
+      },
+      {
+        "title": "In Transit (Full + Empty)",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 0, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "bottle_tracker_in_transit_full + bottle_tracker_in_transit_empty",
+            "legendFormat": "In Transit"
+          }
+        ]
+      },
+      {
+        "title": "Bottle Status Distribution",
+        "type": "piechart",
+        "gridPos": {"x": 0, "y": 4, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "bottle_tracker_by_status",
+            "legendFormat": "{{status}}"
+          }
+        ]
+      },
+      {
+        "title": "Overdue Bottles",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 4, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "bottle_tracker_overdue",
+            "legendFormat": "Overdue"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 3},
+                {"color": "red", "value": 10}
+              ]
+            }
+          }
+        }
+      },
+      {
+        "title": "Maintenance / Wash",
+        "type": "stat",
+        "gridPos": {"x": 18, "y": 4, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "bottle_tracker_maintenance",
+            "legendFormat": "Maintenance"
+          }
+        ]
+      },
+      {
+        "title": "Bottle Lifecycle Flow (24h)",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "rate(bottle_movements_total[5m])",
+            "legendFormat": "{{from_status}} → {{to_status}}"
+          }
+        ]
+      },
+      {
+        "title": "Bottles by Client (Top 10)",
+        "type": "table",
+        "gridPos": {"x": 12, "y": 12, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "topk(10, bottle_tracker_by_client)",
+            "format": "table",
+            "legendFormat": "{{client_name}}"
+          }
+        ]
+      },
+      {
+        "title": "Cycle Time: Available → With Client → Returned",
+        "type": "timeseries",
+        "gridPos": {"x": 0, "y": 20, "w": 12, "h": 8},
+        "targets": [
+          {
+            "expr": "bottle_cycle_time_hours",
+            "legendFormat": "Avg Cycle (hrs)"
+          }
+        ]
+      },
+      {
+        "title": "Active Alerts",
+        "type": "stat",
+        "gridPos": {"x": 12, "y": 20, "w": 6, "h": 4},
+        "targets": [
+          {
+            "expr": "bottle_tracker_active_alerts",
+            "legendFormat": "Alerts"
+          }
+        ],
+        "fieldConfig": {
+          "defaults": {
+            "thresholds": {
+              "mode": "absolute",
+              "steps": [
+                {"color": "green", "value": null},
+                {"color": "yellow", "value": 1},
+                {"color": "red", "value": 5}
+              ]
+            }
+          }
+        }
+      }
+    ],
+    "time": {"from": "now-1h", "to": "now"},
+    "refresh": "30s"
+  }
+}

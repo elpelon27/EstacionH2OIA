@@ -88,7 +88,7 @@ async def validate_hmac_signature(
 # ============================================================================
 
 
-@router.post(  # type: ignore[misc]  # decorador untyped (FastAPI)
+@router.post(
     "/R4notifica",
     response_model=R4NotificaResponse,
     dependencies=[Depends(validate_bank_ip), Depends(validate_hmac_signature)],
@@ -194,7 +194,7 @@ async def webhook_r4_notifica(
 # ============================================================================
 
 
-@router.post(  # type: ignore[misc]  # decorador untyped (FastAPI)
+@router.post(
     "/R4consulta",
     response_model=R4ConsultaResponse,
     dependencies=[Depends(validate_bank_ip), Depends(validate_hmac_signature)],
@@ -259,7 +259,7 @@ class MBNotificaResponse(BaseModel):
     abono: bool
 
 
-@router.post(  # type: ignore[misc]  # decorador untyped (FastAPI)
+@router.post(
     "/MBconsulta",
     response_model=MBNotificaResponse,
     dependencies=[Depends(validate_bank_ip)],
@@ -290,7 +290,7 @@ async def webhook_mb_consulta(
 # ============================================================================
 
 
-@router.get("/health", summary="Health check R4 Banco")  # type: ignore[misc]  # decorador untyped
+@router.get("/health", summary="Health check R4 Banco")
 async def health_check() -> dict[str, Any]:
     return {
         "service": "R4 Banco Webhooks",

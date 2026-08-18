@@ -114,10 +114,10 @@ def chat(user_input: str) -> str:
 
     try:
         completion = client.chat.completions.create(
-            model=MODEL, messages=messages, temperature=0.7, max_tokens=4096, stream=False
+            model=MODEL, messages=messages, temperature=0.7, max_tokens=4096, stream=False  # type: ignore[arg-type]
         )
-        response = completion.choices[0].message.content
-        messages.append({"role": "assistant", "content": response})
+        response = completion.choices[0].message.content  # type: ignore[union-attr]
+        messages.append({"role": "assistant", "content": response or ""})
         return str(response) if response is not None else ""
     except Exception as e:
         return f"❌ Error: {e}"

@@ -355,8 +355,35 @@ class DispatcherSkill:
     # ----------------------------------------------------------------------
     async def _get_driver_status(self, vehicle_id: int) -> dict[str, Any]:
         """Estado actual del chofer/vehículo."""
-        # TODO: implementar lookup por vehicle_id
-        return {"success": True, "message": "Estado chofer", "data": {"vehicle_id": vehicle_id}}
+        from skills.dispatch.telegram_bot import get_vehicle_by_id
+
+        vehicle = get_vehicle_by_id(vehicle_id)
+        if not vehicle:
+            return {
+                "success": False,
+                "message": f"Vehículo {vehicle_id} no encontrado",
+                "data": None,
+            }
+
+        # Timeline GPS de las últimas 24h para estado de ubicación
+        timeline: list[dict[str, Any]] = []
+        try:
+            timeline = self.gps_tracker.get_vehicle_timeline(vehicle_id, hours_back=24)
+        except Exception as e:
+            logger.warning("No se pudo obtener timeline GPS para vehículo %s: %s", vehicle_id, e)
+
+        last_gps = timeline[-1] if timeline else None
+
+        data = {
+            "vehicle_id": vehicle_id,
+            "name": vehicle.get("name"),
+            "operator_name": vehicle.get("operator_name"),
+            "telegram_chat_id": vehicle.get("telegram_chat_id"),
+            "active": bool(vehicle.get("active", 0)),
+            "last_gps": last_gps,
+            "gps_points_24h": len(timeline),
+        }
+        return {"success": True, "message": "Estado chofer", "data": data}
 
     # ----------------------------------------------------------------------
     # Action: delivery_delivered

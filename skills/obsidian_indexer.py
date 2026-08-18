@@ -19,7 +19,7 @@ from typing import Any
 # Agregar base al path
 sys.path.insert(0, "/home/skynet/hermes-unified")
 
-from memory_manager import HermesMemoryManager
+from memory_manager import HermesMemoryManager  # type: ignore[import-not-found]
 
 
 class ObsidianSkill:

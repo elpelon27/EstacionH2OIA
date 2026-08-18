@@ -63,7 +63,8 @@ def main(force: bool = False) -> None:
             "--force: se re-upsertan TODOS los puntos obsidian_docs (existing ignorado)", flush=True
         )
     else:
-        off, have = 0, True
+        off: int | str | None = 0
+        have = True
         while have:
             pts, nxt = c.scroll(
                 collection_name=COLL,
@@ -73,7 +74,7 @@ def main(force: bool = False) -> None:
                 with_vectors=False,
             )
             for p in pts:
-                if p.payload.get("kind") == "obsidian_docs" and p.payload.get("source"):
+                if p.payload is not None and p.payload.get("kind") == "obsidian_docs" and p.payload.get("source"):
                     existing.add(
                         (
                             p.payload["source"],

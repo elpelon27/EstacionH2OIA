@@ -41,10 +41,10 @@ def _init_llm_guard() -> bool:
     os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
     try:
-        from llm_guard.input_scanners.secrets import (
+        from llm_guard.input_scanners.secrets import (  # type: ignore[import-untyped]
             Secrets as InputSecrets,
         )
-        from llm_guard.vault import Vault
+        from llm_guard.vault import Vault  # type: ignore[import-untyped]
 
         Vault()  # instancia global del vault requerida por llm_guard (efecto lateral)
         # Escáner de entrada: detecta secretos en el texto entrante (claves, tokens)
