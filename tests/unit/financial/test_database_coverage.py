@@ -258,7 +258,7 @@ class TestPagos:
             db.create_pago(pago)
 
     def test_verificar_pago_manual_db(self, tmp_db):
-        """Test db.verificar_pago_manual using add_pago_and_update_pedido to create the pago."""
+        """Test db.verificar_pago_manual marks a pago as verified."""
         pid = db.create_pedido_financiero(_make_pedido())
         pago_id, _ = db.add_pago_and_update_pedido(
             fs_pedido_id=pid,
@@ -266,12 +266,14 @@ class TestPagos:
             monto_ves=500.0,
             tasa_eur_ves_pago=100.0,
             metodo_pago="pagomovil",
+            referencia="VERIFY_TEST_001",
         )
         db.verificar_pago_manual(pago_id, "lider")
-        pago = db.get_pago_by_referencia("")  # No referencia set
-        # Verify the pago was found and is now verified
+        pago = db.get_pago_by_referencia("VERIFY_TEST_001")
         assert pago is not None
+        assert pago.id == pago_id
         assert pago.verificado is True or pago.verificado == 1
+        assert pago.verificado_por == "lider"
 
     def test_get_pago_by_referencia_found(self, tmp_db):
         pid = db.create_pedido_financiero(_make_pedido())
