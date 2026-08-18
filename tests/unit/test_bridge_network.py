@@ -47,6 +47,17 @@ os.environ.setdefault("DISPATCH_DB_PATH", "/tmp/bridge_network_test_dispatch.db"
 
 import bridge  # noqa: E402
 
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _ensure_log_salt():
+    """Asegura que LOG_SALT este inicializado (otros tests pueden resetearlo)."""
+    import core.crypto as _crypto
+    if _crypto._LOG_SALT is None:
+        _crypto.set_log_salt(bridge.LOG_SALT)
+    yield
+
 # ============================================================================
 # Fixtures de aislamiento
 # ============================================================================

@@ -20,12 +20,13 @@ PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(_
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
-# Bypass LOG_SALT para tests: usar el mismo salt default que bridge.py
-# (BRIDGE_ALLOW_INSECURE_SALT=1 permite salt inseguro)
+# Bypass LOG_SALT para tests: usar el mismo salt que bridge.py leera del .env
+# NO setear un salt diferente al de .env — bridge.py fallaria al importar despues
 os.environ.setdefault("BRIDGE_ALLOW_INSECURE_SALT", "1")
 import core.crypto as _crypto
 if _crypto._LOG_SALT is None:
-    _crypto.set_log_salt("change-this-in-production")
+    _env_salt = os.getenv("LOG_SALT", "change-this-in-production")
+    _crypto.set_log_salt(_env_salt)
 
 from api.meta_client import MetaClient, get_meta_client, get_http_client, set_http_client
 

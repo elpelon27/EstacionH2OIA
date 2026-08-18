@@ -26,17 +26,32 @@ import core.crypto as crypto_mod
 # Fixtures — reset del estado global _LOG_SALT entre tests
 # ============================================================================
 
-@pytest.fixture(autouse=True)
-def _reset_log_salt():
-    """Resetea _LOG_SALT a None antes y después de cada test."""
-    original = crypto_mod._LOG_SALT
+@pytest.fixture(autouse=True, scope="module")
+def _reset_log_salt_module():
+    """Resetea _LOG_SALT a None al inicio y fin del modulo de tests crypto.
+
+    Scope=module para que NO contamine otros modulos de test (test_bridge.py etc).
+    """
     crypto_mod._LOG_SALT = None
-    # Limpiar env var de bypass para que cada test controle su propio estado
     old_env = os.environ.pop("BRIDGE_ALLOW_INSECURE_SALT", None)
     yield
-    crypto_mod._LOG_SALT = original
+    # Al final del modulo crypto, restaurar a None para no afectar a otros tests
+    crypto_mod._LOG_SALT = None
     if old_env is not None:
         os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = old_env
+
+
+@pytest.fixture(autouse=True)
+def _reset_log_salt(request):
+    """Resetea _LOG_SALT a None antes de cada test en ESTE modulo solo."""
+    # Solo aplicar a tests de este archivo (test_crypto_coverage)
+    if "test_crypto_coverage" not in request.node.nodeid:
+        yield
+        return
+    crypto_mod._LOG_SALT = None
+    os.environ.pop("BRIDGE_ALLOW_INSECURE_SALT", None)
+    yield
+    crypto_mod._LOG_SALT = None
 
 
 # ============================================================================

@@ -13,6 +13,7 @@ Cobertura:
 
 import os
 import sys
+import pytest
 
 # Path setup
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -22,6 +23,19 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "api"))
 os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = "1"
 
 import bridge
+
+
+@pytest.fixture(autouse=True)
+def _ensure_log_salt():
+    """Asegura que LOG_SALT este inicializado antes de cada test.
+
+    Otros modulos de test (test_crypto_coverage) pueden resetear _LOG_SALT a None
+    via sus fixtures. Este fixture lo restaura para los tests de bridge.
+    """
+    import core.crypto as _crypto
+    if _crypto._LOG_SALT is None:
+        _crypto.set_log_salt(bridge.LOG_SALT)
+    yield
 
 
 class TestCalcTotal:

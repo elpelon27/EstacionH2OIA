@@ -17,6 +17,17 @@ os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = "1"
 
 import bridge  # noqa: E402
 
+import pytest  # noqa: E402
+
+
+@pytest.fixture(autouse=True)
+def _ensure_log_salt():
+    """Asegura que LOG_SALT este inicializado (otros tests pueden resetearlo)."""
+    import core.crypto as _crypto
+    if _crypto._LOG_SALT is None:
+        _crypto.set_log_salt(bridge.LOG_SALT)
+    yield
+
 
 class TestSanitizeInputText:
     def test_vacio(self):
