@@ -12,6 +12,7 @@ from typing import Any
 import httpx
 
 from core.config import get_settings
+from core.crypto import hash_phone
 
 logger = logging.getLogger("valentina_bridge.meta_client")
 
@@ -76,8 +77,6 @@ class MetaClient:
         if not self._assert_configured():
             return False
 
-        from api.bridge import _phone_hash  # import local para evitar ciclos
-
         url = self._base_url
         payload = {
             "messaging_product": "whatsapp",
@@ -90,10 +89,8 @@ class MetaClient:
             client = get_http_client()
             resp = await client.post(url, headers=self._headers, json=payload, timeout=10)
             if resp.status_code == 200:
-                from api.bridge import _phone_hash  # import local para evitar ciclos
-
                 logger.info(
-                    "Mensaje enviado a phone:%s (len=%d)", _phone_hash(phone)[:8], len(text)
+                    "Mensaje enviado a phone:%s (len=%d)", hash_phone(phone)[:8], len(text)
                 )
                 return True
             logger.error("Meta send API error %d: %s", resp.status_code, resp.text[:200])
@@ -116,8 +113,6 @@ class MetaClient:
         """Envía un mensaje interactivo (list o button) via Meta Graph API."""
         if not self._assert_configured():
             return False
-
-        from api.bridge import _phone_hash  # import local para evitar ciclos
 
         url = f"https://graph.facebook.com/{get_settings().meta_api_version}/{self.phone_number_id}/messages"
 
@@ -159,7 +154,7 @@ class MetaClient:
                 logger.info(
                     "Mensaje interactivo (%s) enviado a phone:%s",
                     interactive_type,
-                    _phone_hash(phone)[:8],
+                    hash_phone(phone)[:8],
                 )
                 return True
             logger.error("Meta send interactive error %d: %s", resp.status_code, resp.text[:200])

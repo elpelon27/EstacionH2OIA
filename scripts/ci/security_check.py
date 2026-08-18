@@ -9,10 +9,10 @@ import asyncio
 
 from api.bridge import (
     _check_phone_rate_limit,
-    _phone_hash,
     _sanitize_input_text,
     _validate_meta_payload,
 )
+from core.crypto import hash_phone
 
 
 def main() -> None:
@@ -41,8 +41,8 @@ def main() -> None:
     assert _sanitize_input_text("hola\x00\x01mundo") == "holamundo"
     assert len(_sanitize_input_text("a" * 2500)) == 2012
 
-    # Test _phone_hash
-    h = _phone_hash("584123456789")
+    # Test hash_phone
+    h = hash_phone("584123456789")
     assert len(h) == 32  # Truncated SHA256 (16 bytes = 32 hex chars)
 
     # Test rate limit
