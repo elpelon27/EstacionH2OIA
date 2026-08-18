@@ -1,0 +1,52 @@
+[lun 17 ago 2026 21:20:21 -04] === INICIO VERIFICACION DE BACKUP ===
+[lun 17 ago 2026 21:20:21 -04] Buscando backup mas reciente...
+[OK] 2026-08-17 21:20:21 Backup conversations encontrado: conversations-test.db
+[OK] 2026-08-17 21:20:21 Backup dispatch encontrado: dispatch-20260811.db
+[OK] 2026-08-17 21:20:21 Backup diario encontrado: 20260817_032713.tar.gz
+[lun 17 ago 2026 21:20:21 -04] Verificando integridad de SQLite...
+[OK] 2026-08-17 21:20:21 Integridad conversations.db: OK
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.conversation_state: 3 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.conversations: 1 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.dispatch_queue: 17 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_audit_log: 19502 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_cuentas_cobrar: 0 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_empleados: 2 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_nomina: 0 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_pagos: 2 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_pedidos: 24 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_productos: 2 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_proveedor_pagos: 0 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_reportes_diarios: 46 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_tasas_cambio: 85 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.fs_verificacion_log: 34 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.orders: 37 registros
+[lun 17 ago 2026 21:20:21 -04]   conversations.db.sqlite_sequence: 10 registros
+[OK] 2026-08-17 21:20:21 Integridad dispatch.db: OK
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.bottle_alerts: 0 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.bottle_movements: 27 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.bottles: 165 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.clients: 30 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.deliveries: 3 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.dispatch_notifications: 259 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.dispatch_sessions: 8 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.geofence_events: 45 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.gps_tracks: 303 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.route_history: 0 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.sqlite_sequence: 10 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.vehicles: 2 registros
+[lun 17 ago 2026 21:20:21 -04]   dispatch.db.zones: 5 registros
+[lun 17 ago 2026 21:20:21 -04] Verificando integridad del backup diario...
+[OK] 2026-08-17 21:20:21 Integridad tar.gz: OK
+[OK] 2026-08-17 21:20:21 Integridad dispatch.db: OK
+[OK] 2026-08-17 21:20:21 Integridad conversations.db: OK
+[OK] 2026-08-17 21:20:21 Integridad dispatch.db: OK
+[OK] 2026-08-17 21:20:21 Integridad conversations.db: OK
+[lun 17 ago 2026 21:20:21 -04] Verificando Odoo PostgreSQL...
+[lun 17 ago 2026 21:20:22 -04] Odoo container detectado, verificando...
+[OK] 2026-08-17 21:20:22 PostgreSQL (Odoo): responde OK
+[lun 17 ago 2026 21:20:22 -04]   Odoo tablas en public schema:    541
+[OK] 2026-08-17 21:20:22 Limpieza temporal completada
+[lun 17 ago 2026 21:20:22 -04] === RESUMEN ===
+[lun 17 ago 2026 21:20:22 -04] Errores: 0
+[lun 17 ago 2026 21:20:22 -04] Warnings: 0
+
