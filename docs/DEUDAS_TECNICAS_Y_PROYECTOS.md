@@ -1,5 +1,5 @@
 # 📋 DEUDAS TÉCNICAS Y PROYECTOS - Estación H2O / Valentina
-**Última actualización:** 2026-08-16 (brecha seguridad cerrada + deuda mypy liquidada) | **Estado CI:** ✅ GREEN
+**Última actualización:** 2026-08-17 (import circular eliminado + mypy 0 + coverage 61%) | **Estado CI:** ✅ GREEN
 
 ## 🔒 BRECHA DE SEGURIDAD — CERRADA 2026-08-16 (API keys NVIDIA)
 > `scripts/prometeo/hybrid_llm.py` tenía 3 API keys NVIDIA hardcodeadas (nvapi-*), expuestas
@@ -176,21 +176,18 @@
 
 ---
 
-## 🐍 DEUDA MYPY — RE-MEDICIÓN REAL 2026-08-17 (63 errores, bajando)
+## 🐍 DEUDA MYPY — COMPLETADA 2026-08-17 (0 errores)
 
-> Re-medición con gate mypy 1.20.2 (python3.12, strict=true). El doc anterior decía 208 errores;
-> la realidad eran 89 al medir. Se limpiaron 27 quick wins (25 unused-ignore + 2 redundant-cast).
-> Quedan **63 errores en 32 archivos**. Distribución por tipo: union-attr (14), arg-type (12),
-> import-untyped (9), attr-defined (6), import-not-found (4), assignment (4), no-untyped-call (3),
-> index (3), y 8 errores sueltos (list-item, dict-item, no-untyped-def, float, misc, operator, State, ChatCompletionChunk).
+> Re-medición final con gate mypy 1.20.2 (python3.12, strict=true).
+> Historial: el doc anterior decía 208 errores → la realidad eran 89 al medir →
+> se limpiaron 27 quick wins (25 unused-ignore + 2 redundant-cast) →
+> 63 restantes limpiados por subagente → **0 errores en 89 archivos**.
 >
-> Top archivos: scripts/fix_created_at.py (7), scripts/ensure_coverage.py (5), skills/memoria_hechos.py (5),
-> src/orchestration/external_skills.py (4), src/financial/verificacion.py (4), scripts/count_coverage.py (4),
-> scripts/audit_payload.py (4), scripts/prometeo/prometeo.py (3), scripts/verify_final.py (3).
-> Los archivos del doc anterior (odoo_sync, r4/client, orchestrator, etc.) YA están en 0 — eran datos desactualizados.
+> Bug encontrado y reparado: api/unified_messenger.py tenía syntax error
+> (tags XML pegados accidentalmente + _make_send duplicado) — reparado.
 >
-> Nota: api/unified_messenger.py tenía syntax error (tags XML pegados accidentalmente + _make_send duplicado) — reparado esta sesión.
-> api/bridge.py tenía 39 errores, bajó a 1 (arg-type en add_exception_handler de Starlette, pendiente).
+> Import circular eliminado: api/meta_client.py importaba _phone_hash de
+> api/bridge.py en 3 lugares. Ahora importa hash_phone de core/crypto.py directamente.
 
 
 ---
@@ -207,7 +204,7 @@
 
 | ID | Deuda | Archivos afectados | Descripción | Esfuerzo estimado |
 |---|---|---|---|---|
-| **DT-12** | Cobertura de tests < 35% | `core/`, `agents/`, `api/` | 🔄 EN PROGRESO: core ya alto (workload_router 97%, cost_guard 99%, circuit_breaker/fusion/openrouter 100%, judge 94%); el total 38% lo hunde `api/bridge.py` (17%). Prioridad: subir bridge + prometeo_approval (0%). | ~8-16h → reducido |
+| **DT-12** | Cobertura de tests | `core/`, `agents/`, `api/` | ✅ EN PROGRESO: core/ al 61% (3116 stmts, 1214 miss). 580 passed. Modulos al 100%: meta_client, crypto, logger, qwen_client, judge, circuit_breaker, fusion, config, openrouter_client, rate_limiter, unified_messenger, guardrail, workload_router (99%). Pendiente: api/bridge.py (38%), src/orchestration/ (0%), src/financial/ (25-41%). | ~8-16h → reducido |
 | **DT-27** | Lint legacy en conftest.py | `tests/conftest.py` | 34 issues (W293, E501, I001, E402, F401, SIM105, W291/292) | ~1h |
 
 ---
@@ -275,13 +272,12 @@
 | Métrica | Actual | Objetivo |
 |---|---|---|
 | **CI/CD Status** | ✅ GREEN | GREEN |
-| **Tests passing** | 149/149 (core/bridge/financial) | 100% |
-| **Coverage (core)** | ~28% | >60% |
-| **Mypy errors (core/api)** | 0 | 0 |
-| **Ruff errors (core/api)** | 0 | 0 |
-| **Ruff errors (skills/src financial/r4/odoo)** | 0 | 0 |
-| **Ruff errors (todo repo)** | ~20 | 0 |
-| **Mypy warnings (todo repo)** | ~6 | 0 |
+| **Tests passing** | 580/580 (14 skipped) | 100% |
+| **Coverage (core/)** | 61% | >60% ✅ |
+| **Coverage (total repo)** | 36% | >45% |
+| **Mypy errors (todo repo)** | 0 | 0 ✅ |
+| **Ruff errors (core/api)** | 0 | 0 ✅ |
+| **Ruff errors (todo repo)** | ~91 | 0 |
 | **Deploy frequency** | Manual | Weekly |
 | **MTTR (Mean Time To Recovery)** | ~15min | <10min |
 
