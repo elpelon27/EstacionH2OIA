@@ -1,0 +1,74 @@
+server:
+  http_listen_port: 9080
+  grpc_listen_port: 0
+
+positions:
+  filename: /tmp/positions.yaml
+
+clients:
+  - url: http://hermes_loki:3100/loki/api/v1/push
+
+scrape_configs:
+  # Logs de systemd (journalctl)
+  - job_name: journal
+    journal:
+      labels:
+        job: systemd-journal
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        target_label: 'unit'
+      - source_labels: ['__journal__hostname']
+        target_label: 'host'
+      - source_labels: ['__journal_syslog_identifier']
+        target_label: 'service'
+
+  # Logs de Valentina Bridge
+  - job_name: valentina-bridge
+    journal:
+      labels:
+        job: valentina-bridge
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        regex: 'valentina-bridge\\.service'
+        action: keep
+
+  # Logs del Dispatcher Bot
+  - job_name: dispatcher-bot
+    journal:
+      labels:
+        job: dispatcher-bot
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        regex: 'dispatcher-bot\\.service'
+        action: keep
+
+  # Logs de Prometeo Telegram
+  - job_name: prometeo-telegram
+    journal:
+      labels:
+        job: prometeo-telegram
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        regex: 'prometeo-telegram\\.service'
+        action: keep
+
+  # Logs de Cloudflared
+  - job_name: cloudflared
+    journal:
+      labels:
+        job: cloudflared
+    relabel_configs:
+      - source_labels: ['__journal__systemd_unit']
+        regex: 'cloudflared\\.service'
+        action: keep
+
+  # Logs de Docker (contenedores)
+  - job_name: docker-containers
+    docker_sd_configs:
+      - host: unix:///var/run/docker.sock
+        refresh_interval: 5s
+    relabel_configs:
+      - source_labels: ['__meta_docker_container_name']
+        target_label: 'container'
+      - source_labels: ['__meta_docker_container_log_stream']
+        target_label: 'stream'

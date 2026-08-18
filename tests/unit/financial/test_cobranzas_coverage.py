@@ -182,7 +182,8 @@ class TestProcesarRecordatorio:
         mock_log.assert_called_once()
 
     def test_escalar_con_pedido_sin_id(self):
-        pedido = _make_pedido(id=None)
+        # id=None, but recordatorios_enviados=3 → should escalate
+        pedido = _make_pedido(id=None, recordatorios_enviados=3)
         with (
             patch("src.financial.cobranzas.db.marcar_escalo_humano"),
             patch("src.financial.cobranzas.db.log_verificacion"),

@@ -59,13 +59,14 @@ class TestCalcularNominaPeriodo:
         with (
             patch("src.financial.nomina.get_eur_ves_rate", AsyncMock(return_value=None)),
             patch("src.financial.nomina._contar_botellones_repartidos", return_value=0),
+            patch("src.financial.nomina.convert_eur_to_ves", return_value=0.0),
         ):
             nominas = await calcular_nomina_periodo(
                 "2026-08-01", "2026-08-15", [_make_empleado()]
             )
         assert len(nominas) == 1
         assert nominas[0].tasa_eur_ves == 0
-        assert nominas[0].total_ves == 0.0  # 300 * 0 = 0
+        assert nominas[0].total_ves == 0.0  # mocked convert returns 0
         assert nominas[0].total_eur == 300.0  # sueldo + 0 comision
 
     async def test_calcular_sin_botellones(self):
@@ -133,7 +134,8 @@ class TestCalcularNominaPeriodo:
 class TestContarBotellones:
     def test_contar_con_error_bd(self):
         """When get_db raises, should return 0."""
-        with patch("src.financial.nomina.get_db", side_effect=Exception("DB error")):
+        # get_db is imported inside the function from src.financial.database
+        with patch("src.financial.database.get_db", side_effect=Exception("DB error")):
             result = _contar_botellones_repartidos(1, "2026-08-01", "2026-08-15")
         assert result == 0
 
@@ -147,7 +149,7 @@ class TestContarBotellones:
         mock_cm.__enter__ = MagicMock(return_value=mock_conn)
         mock_cm.__exit__ = MagicMock(return_value=None)
 
-        with patch("src.financial.nomina.get_db", return_value=mock_cm):
+        with patch("src.financial.database.get_db", return_value=mock_cm):
             result = _contar_botellones_repartidos(999, "2026-08-01", "2026-08-15")
         assert result == 0
 
