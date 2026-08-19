@@ -394,13 +394,16 @@ class R4Client:
 
 def get_r4_client() -> R4Client:
     """Factory que lee credenciales de variables de entorno"""
-    commerce_token = os.getenv("R4_COMMERCE_TOKEN")
-    hmac_key = os.getenv("R4_HMAC_KEY")
+    # R4_COMMERCE_ID: header Commerce (identificador público)
+    # R4_COMMERCE_SECRET: llave HMAC (secreto compartido)
+    # Backward compat: R4_COMMERCE_TOKEN y R4_HMAC_KEY
+    commerce_token = os.getenv("R4_COMMERCE_ID") or os.getenv("R4_COMMERCE_TOKEN")
+    hmac_key = os.getenv("R4_COMMERCE_SECRET") or os.getenv("R4_HMAC_KEY") or os.getenv("R4_COMMERCE_TOKEN")
     base_url = os.getenv("R4_BASE_URL", "https://r4conecta.mibanco.com.ve/")
     timeout = float(os.getenv("R4_TIMEOUT", "10"))
 
     if not commerce_token or not hmac_key:
-        raise ValueError("R4_COMMERCE_TOKEN y R4_HMAC_KEY son requeridos en .env")
+        raise ValueError("R4_COMMERCE_ID y R4_COMMERCE_SECRET son requeridos en .env")
 
     return R4Client(
         commerce_token=commerce_token,

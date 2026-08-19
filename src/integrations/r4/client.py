@@ -57,7 +57,20 @@ class R4Config:
         self.base_url = os.getenv("R4_BASE_URL", "https://r4conecta.mibanco.com.ve")
 
         # Credenciales del comercio (proporcionadas por el banco)
+        # R4_COMMERCE_ID: identificador público (header Commerce)
+        # R4_COMMERCE_SECRET: secreto compartido para firmar HMAC-SHA256
+        # Backward compat: si no hay R4_COMMERCE_SECRET, usar R4_COMMERCE_TOKEN
+        self.commerce_id = os.getenv("R4_COMMERCE_ID", "")
+        self.commerce_secret = os.getenv("R4_COMMERCE_SECRET", "")
+        # commerce_token deprecated - mantenido temporalmente para fallback
         self.commerce_token = os.getenv("R4_COMMERCE_TOKEN", "")
+        # Si no hay commerce_secret pero sí commerce_token, usar token como secret
+        if not self.commerce_secret and self.commerce_token:
+            self.commerce_secret = self.commerce_token
+        # Si no hay commerce_id pero sí commerce_token, usar token como id
+        if not self.commerce_id and self.commerce_token:
+            self.commerce_id = self.commerce_token
+
         self.id_comercio = os.getenv("R4_ID_COMERCIO", "")
         self.telefono_comercio = os.getenv("R4_TELEFONO_COMERCIO", "")
 
@@ -72,8 +85,10 @@ class R4Config:
     def _validate_credentials(self) -> None:
         """Valida credenciales - solo warning si faltan."""
         missing = []
-        if not self.commerce_token:
-            missing.append("R4_COMMERCE_TOKEN")
+        if not self.commerce_id:
+            missing.append("R4_COMMERCE_ID")
+        if not self.commerce_secret:
+            missing.append("R4_COMMERCE_SECRET")
         if not self.id_comercio:
             missing.append("R4_ID_COMERCIO")
         if not self.telefono_comercio:
@@ -88,7 +103,7 @@ class R4Config:
     @property
     def has_credentials(self) -> bool:
         """Verifica si tiene credenciales completas."""
-        return bool(self.commerce_token and self.id_comercio and self.telefono_comercio)
+        return bool(self.commerce_id and self.commerce_secret and self.id_comercio and self.telefono_comercio)
 
     def get_url(self, endpoint: R4Endpoint) -> str:
         """Construye URL completa para un endpoint."""
@@ -211,7 +226,9 @@ class R4Client:
 
         client = await self._get_client()
         url = f"{self.config.base_url}{self._get_endpoint_path(endpoint)}"
-        headers = build_auth_headers(payload, endpoint, self.config.commerce_token)
+        headers = build_auth_headers(
+            payload, endpoint, self.config.commerce_secret, self.config.commerce_id
+        )
 
         last_exception: BaseException | None = None
 
@@ -738,7 +755,7 @@ class R4Client:
         if not self.config.has_credentials:
             return True  # Modo simulación
         return verify_hmac_signature(
-            payload, R4Endpoint.R4BCV, auth_header, self.config.commerce_token
+            payload, R4Endpoint.R4BCV, auth_header, self.config.commerce_secret
         )
 
     def verify_r4consulta_webhook(self, payload: dict[str, Any], auth_header: str) -> bool:
@@ -746,7 +763,7 @@ class R4Client:
         if not self.config.has_credentials:
             return True
         return verify_hmac_signature(
-            payload, R4Endpoint.R4CONSULTA, auth_header, self.config.commerce_token
+            payload, R4Endpoint.R4CONSULTA, auth_header, self.config.commerce_secret
         )
 
     def verify_r4notifica_webhook(self, payload: dict[str, Any], auth_header: str) -> bool:
@@ -754,7 +771,7 @@ class R4Client:
         if not self.config.has_credentials:
             return True
         return verify_hmac_signature(
-            payload, R4Endpoint.R4NOTIFICA, auth_header, self.config.commerce_token
+            payload, R4Endpoint.R4NOTIFICA, auth_header, self.config.commerce_secret
         )
 
 

@@ -46,19 +46,22 @@ class R4WebhookConfig:
         # IP whitelist del banco (configurable)
         ips_env = os.getenv("R4_WEBHOOK_ALLOWED_IPS", "")
         self.allowed_ips = {ip.strip() for ip in ips_env.split(",") if ip.strip()}
-        # Defaults según especificación
+        # Defaults según especificación actualizada R4-02
         if not self.allowed_ips:
             self.allowed_ips = {
                 "45.175.213.98",
-                "200.74.203.91",
+                "200.199.249.3",
                 "204.199.249.3",
             }
 
         # Authorization token (UUID)
         self.auth_token = os.getenv("R4_WEBHOOK_AUTH_TOKEN", "")
 
-        # HMAC commerce token (mismo que cliente)
-        self.commerce_token = os.getenv("R4_COMMERCE_TOKEN", "")
+        # HMAC commerce secret (secreto compartido para verificar firmas)
+        self.commerce_secret = os.getenv("R4_COMMERCE_SECRET", "")
+        # Backward compat: si no hay secret, usar commerce_token
+        if not self.commerce_secret:
+            self.commerce_secret = os.getenv("R4_COMMERCE_TOKEN", "")
 
         # Rate limiting
         self.rate_limit_requests = int(os.getenv("R4_WEBHOOK_RATE_LIMIT", "100"))
@@ -70,8 +73,8 @@ class R4WebhookConfig:
     def _validate_config(self) -> None:
         if not self.auth_token:
             logger.warning("R4_WEBHOOK_AUTH_TOKEN no configurado - webhooks sin auth token")
-        if not self.commerce_token:
-            logger.warning("R4_COMMERCE_TOKEN no configurado - verificación HMAC deshabilitada")
+        if not self.commerce_secret:
+            logger.warning("R4_COMMERCE_SECRET no configurado - verificación HMAC deshabilitada")
         logger.info(f"R4 Webhook IPs permitidas: {self.allowed_ips}")
 
 
@@ -180,13 +183,19 @@ class R4NotificaRequest(BaseModel):
 
 
 class R4ConsultaResponse(BaseModel):
-    """Response para webhook /consulta."""
+    """Response para webhook /consulta (formato R4consulta)."""
 
     status: bool
 
 
 class R4NotificaResponse(BaseModel):
     """Response para webhook /notifica."""
+
+    abono: bool
+
+
+class MBConsultaResponse(BaseModel):
+    """Response para webhook /consulta (formato MBconsulta vía SIMF)."""
 
     abono: bool
 
@@ -274,8 +283,8 @@ async def verify_hmac_signature_webhook(
     config: R4WebhookConfig,
 ) -> None:
     """Verifica firma HMAC-SHA256 del payload (timing-safe)."""
-    if not config.commerce_token:
-        logger.warning("R4_COMMERCE_TOKEN no configurado - saltando verificación HMAC")
+    if not config.commerce_secret:
+        logger.warning("R4_COMMERCE_SECRET no configurado - saltando verificación HMAC")
         return
 
     auth_header = request.headers.get("Authorization", "")
@@ -291,7 +300,7 @@ async def verify_hmac_signature_webhook(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma HMAC requerida")
 
     # Verificar con hmac.compare_digest (timing-safe)
-    is_valid = verify_hmac_signature(payload, endpoint, signature, config.commerce_token)
+    is_valid = verify_hmac_signature(payload, endpoint, signature, config.commerce_secret)
 
     if not is_valid:
         logger.warning(f"R4 Webhook {endpoint.value} firma HMAC inválida")
@@ -345,8 +354,80 @@ async def security_dependency(
 
 
 # ============================================================
+# Detección de formato de webhook (R4consulta vs MBconsulta)
+# ============================================================
+
+
+def detect_webhook_format(payload: dict[str, Any]) -> str:
+    """
+    Detecta si el payload es formato R4consulta o MBconsulta.
+
+    El banco envía por uno u otro canal según el banco emisor:
+    - MBconsulta (vía SIMF): tiene "TelefonoEmisor" y "BancoEmisor"
+      → responder {"abono": true/false}
+    - R4consulta: tiene "IdCliente" y "TelefonoComercio"
+      → responder {"status": true/false}
+
+    Returns:
+        "MBconsulta" o "R4consulta"
+    """
+    if "TelefonoEmisor" in payload and "BancoEmisor" in payload:
+        return "MBconsulta"
+    if "IdCliente" in payload and "TelefonoComercio" in payload:
+        return "R4consulta"
+    # Default: intentar R4consulta
+    return "R4consulta"
+
+
+# ============================================================
 # Lógica de negocio (placeholders para FASE 6)
 # ============================================================
+
+
+async def process_mbconsulta(
+    payload: dict[str, Any], config: R4WebhookConfig
+) -> WebhookProcessResult:
+    """
+    Procesa webhook MBconsulta (vía SIMF): notificación de pago entrante
+    con el objeto completo de la transacción.
+
+    El banco envía este formato cuando el pago viene por canal SIMF.
+    Responde {"abono": true/false}.
+
+    FASE 6 - Implementar:
+    - Extraer datos de la transacción del payload completo
+    - Buscar pedido pendiente
+    - Marcar pago
+    - Sync Odoo
+    - Notificar WhatsApp
+    """
+    telefono_emisor = payload.get("TelefonoEmisor", "N/A")
+    banco_emisor = payload.get("BancoEmisor", "N/A")
+    monto = payload.get("Monto", "N/A")
+    referencia = payload.get("Referencia", payload.get("reference", "N/A"))
+
+    logger.info(
+        f"MBconsulta recibido: TelefonoEmisor={telefono_emisor}, "
+        f"BancoEmisor={banco_emisor}, Monto={monto}, Referencia={referencia}"
+    )
+
+    # PLACEHOLDER - FASE 6
+    # Mismo flujo que R4notifica pero con formato de payload SIMF
+    # from src.integrations.fs_client import FSClient
+    # fs = FSClient()
+    # pedido = await fs.get_pending_order_by_amount_phone(monto, telefono_emisor)
+    # if not pedido:
+    #     return WebhookProcessResult(success=False, code="NO_ORDER", ...)
+    # await fs.mark_order_paid(pedido.id, referencia)
+    # ...
+
+    # Mock response para desarrollo
+    return WebhookProcessResult(
+        success=True,
+        code="00",
+        message="MOCK: MBconsulta procesado (implementar FASE 6)",
+        reference=str(referencia),
+    )
 
 
 async def process_r4consulta(
@@ -473,11 +554,16 @@ _webhook_config_singleton = Depends(get_webhook_config)
 
 @router.post(
     "/consulta",
-    response_model=R4ConsultaResponse,
-    summary="R4consulta - Validación cliente para pago móvil",
+    summary="R4consulta / MBconsulta - Validación cliente y notificación de pago",
     description="""
     Endpoint llamado por el banco cuando un cliente inicia pago móvil.
-    Debemos responder si el cliente tiene un pedido pendiente válido.
+
+    Soporta DOS formatos (R4-24):
+    1. R4consulta: {IdCliente, Monto, TelefonoComercio} → responde {"status": true/false}
+    2. MBconsulta (vía SIMF): {TelefonoEmisor, BancoEmisor, ...} → responde {"abono": true/false}
+
+    El banco envía por uno u otro canal según el banco emisor.
+    La detección es automática por los campos del payload.
 
     Seguridad:
     - IP whitelist
@@ -488,29 +574,65 @@ _webhook_config_singleton = Depends(get_webhook_config)
 )
 async def r4_consulta_webhook(
     request: Request,
-    payload: R4ConsultaRequest,
     authorization: str | None = Header(None),
     config: R4WebhookConfig = _webhook_config_singleton,
-) -> R4ConsultaResponse:
+) -> dict[str, Any]:
     """
-    Webhook R4consulta - Validación de cliente.
+    Webhook R4consulta / MBconsulta - Validación de cliente y notificación de pago.
 
-    Body: {IdCliente, Monto, TelefonoComercio}
-    Response: {"status": true/false}
+    Body (R4consulta): {IdCliente, Monto, TelefonoComercio}
+    Response (R4consulta): {"status": true/false}
+
+    Body (MBconsulta): {TelefonoEmisor, BancoEmisor, Monto, Referencia, ...}
+    Response (MBconsulta): {"abono": true/false}
     """
-    logger.info("=== R4consulta webhook recibido ===")
+    logger.info("=== R4consulta/MBconsulta webhook recibido ===")
+
+    # Parsear body como JSON genérico (para soportar ambos formatos)
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Body JSON inválido",
+        )
+
+    if not isinstance(body, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Body debe ser un objeto JSON",
+        )
+
+    # Detectar formato del payload
+    fmt = detect_webhook_format(body)
+    logger.info(f"Formato detectado: {fmt}")
 
     # Verificaciones de seguridad
     await verify_ip_whitelist(request, config)
     await verify_rate_limit(request, config)
     await verify_auth_token(authorization, config)
-    await verify_hmac_signature_webhook(request, payload.dict(), R4Endpoint.R4CONSULTA, config)
 
-    # Procesar lógica de negocio
-    result = await process_r4consulta(payload, config)
+    # Determinar endpoint R4 para HMAC según formato
+    r4_endpoint = R4Endpoint.R4NOTIFICA if fmt == "MBconsulta" else R4Endpoint.R4CONSULTA
+    await verify_hmac_signature_webhook(request, body, r4_endpoint, config)
 
-    logger.info(f"R4consulta respuesta: status={result.success}")
-    return result.to_consulta_response()
+    # Procesar según formato detectado
+    if fmt == "MBconsulta":
+        result = await process_mbconsulta(body, config)
+        logger.info(f"MBconsulta respuesta: abono={result.success}")
+        return {"abono": result.success}
+    else:
+        # Validar con modelo Pydantic para R4consulta
+        try:
+            payload = R4ConsultaRequest(**body)
+        except Exception as e:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Payload R4consulta inválido: {e}",
+            )
+        result = await process_r4consulta(payload, config)
+        logger.info(f"R4consulta respuesta: status={result.success}")
+        return {"status": result.success}
 
 
 @router.post(
@@ -577,14 +699,14 @@ async def r4_webhook_health(
         "config": {
             "allowed_ips_count": len(config.allowed_ips),
             "has_auth_token": bool(config.auth_token),
-            "has_commerce_token": bool(config.commerce_token),
+            "has_commerce_secret": bool(config.commerce_secret),
             "rate_limit": (f"{config.rate_limit_requests} req/{config.rate_limit_window}s"),
         },
         "endpoints": [
             {
                 "path": "/webhook/r4/consulta",
                 "method": "POST",
-                "description": "R4consulta",
+                "description": "R4consulta / MBconsulta (auto-detect)",
             },
             {
                 "path": "/webhook/r4/notifica",
@@ -626,7 +748,7 @@ if __name__ == "__main__":
         config = get_webhook_config()
         print(f"Allowed IPs: {config.allowed_ips}")
         print(f"Auth token: {'SET' if config.auth_token else 'NOT SET'}")
-        print(f"Commerce token: {'SET' if config.commerce_token else 'NOT SET'}")
+        print(f"Commerce secret: {'SET' if config.commerce_secret else 'NOT SET'}")
         print(f"Rate limit: {config.rate_limit_requests}/{config.rate_limit_window}s")
 
         # Test models
@@ -634,6 +756,22 @@ if __name__ == "__main__":
             IdCliente="V12345678", Monto="150.00", TelefonoComercio="04125555555"
         )
         print(f"\nR4ConsultaRequest: {consulta.dict()}")
+
+        # Test MBconsulta format detection
+        mb_payload = {
+            "TelefonoEmisor": "04145555555",
+            "BancoEmisor": "0134",
+            "Monto": "150.00",
+            "Referencia": "83736278",
+        }
+        fmt = detect_webhook_format(mb_payload)
+        print(f"\nMBconsulta format detected: {fmt}")
+        assert fmt == "MBconsulta", f"Expected MBconsulta, got {fmt}"
+
+        r4_payload = {"IdCliente": "12345678", "Monto": "10.00", "TelefonoComercio": "04129999999"}
+        fmt2 = detect_webhook_format(r4_payload)
+        print(f"R4consulta format detected: {fmt2}")
+        assert fmt2 == "R4consulta", f"Expected R4consulta, got {fmt2}"
 
         notifica = R4NotificaRequest(
             IdComercio="13536734",
