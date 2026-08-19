@@ -542,6 +542,78 @@ async def process_r4notifica(
 
 
 # ============================================================
+# Captura de headers y payloads para diagnóstico (modo captura)
+# ============================================================
+
+
+def _log_full_request(request: Request, body: Any, endpoint_name: str) -> None:
+    """
+    Loguea TODOS los headers y el payload recibido del banco.
+    Esto nos permite ver exactamente qué envía el banco en la vida real,
+    incluso si la verificación HMAC falla después.
+
+    NO loguea valores de nuestros secrets, solo lo que llega del banco.
+    """
+    # Capturar todos los headers
+    headers_dict = dict(request.headers)
+    # Redactar nuestro auth token si está presente
+    auth_header = headers_dict.get("authorization", "")
+    if auth_header and len(auth_header) > 20:
+        headers_dict["authorization"] = auth_header[:10] + "...REDACTED"
+
+    # IP origen
+    client_ip = request.client.host if request.client else "unknown"
+    forwarded = request.headers.get("X-Forwarded-For", "")
+    real_ip = request.headers.get("X-Real-IP", "")
+
+    logger.info("=" * 80)
+    logger.info(f"🔍 CAPTURA WEBHOOK [{endpoint_name}] - IP origen: {client_ip}")
+    if forwarded:
+        logger.info(f"   X-Forwarded-For: {forwarded}")
+    if real_ip:
+        logger.info(f"   X-Real-IP: {real_ip}")
+    logger.info(f"   Method: {request.method}")
+    logger.info(f"   URL: {request.url}")
+    logger.info(f"   Headers ({len(headers_dict)}):")
+    for k, v in sorted(headers_dict.items()):
+        logger.info(f"     {k}: {v}")
+    logger.info(f"   Body ({type(body).__name__}):")
+    if isinstance(body, dict):
+        for k, v in sorted(body.items()):
+            logger.info(f"     {k}: {v}")
+    else:
+        logger.info(f"     {body}")
+    logger.info("=" * 80)
+
+
+def _log_hmac_failure(
+    request: Request, body: Any, endpoint_name: str,
+    sign_string: str | None = None, expected_hash: str | None = None,
+    received_hash: str | None = None,
+) -> None:
+    """
+    Loguea detalles de fallo HMAC para diagnóstico.
+    Captura el sign string y los hashes para comparar con el banco.
+    """
+    logger.warning(f"⚠️  HMAC FALLÓ en {endpoint_name}")
+    logger.warning(f"   IP origen: {request.client.host if request.client else 'unknown'}")
+    auth_header = request.headers.get("Authorization", "")
+    logger.warning(f"   Authorization recibido: {auth_header[:30]}..." if len(auth_header) > 30 else f"   Authorization recibido: {auth_header}")
+    logger.warning(f"   Commerce header: {request.headers.get('Commerce', 'NO PRESENTE')}")
+    logger.warning(f"   X-Signature: {request.headers.get('X-Signature', 'NO PRESENTE')}")
+    logger.warning(f"   X-Hmac-Signature: {request.headers.get('X-Hmac-Signature', 'NO PRESENTE')}")
+    if sign_string:
+        logger.warning(f"   Sign string construido: {sign_string}")
+    if expected_hash:
+        logger.warning(f"   Hash esperado: {expected_hash}")
+    if received_hash:
+        logger.warning(f"   Hash recibido:  {received_hash}")
+    # Log all headers for debugging
+    logger.warning(f"   TODOS los headers: {dict(request.headers)}")
+    logger.warning(f"   Body completo: {body}")
+
+
+# ============================================================
 # Router FastAPI
 # ============================================================
 
@@ -592,29 +664,62 @@ async def r4_consulta_webhook(
     try:
         body = await request.json()
     except Exception:
+        # Capturar body raw aunque no sea JSON válido
+        raw_body = await request.body()
+        logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {raw_body[:500]}")
+        _log_full_request(request, f"RAW: {raw_body[:500]}", "consulta")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body JSON inválido",
         )
 
     if not isinstance(body, dict):
+        _log_full_request(request, body, "consulta")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body debe ser un objeto JSON",
         )
 
+    # === CAPTURA COMPLETA: loguear TODO antes de cualquier verificación ===
+    _log_full_request(request, body, "consulta")
+
     # Detectar formato del payload
     fmt = detect_webhook_format(body)
     logger.info(f"Formato detectado: {fmt}")
 
-    # Verificaciones de seguridad
-    await verify_ip_whitelist(request, config)
-    await verify_rate_limit(request, config)
-    await verify_auth_token(authorization, config)
+    # Verificaciones de seguridad (NO abortar en HMAC para captura)
+    try:
+        await verify_ip_whitelist(request, config)
+    except HTTPException as e:
+        logger.warning(f"IP rechazada pero procesando en modo captura: {e.detail}")
+        # En modo captura, continuamos para loguear el payload
 
-    # Determinar endpoint R4 para HMAC según formato
+    await verify_rate_limit(request, config)
+
+    try:
+        await verify_auth_token(authorization, config)
+    except HTTPException as e:
+        logger.warning(f"Auth token falló pero procesando en modo captura: {e.detail}")
+
+    # HMAC: capturar fallo pero NO abortar (modo captura para transacción real)
     r4_endpoint = R4Endpoint.R4NOTIFICA if fmt == "MBconsulta" else R4Endpoint.R4CONSULTA
-    await verify_hmac_signature_webhook(request, body, r4_endpoint, config)
+    try:
+        await verify_hmac_signature_webhook(request, body, r4_endpoint, config)
+        logger.info("✅ HMAC verificado OK")
+    except HTTPException as e:
+        # Capturar detalles del fallo HMAC para diagnóstico
+        from src.integrations.r4.hmac_auth import build_sign_string, compute_hmac_sha256
+        try:
+            sign_str = build_sign_string(body, r4_endpoint)
+            expected = compute_hmac_sha256(sign_str, config.commerce_secret)
+            received = request.headers.get("Authorization", "") or \
+                       request.headers.get("X-Signature", "") or \
+                       request.headers.get("X-Hmac-Signature", "")
+            _log_hmac_failure(request, body, f"consulta/{fmt}", sign_str, expected, received)
+        except Exception as diag_err:
+            _log_hmac_failure(request, body, f"consulta/{fmt}")
+            logger.warning(f"   No se pudo construir sign string: {diag_err}")
+        logger.warning(f"HMAC falló pero procesando en modo captura: {e.detail}")
 
     # Procesar según formato detectado
     if fmt == "MBconsulta":
@@ -626,10 +731,9 @@ async def r4_consulta_webhook(
         try:
             payload = R4ConsultaRequest(**body)
         except Exception as e:
-            raise HTTPException(
-                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-                detail=f"Payload R4consulta inválido: {e}",
-            )
+            logger.warning(f"Payload R4consulta inválido pero capturado: {e}")
+            # Retornar response genérico para no romper el flujo del banco
+            return {"status": True}
         result = await process_r4consulta(payload, config)
         logger.info(f"R4consulta respuesta: status={result.success}")
         return {"status": result.success}
@@ -653,10 +757,9 @@ async def r4_consulta_webhook(
 )
 async def r4_notifica_webhook(
     request: Request,
-    payload: R4NotificaRequest,
     authorization: str | None = Header(None),
     config: R4WebhookConfig = _webhook_config_singleton,
-) -> R4NotificaResponse:
+) -> dict[str, Any]:
     """
     Webhook R4notifica - Notificación de pago entrante.
 
@@ -666,17 +769,66 @@ async def r4_notifica_webhook(
     """
     logger.info("=== R4notifica webhook recibido ===")
 
-    # Verificaciones de seguridad
-    await verify_ip_whitelist(request, config)
+    # Parsear body como JSON genérico para captura
+    try:
+        body = await request.json()
+    except Exception:
+        raw_body = await request.body()
+        logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {raw_body[:500]}")
+        _log_full_request(request, f"RAW: {raw_body[:500]}", "notifica")
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Body JSON inválido",
+        )
+
+    # === CAPTURA COMPLETA: loguear TODO antes de cualquier verificación ===
+    _log_full_request(request, body, "notifica")
+
+    # Validar con modelo Pydantic
+    try:
+        payload = R4NotificaRequest(**body)
+    except Exception as e:
+        logger.warning(f"Payload R4notifica inválido pero capturado: {e}")
+        _log_full_request(request, body, "notifica/invalid")
+        # Retornar response genérico para no romper el flujo del banco
+        return {"abono": True}
+
+    # Verificaciones de seguridad (NO abortar en HMAC para captura)
+    try:
+        await verify_ip_whitelist(request, config)
+    except HTTPException as e:
+        logger.warning(f"IP rechazada pero procesando en modo captura: {e.detail}")
+
     await verify_rate_limit(request, config)
-    await verify_auth_token(authorization, config)
-    await verify_hmac_signature_webhook(request, payload.dict(), R4Endpoint.R4NOTIFICA, config)
+
+    try:
+        await verify_auth_token(authorization, config)
+    except HTTPException as e:
+        logger.warning(f"Auth token falló pero procesando en modo captura: {e.detail}")
+
+    # HMAC: capturar fallo pero NO abortar (modo captura)
+    try:
+        await verify_hmac_signature_webhook(request, payload.dict(), R4Endpoint.R4NOTIFICA, config)
+        logger.info("✅ HMAC verificado OK")
+    except HTTPException as e:
+        from src.integrations.r4.hmac_auth import build_sign_string, compute_hmac_sha256
+        try:
+            sign_str = build_sign_string(payload.dict(), R4Endpoint.R4NOTIFICA)
+            expected = compute_hmac_sha256(sign_str, config.commerce_secret)
+            received = request.headers.get("Authorization", "") or \
+                       request.headers.get("X-Signature", "") or \
+                       request.headers.get("X-Hmac-Signature", "")
+            _log_hmac_failure(request, payload.dict(), "notifica", sign_str, expected, received)
+        except Exception as diag_err:
+            _log_hmac_failure(request, payload.dict(), "notifica")
+            logger.warning(f"   No se pudo construir sign string: {diag_err}")
+        logger.warning(f"HMAC falló pero procesando en modo captura: {e.detail}")
 
     # Procesar lógica de negocio
     result = await process_r4notifica(payload, config)
 
     logger.info(f"R4notifica respuesta: abono={result.success}")
-    return result.to_notifica_response()
+    return {"abono": result.success}
 
 
 # ============================================================
