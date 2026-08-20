@@ -62,38 +62,40 @@ async def fetch_fallback_tasas() -> dict[str, Any]:
     Fallback: consulta tasas USD/VES y EUR/VES desde open.er-api.com.
 
     Usado cuando R4 Conecta falla (code 108, credenciales pendientes, etc.).
-    API: https://open.er-api.com/v6/latest/USD
-    Devuelve rates contra USD; EUR/VES se calcula como EUR/USD * USD/VES.
+
+    Hace DOS llamadas independientes para obtener cada par directo:
+    - GET /v6/latest/USD → rate VES = USD/VES directo
+    - GET /v6/latest/EUR → rate VES = EUR/VES directo
     """
     import httpx
 
     results: dict[str, Any] = {"USD": None, "EUR": None, "errors": [], "fuente": "open_er_api"}
 
     try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            # open.er-api.com devuelve rates contra USD base
-            resp = await client.get("https://open.er-api.com/v6/latest/USD")
-            if resp.status_code != 200:
-                results["errors"].append(f"Fallback HTTP {resp.status_code}")
-                return results
-
-            data = resp.json()
-            rates = data.get("rates", {})
-
+        async with httpx.AsyncClient(timeout=15, follow_redirects=True) as client:
             # USD/VES directo
-            ves = rates.get("VES")
-            if ves:
-                results["USD"] = round(float(ves), 4)
-                logger.info(f"Fallback USD/VES: {results['USD']}")
+            resp_usd = await client.get("https://open.er-api.com/v6/latest/USD")
+            if resp_usd.status_code == 200:
+                ves_usd = resp_usd.json().get("rates", {}).get("VES")
+                if ves_usd:
+                    results["USD"] = round(float(ves_usd), 4)
+                    logger.info(f"Fallback USD/VES: {results['USD']}")
+                else:
+                    results["errors"].append("Fallback USD: VES no encontrado")
+            else:
+                results["errors"].append(f"Fallback USD HTTP {resp_usd.status_code}")
 
-            # EUR/VES = EUR/USD * USD/VES
-            eur_usd = rates.get("EUR")
-            if eur_usd and ves:
-                results["EUR"] = round(float(eur_usd) * float(ves), 4)
-                logger.info(f"Fallback EUR/VES: {results['EUR']} (EUR/USD={eur_usd} * USD/VES={ves})")
-
-            if not results["USD"] and not results["EUR"]:
-                results["errors"].append("Fallback: no se encontraron tasas VES/EUR")
+            # EUR/VES directo (endpoint separado con base EUR)
+            resp_eur = await client.get("https://open.er-api.com/v6/latest/EUR")
+            if resp_eur.status_code == 200:
+                ves_eur = resp_eur.json().get("rates", {}).get("VES")
+                if ves_eur:
+                    results["EUR"] = round(float(ves_eur), 4)
+                    logger.info(f"Fallback EUR/VES: {results['EUR']}")
+                else:
+                    results["errors"].append("Fallback EUR: VES no encontrado")
+            else:
+                results["errors"].append(f"Fallback EUR HTTP {resp_eur.status_code}")
 
     except Exception as e:
         results["errors"].append(f"Fallback excepción: {e}")
