@@ -6,13 +6,13 @@ Endpoints implementados:
 1. POST /webhook/r4/consulta - Validación de cliente para pago móvil
 2. POST /webhook/r4/notifica - Notificación de pago móvil entrante
 
-Seguridad:
+Seguridad (PDF R4 CONECTA V3.0):
 - IP whitelist (configurable via .env)
-- Authorization header (UUID desde R4_WEBHOOK_AUTH_TOKEN)
-- HMAC-SHA256 timing-safe verification (hmac.compare_digest)
+- Authorization header (UUID directo, sin "Bearer " prefix, sin HMAC)
 - Rate limiting por IP
 
-NO se conecta a bridge.py aquí - integración en FASE 6.
+El HMAC es SOLO para peticiones salientes (client.py → banco).
+Los webhooks entrantes usan Authorization: <UUID> + IP whitelist.
 """
 
 import hmac
@@ -27,10 +27,6 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from pydantic import BaseModel, Field, field_validator
 
 from src.integrations.r4.codigos import get_description
-from src.integrations.r4.hmac_auth import (
-    R4Endpoint,
-    verify_hmac_signature,
-)
 
 logger = logging.getLogger("r4.webhooks")
 
@@ -73,8 +69,6 @@ class R4WebhookConfig:
     def _validate_config(self) -> None:
         if not self.auth_token:
             logger.warning("R4_WEBHOOK_AUTH_TOKEN no configurado - webhooks sin auth token")
-        if not self.commerce_secret:
-            logger.warning("R4_COMMERCE_SECRET no configurado - verificación HMAC deshabilitada")
         logger.info(f"R4 Webhook IPs permitidas: {self.allowed_ips}")
 
 
@@ -238,19 +232,26 @@ async def verify_ip_whitelist(request: Request, config: R4WebhookConfig) -> None
         client_ip = forwarded.split(",")[0].strip()
 
     if client_ip not in config.allowed_ips:
-        logger.warning(
-            f"R4 Webhook IP rechazada: {client_ip} " f"(permitidas: {config.allowed_ips})"
-        )
+        logger.warning(f"R4 Webhook IP rechazada: {client_ip} (permitidas: {config.allowed_ips})")
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="IP no autorizada")
 
     logger.debug(f"R4 Webhook IP autorizada: {client_ip}")
 
 
 async def verify_auth_token(authorization: str | None, config: R4WebhookConfig) -> None:
-    """Verifica Authorization header (Bearer token UUID)."""
+    """
+    Verifica Authorization header (UUID directo, sin 'Bearer ' prefix).
+
+    Según PDF R4 CONECTA V3.0 (págs 7 y 9): los webhooks entrantes del banco
+    usan Authorization: <UUID> directamente, SIN prefijo 'Bearer ' y SIN HMAC.
+    El HMAC es SOLO para peticiones salientes (client.py → banco).
+    """
     if not config.auth_token:
-        logger.warning("R4_WEBHOOK_AUTH_TOKEN no configurado - saltando verificación auth")
-        return
+        logger.error("R4_WEBHOOK_AUTH_TOKEN no configurado - RECHAZANDO webhook")
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Token de webhook no configurado",
+        )
 
     if not authorization:
         logger.warning("R4 Webhook sin Authorization header")
@@ -259,54 +260,21 @@ async def verify_auth_token(authorization: str | None, config: R4WebhookConfig) 
             detail="Authorization header requerido",
         )
 
-    # Formato: "Bearer <uuid>"
-    parts = authorization.split()
-    if len(parts) != 2 or parts[0].lower() != "bearer":
-        logger.warning(f"R4 Webhook Authorization formato inválido: {authorization[:20]}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Formato Authorization inválido (esperado: Bearer <token>)",
+    # PDF V3.0: el banco envía el UUID directamente como Authorization
+    # Comparación timing-safe contra el token configurado
+    if not hmac.compare_digest(authorization, config.auth_token):
+        logger.warning(
+            "R4 Webhook token inválido (recibido: %s...)",
+            authorization[:12] if len(authorization) > 12 else authorization,
         )
-
-    provided_token = parts[1]
-    if not hmac.compare_digest(provided_token, config.auth_token):
-        logger.warning("R4 Webhook token inválido")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token inválido")
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token inválido")
 
     logger.debug("R4 Webhook Authorization token válido")
 
 
-async def verify_hmac_signature_webhook(
-    request: Request,
-    payload: dict[str, Any],
-    endpoint: R4Endpoint,
-    config: R4WebhookConfig,
-) -> None:
-    """Verifica firma HMAC-SHA256 del payload (timing-safe)."""
-    if not config.commerce_secret:
-        logger.warning("R4_COMMERCE_SECRET no configurado - saltando verificación HMAC")
-        return
-
-    auth_header = request.headers.get("Authorization", "")
-    # Authorization ya verificado como Bearer token, buscar X-Signature o similar
-    # El banco puede enviar la firma en header separado
-    signature = request.headers.get("X-Signature") or request.headers.get("X-Hmac-Signature")
-
-    if not signature and auth_header.startswith("HMAC "):
-        signature = auth_header[5:]
-
-    if not signature:
-        logger.warning(f"R4 Webhook {endpoint.value} sin firma HMAC")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma HMAC requerida")
-
-    # Verificar con hmac.compare_digest (timing-safe)
-    is_valid = verify_hmac_signature(payload, endpoint, signature, config.commerce_secret)
-
-    if not is_valid:
-        logger.warning(f"R4 Webhook {endpoint.value} firma HMAC inválida")
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Firma HMAC inválida")
-
-    logger.debug(f"R4 Webhook {endpoint.value} firma HMAC válida")
+# NOTA: HMAC eliminado de webhooks entrantes según PDF R4 CONECTA V3.0.
+# El HMAC es SOLO para peticiones salientes (client.py → banco).
+# Los webhooks entrantes usan Authorization: <UUID> + IP whitelist únicamente.
 
 
 async def verify_rate_limit(request: Request, config: R4WebhookConfig) -> None:
@@ -332,23 +300,28 @@ async def verify_rate_limit(request: Request, config: R4WebhookConfig) -> None:
 async def security_dependency(
     request: Request,
     authorization: str | None = Header(None),
-    endpoint: R4Endpoint = R4Endpoint.R4CONSULTA,
 ) -> R4WebhookConfig:
-    """Dependencia que ejecuta todas las verificaciones de seguridad."""
+    """
+    Dependencia que ejecuta todas las verificaciones de seguridad.
+
+    Según PDF R4 CONECTA V3.0: webhooks entrantes usan:
+    1. IP Whitelist (banco IPs)
+    2. Rate Limiting
+    3. Authorization: <UUID> directo (sin Bearer, sin HMAC)
+
+    NO hay HMAC en webhooks entrantes. El HMAC es solo para
+    peticiones salientes (client.py → banco).
+    """
     config = get_webhook_config()
 
-    # 1. IP Whitelist
+    # 1. IP Whitelist - 403 si no coincide
     await verify_ip_whitelist(request, config)
 
-    # 2. Rate Limiting
+    # 2. Rate Limiting - 429 si excede
     await verify_rate_limit(request, config)
 
-    # 3. Authorization Token
+    # 3. Authorization Token - 403 si no coincide
     await verify_auth_token(authorization, config)
-
-    # 4. HMAC Signature (se verifica en cada endpoint con payload específico)
-    # La verificación HMAC se hace dentro del endpoint porque necesita
-    # el payload parseado
 
     return config
 
@@ -394,40 +367,28 @@ async def process_mbconsulta(
     El banco envía este formato cuando el pago viene por canal SIMF.
     Responde {"abono": true/false}.
 
-    FASE 6 - Implementar:
-    - Extraer datos de la transacción del payload completo
-    - Buscar pedido pendiente
-    - Marcar pago
-    - Sync Odoo
-    - Notificar WhatsApp
+    Usa el mismo flujo que R4notifica.
     """
-    telefono_emisor = payload.get("TelefonoEmisor", "N/A")
-    banco_emisor = payload.get("BancoEmisor", "N/A")
-    monto = payload.get("Monto", "N/A")
-    referencia = payload.get("Referencia", payload.get("reference", "N/A"))
-
-    logger.info(
-        f"MBconsulta recibido: TelefonoEmisor={telefono_emisor}, "
-        f"BancoEmisor={banco_emisor}, Monto={monto}, Referencia={referencia}"
-    )
-
-    # PLACEHOLDER - FASE 6
-    # Mismo flujo que R4notifica pero con formato de payload SIMF
-    # from src.integrations.fs_client import FSClient
-    # fs = FSClient()
-    # pedido = await fs.get_pending_order_by_amount_phone(monto, telefono_emisor)
-    # if not pedido:
-    #     return WebhookProcessResult(success=False, code="NO_ORDER", ...)
-    # await fs.mark_order_paid(pedido.id, referencia)
-    # ...
-
-    # Mock response para desarrollo
-    return WebhookProcessResult(
-        success=True,
-        code="00",
-        message="MOCK: MBconsulta procesado (implementar FASE 6)",
-        reference=str(referencia),
-    )
+    # Delegar al mismo flujo de process_r4notifica
+    try:
+        notifica_payload = R4NotificaRequest(**payload)
+        return await process_r4notifica(notifica_payload, config)
+    except Exception as e:
+        logger.warning("MBconsulta: no se pudo mapear a R4NotificaRequest: %s", e)
+        telefono_emisor = payload.get("TelefonoEmisor", "N/A")
+        banco_emisor = payload.get("BancoEmisor", "N/A")
+        monto = payload.get("Monto", "N/A")
+        referencia = payload.get("Referencia", payload.get("reference", "N/A"))
+        logger.info(
+            f"MBconsulta recibido: TelefonoEmisor={telefono_emisor}, "
+            f"BancoEmisor={banco_emisor}, Monto={monto}, Referencia={referencia}"
+        )
+        return WebhookProcessResult(
+            success=True,
+            code="00",
+            message="MBconsulta procesado (mapeo parcial)",
+            reference=str(referencia),
+        )
 
 
 async def process_r4consulta(
@@ -436,34 +397,55 @@ async def process_r4consulta(
     """
     Procesa webhook R4consulta: valida si IdCliente tiene pedido pendiente.
 
-    FASE 6 - Implementar:
-    - Buscar en fs_pedidos por teléfono/cliente
-    - Verificar monto coincide
-    - Retornar status=true si hay pedido pendiente válido
+    El banco llama este endpoint ANTES de procesar un pago móvil entrante.
+    Si respondemos status=true, el banco procede a enviar R4notifica.
+    Si respondemos status=false, el banco REVIERTE el pago.
     """
     logger.info(f"R4consulta recibido: IdCliente={payload.IdCliente}, Monto={payload.Monto}")
 
-    # PLACEHOLDER - FASE 6
-    # from src.integrations.fs_client import FSClient
-    # fs = FSClient()
-    # pedido = await fs.get_pending_order_by_client(payload.IdCliente,
-    # payload.Monto)
-    # if pedido:
-    #     return WebhookProcessResult(
-    #         success=True, code="00", message="Cliente válido",
-    #         reference=pedido.id
-    #     )
-    # return WebhookProcessResult(
-    #     success=False, code="NO_ORDER", message="Sin pedido pendiente"
-    # )
+    # Normalizar IdCliente (puede venir con prefijo V/E)
+    id_cliente = payload.IdCliente
+    if id_cliente.startswith(("V", "E", "v", "e")):
+        id_cliente = id_cliente[1:]
 
-    # Mock response para desarrollo
-    return WebhookProcessResult(
-        success=True,
-        code="00",
-        message="MOCK: Cliente validado (implementar FASE 6)",
-        reference="MOCK_ORDER_123",
-    )
+    # Buscar pedidos pendientes para este cliente
+    try:
+        from src.financial.database import buscar_pedidos_por_telefono_monto
+
+        pedidos = buscar_pedidos_por_telefono_monto(
+            telefono_emisor=id_cliente,
+            monto_str=payload.Monto,
+            estados_permitidos=["pendiente", "verificando", "parcial", "vencido"],
+        )
+
+        if pedidos:
+            logger.info(
+                f"R4consulta: cliente {id_cliente} ACEPTADO, {len(pedidos)} pedido(s) pendiente(s)"
+            )
+            return WebhookProcessResult(
+                success=True,
+                code="00",
+                message=f"Cliente válido con {len(pedidos)} pedido(s) pendiente(s)",
+                reference=str(pedidos[0].id),
+            )
+        else:
+            # No hay pedido pendiente pero aceptamos el pago (el banco lo notificará)
+            logger.info(f"R4consulta: cliente {id_cliente} sin pedido pendiente, aceptando")
+            return WebhookProcessResult(
+                success=True,
+                code="00",
+                message="Cliente aceptado sin pedido pendiente",
+                reference="",
+            )
+    except Exception as e:
+        logger.error(f"R4consulta: error buscando pedidos: {e}", exc_info=True)
+        # En caso de error, aceptar el pago para no bloquear al banco
+        return WebhookProcessResult(
+            success=True,
+            code="00",
+            message="Error interno, aceptando",
+            reference="",
+        )
 
 
 async def process_r4notifica(
@@ -472,15 +454,16 @@ async def process_r4notifica(
     """
     Procesa webhook R4notifica: notificación de pago entrante.
 
-    Lógica:
-    a) Verificar CodigoRed == "00"
-    b) Buscar pedido pendiente por monto + teléfono
-    c) Marcar pago en fs_pedidos
-    d) Sync a Odoo
-    e) Notificar WhatsApp al cliente
+    Flujo:
+    a) Verificar CodigoRed == "00" (transacción aprobada)
+    b) Buscar pedido pendiente por monto_total_ves + telefono_emisor
+    c) verificar_pago_manual() → INSERT fs_pagos + UPDATE fs_pedidos estado='pagado'
+    d) Sync pago a Odoo (account.payment) — best-effort, no bloquea
+    e) Enviar WhatsApp: "✅ Pago confirmado. Gracias. 💧"
     f) Retornar abono: true
 
-    FASE 6 - Implementar integración completa.
+    El banco envía Monto en VES (Bolívares). Los pedidos guardan
+    monto_total_ves y monto_total_eur.
     """
     logger.info(
         "R4notifica recibido: "
@@ -489,7 +472,7 @@ async def process_r4notifica(
         f"BancoEmisor={payload.BancoEmisor}, CodigoRed={payload.CodigoRed}"
     )
 
-    # a) Verificar CodigoRed == "00"
+    # a) Verificar CodigoRed == "00" (APROBADO)
     if payload.CodigoRed != "00":
         logger.warning(f"R4notifica CodigoRed != 00: {payload.CodigoRed}")
         return WebhookProcessResult(
@@ -499,50 +482,197 @@ async def process_r4notifica(
             reference=payload.Referencia,
         )
 
-    # PLACEHOLDER - FASE 6
-    # b) Buscar pedido pendiente por monto + teléfono
-    # from src.integrations.fs_client import FSClient
-    # from src.integrations.odoo.odoo_sync import OdooClient
-    # from agents.valentina import send_whatsapp_message
-    #
-    # fs = FSClient()
-    # pedido = await fs.get_pending_order_by_amount_phone(
-    #     payload.Monto, payload.TelefonoEmisor
-    # )
-    # if not pedido:
-    #     return WebhookProcessResult(
-    #         success=False, code="NO_ORDER", message="Pedido no encontrado"
-    #     )
-    #
-    # c) Marcar pago en fs_pedidos
-    # await fs.mark_order_paid(pedido.id, payload.Referencia,
-    # payload.FechaHora)
-    #
-    # d) Sync a Odoo
-    # odoo = OdooClient()
-    # await odoo.sync_payment(pedido.id, payload)
-    #
-    # e) Notificar WhatsApp
-    # await send_whatsapp_message(
-    #     pedido.cliente_telefono, f"✅ Pago recibido: {payload.Monto} Bs"
-    # )
-    #
-    # return WebhookProcessResult(
-    #     success=True, code="00", message="Abono procesado",
-    #     reference=payload.Referencia
-    # )
+    # b) Buscar pedido pendiente por monto VES + teléfono emisor
+    # usar la función existente en src/financial/database.py
+    try:
+        from src.financial.database import (
+            buscar_pedidos_por_telefono_monto,
+            seleccionar_mejor_match,
+        )
 
-    # Mock response para desarrollo
-    return WebhookProcessResult(
-        success=True,
-        code="00",
-        message="MOCK: Abono procesado (implementar FASE 6)",
-        reference=payload.Referencia,
-    )
+        # Normalizar teléfono emisor
+        telefono_emisor = payload.TelefonoEmisor
+        if telefono_emisor.startswith(("V", "E", "v", "e")):
+            telefono_emisor = telefono_emisor[1:]
+
+        # El banco envía Monto como string con decimales: "600.00"
+        pedidos = buscar_pedidos_por_telefono_monto(
+            telefono_emisor=telefono_emisor,
+            monto_str=payload.Monto,
+            estados_permitidos=["pendiente", "verificando", "parcial", "vencido"],
+        )
+
+        if not pedidos:
+            logger.warning(
+                "R4notifica: no hay pedido pendiente para emisor=%s monto=%s VES ref=%s",
+                telefono_emisor,
+                payload.Monto,
+                payload.Referencia,
+            )
+            # Responder abono=True al banco (el pago llegó aunque no tengamos pedido)
+            return WebhookProcessResult(
+                success=True,
+                code="00",
+                message="NO_ORDER: Pago recibido sin pedido pendiente",
+                reference=payload.Referencia,
+            )
+
+        # Seleccionar mejor match (scoring: teléfono exacto + monto exacto + reciente)
+        pedido = seleccionar_mejor_match(pedidos, telefono_emisor, float(payload.Monto))
+
+        if not pedido:
+            logger.warning(
+                "R4notifica: no se pudo seleccionar match único entre %d candidatos",
+                len(pedidos),
+            )
+            return WebhookProcessResult(
+                success=True,
+                code="00",
+                message="AMBIGUOUS_MATCH: múltiples pedidos coinciden",
+                reference=payload.Referencia,
+            )
+
+        fs_pedido_id = pedido.id
+        assert fs_pedido_id is not None, "pedido.id no debería ser None"
+
+        # c) Verificar pago via Financial Shield (método manual = confirmación bancaria)
+        # convertir monto VES → EUR para el Financial Shield que trabaja en EUR
+        from src.financial.currency import convert_ves_to_eur, get_eur_ves_rate
+
+        tasa = await get_eur_ves_rate()
+        monto_ves = float(payload.Monto)
+        monto_eur = convert_ves_to_eur(monto_ves, tasa) if tasa else pedido.monto_total_eur
+
+        logger.info(
+            "R4notifica: match pedido_id=%d monto_ves=%.2f monto_eur=%.2f (tasa=%.2f)",
+            fs_pedido_id,
+            monto_ves,
+            monto_eur,
+            tasa or 0,
+        )
+
+        from src.financial.verificacion import verificar_pago_manual
+
+        resultado = await verificar_pago_manual(
+            fs_pedido_id=fs_pedido_id,
+            monto_eur=monto_eur,
+            metodo_pago="pagomovil",
+            referencia=payload.Referencia,
+            verificado_por="banco_r4",
+        )
+
+        if not resultado.get("success"):
+            logger.error("R4notifica: verificar_pago_manual falló: %s", resultado)
+            return WebhookProcessResult(
+                success=False,
+                code="VERIFY_FAILED",
+                message=resultado.get("mensaje", "Verificación falló"),
+                reference=payload.Referencia,
+            )
+
+        logger.info(
+            "R4notifica: pago VERIFICADO pedido_fs=%d ref=%s estado=%s",
+            fs_pedido_id,
+            payload.Referencia,
+            resultado.get("nuevo_estado"),
+        )
+
+        # d) Sync a Odoo (best-effort, no bloquea si falla)
+        try:
+            import os
+
+            from src.integrations.odoo.odoo_sync import OdooClient, OdooConfig
+
+            odoo_cfg = OdooConfig(
+                url=os.getenv("ODOO_URL", "http://localhost:8069"),
+                db=os.getenv("ODOO_DB", ""),
+                username=os.getenv("ODOO_USERNAME", ""),
+                password=os.getenv("ODOO_PASSWORD", ""),
+            )
+            odoo = OdooClient(odoo_cfg)
+            if odoo.connect():
+                # Buscar factura relacionada al pedido en Odoo
+                # El pedido_id de Odoo está en pedido.pedido_id (no fs_pedido_id)
+                facturas = (
+                    odoo.execute_kw(
+                        "account.move",
+                        "search_read",
+                        [[("ref", "=", str(pedido.pedido_id))]],
+                        {"fields": ["id"], "limit": 1},
+                    )
+                    if pedido.pedido_id
+                    else []
+                )
+                if facturas:
+                    odoo.register_payment(
+                        invoice_id=facturas[0]["id"],
+                        amount=monto_eur,
+                        payment_method="pago_movil",
+                        reference=payload.Referencia,
+                    )
+                    logger.info("R4notifica: pago syncado a Odoo factura=%s", facturas[0]["id"])
+                else:
+                    logger.info(
+                        "R4notifica: no se encontró factura Odoo para pedido_id=%s",
+                        pedido.pedido_id,
+                    )
+            else:
+                logger.warning("R4notifica: no se pudo conectar a Odoo, sync omitido")
+        except Exception as odoo_err:
+            # Odoo es best-effort: el pago ya está verificado en fs_pedidos
+            logger.warning("R4notifica: Odoo sync falló (no bloquea): %s", odoo_err)
+
+        # e) Enviar WhatsApp al cliente
+        try:
+            # Importar la función de bridge.py para enviar WhatsApp
+            from api.bridge import _send_whatsapp_message
+
+            # Normalizar teléfono para Meta: debe ser formato internacional sin '+'
+            tel = pedido.cliente_telefono or ""
+            tel = tel.lstrip("+")
+            if tel.startswith("58") and len(tel) == 12:
+                pass  # ya tiene prefijo 58
+            elif tel.startswith("0"):
+                tel = "58" + tel[1:]
+            elif len(tel) == 10:
+                tel = "58" + tel
+
+            if tel:
+                msg = "✅ Pago confirmado. Gracias. 💧"
+                sent = await _send_whatsapp_message(tel, msg)
+                logger.info("R4notifica: WhatsApp enviado a %s: %s", tel[:6] + "****", sent)
+            else:
+                logger.warning("R4notifica: sin teléfono para enviar WhatsApp")
+        except Exception as wa_err:
+            logger.warning("R4notifica: WhatsApp falló (no bloquea): %s", wa_err)
+
+        # f) Respuesta al banco
+        return WebhookProcessResult(
+            success=True,
+            code="00",
+            message=f"Pago verificado: pedido {fs_pedido_id}",
+            reference=payload.Referencia,
+            data={
+                "fs_pedido_id": fs_pedido_id,
+                "monto_eur": monto_eur,
+                "nuevo_estado": resultado.get("nuevo_estado"),
+            },
+        )
+
+    except Exception as e:
+        logger.error("R4notifica: error procesando pago: %s", e, exc_info=True)
+        # Responder abono=True al banco para que no reintente innecesariamente
+        # pero loggear el error para investigación
+        return WebhookProcessResult(
+            success=True,
+            code="INTERNAL_ERROR",
+            message=f"Error interno: {e}",
+            reference=payload.Referencia,
+        )
 
 
 # ============================================================
-# Captura de headers y payloads para diagnóstico (modo captura)
+# Funciones de logging (mantenidas para referencia)
 # ============================================================
 
 
@@ -587,8 +717,11 @@ def _log_full_request(request: Request, body: Any, endpoint_name: str) -> None:
 
 
 def _log_hmac_failure(
-    request: Request, body: Any, endpoint_name: str,
-    sign_string: str | None = None, expected_hash: str | None = None,
+    request: Request,
+    body: Any,
+    endpoint_name: str,
+    sign_string: str | None = None,
+    expected_hash: str | None = None,
     received_hash: str | None = None,
 ) -> None:
     """
@@ -598,7 +731,11 @@ def _log_hmac_failure(
     logger.warning(f"⚠️  HMAC FALLÓ en {endpoint_name}")
     logger.warning(f"   IP origen: {request.client.host if request.client else 'unknown'}")
     auth_header = request.headers.get("Authorization", "")
-    logger.warning(f"   Authorization recibido: {auth_header[:30]}..." if len(auth_header) > 30 else f"   Authorization recibido: {auth_header}")
+    logger.warning(
+        f"   Authorization recibido: {auth_header[:30]}..."
+        if len(auth_header) > 30
+        else f"   Authorization recibido: {auth_header}"
+    )
     logger.warning(f"   Commerce header: {request.headers.get('Commerce', 'NO PRESENTE')}")
     logger.warning(f"   X-Signature: {request.headers.get('X-Signature', 'NO PRESENTE')}")
     logger.warning(f"   X-Hmac-Signature: {request.headers.get('X-Hmac-Signature', 'NO PRESENTE')}")
@@ -637,10 +774,9 @@ _webhook_config_singleton = Depends(get_webhook_config)
     El banco envía por uno u otro canal según el banco emisor.
     La detección es automática por los campos del payload.
 
-    Seguridad:
+    Seguridad (PDF R4 CONECTA V3.0):
     - IP whitelist
-    - Authorization Bearer token
-    - HMAC-SHA256 firma del payload
+    - Authorization: <UUID> directo (sin Bearer, sin HMAC)
     - Rate limiting
     """,
 )
@@ -660,66 +796,40 @@ async def r4_consulta_webhook(
     """
     logger.info("=== R4consulta/MBconsulta webhook recibido ===")
 
-    # Parsear body como JSON genérico (para soportar ambos formatos)
+    # === SEGURIDAD: validación estricta (sin modo captura) ===
+    # 1. IP Whitelist
+    await verify_ip_whitelist(request, config)
+    # 2. Rate Limiting
+    await verify_rate_limit(request, config)
+    # 3. Authorization Token (UUID directo)
+    await verify_auth_token(authorization, config)
+
+    # Parsear body como JSON
     try:
         body = await request.json()
     except Exception:
-        # Capturar body raw aunque no sea JSON válido
         raw_body = await request.body()
         logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {raw_body[:500]}")
-        _log_full_request(request, f"RAW: {raw_body[:500]}", "consulta")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body JSON inválido",
-        )
+        ) from None
 
     if not isinstance(body, dict):
-        _log_full_request(request, body, "consulta")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body debe ser un objeto JSON",
         )
 
-    # === CAPTURA COMPLETA: loguear TODO antes de cualquier verificación ===
-    _log_full_request(request, body, "consulta")
+    # Log resumido del request (sin secrets)
+    client_ip = request.headers.get("CF-Connecting-IP") or request.headers.get(
+        "X-Forwarded-For", "unknown"
+    )
+    logger.info(f"Webhook consulta desde IP={client_ip} formato={detect_webhook_format(body)}")
 
     # Detectar formato del payload
     fmt = detect_webhook_format(body)
     logger.info(f"Formato detectado: {fmt}")
-
-    # Verificaciones de seguridad (NO abortar en HMAC para captura)
-    try:
-        await verify_ip_whitelist(request, config)
-    except HTTPException as e:
-        logger.warning(f"IP rechazada pero procesando en modo captura: {e.detail}")
-        # En modo captura, continuamos para loguear el payload
-
-    await verify_rate_limit(request, config)
-
-    try:
-        await verify_auth_token(authorization, config)
-    except HTTPException as e:
-        logger.warning(f"Auth token falló pero procesando en modo captura: {e.detail}")
-
-    # HMAC: capturar fallo pero NO abortar (modo captura para transacción real)
-    r4_endpoint = R4Endpoint.R4NOTIFICA if fmt == "MBconsulta" else R4Endpoint.R4CONSULTA
-    try:
-        await verify_hmac_signature_webhook(request, body, r4_endpoint, config)
-        logger.info("✅ HMAC verificado OK")
-    except HTTPException as e:
-        # Capturar detalles del fallo HMAC para diagnóstico
-        from src.integrations.r4.hmac_auth import build_sign_string, compute_hmac_sha256
-        try:
-            sign_str = build_sign_string(body, r4_endpoint)
-            expected = compute_hmac_sha256(sign_str, config.commerce_secret)
-            received = request.headers.get("Authorization", "") or \
-                       request.headers.get("X-Signature", "") or \
-                       request.headers.get("X-Hmac-Signature", "")
-            _log_hmac_failure(request, body, f"consulta/{fmt}", sign_str, expected, received)
-        except Exception as diag_err:
-            _log_hmac_failure(request, body, f"consulta/{fmt}")
-            logger.warning(f"   No se pudo construir sign string: {diag_err}")
-        logger.warning(f"HMAC falló pero procesando en modo captura: {e.detail}")
 
     # Procesar según formato detectado
     if fmt == "MBconsulta":
@@ -731,9 +841,8 @@ async def r4_consulta_webhook(
         try:
             payload = R4ConsultaRequest(**body)
         except Exception as e:
-            logger.warning(f"Payload R4consulta inválido pero capturado: {e}")
-            # Retornar response genérico para no romper el flujo del banco
-            return {"status": True}
+            logger.warning(f"Payload R4consulta inválido: {e}")
+            return {"status": False}
         result = await process_r4consulta(payload, config)
         logger.info(f"R4consulta respuesta: status={result.success}")
         return {"status": result.success}
@@ -748,10 +857,9 @@ async def r4_consulta_webhook(
     Procesa el abono: busca pedido, marca pagado, sincroniza Odoo,
     notifica WhatsApp.
 
-    Seguridad:
+    Seguridad (PDF R4 CONECTA V3.0):
     - IP whitelist
-    - Authorization Bearer token
-    - HMAC-SHA256 firma del payload (9 campos)
+    - Authorization: <UUID> directo (sin Bearer, sin HMAC)
     - Rate limiting
     """,
 )
@@ -769,60 +877,40 @@ async def r4_notifica_webhook(
     """
     logger.info("=== R4notifica webhook recibido ===")
 
-    # Parsear body como JSON genérico para captura
+    # === SEGURIDAD: validación estricta (sin modo captura) ===
+    # 1. IP Whitelist
+    await verify_ip_whitelist(request, config)
+    # 2. Rate Limiting
+    await verify_rate_limit(request, config)
+    # 3. Authorization Token (UUID directo)
+    await verify_auth_token(authorization, config)
+
+    # Parsear body como JSON
     try:
         body = await request.json()
     except Exception:
         raw_body = await request.body()
         logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {raw_body[:500]}")
-        _log_full_request(request, f"RAW: {raw_body[:500]}", "notifica")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body JSON inválido",
-        )
-
-    # === CAPTURA COMPLETA: loguear TODO antes de cualquier verificación ===
-    _log_full_request(request, body, "notifica")
+        ) from None
 
     # Validar con modelo Pydantic
     try:
         payload = R4NotificaRequest(**body)
     except Exception as e:
-        logger.warning(f"Payload R4notifica inválido pero capturado: {e}")
-        _log_full_request(request, body, "notifica/invalid")
-        # Retornar response genérico para no romper el flujo del banco
-        return {"abono": True}
+        logger.warning(f"Payload R4notifica inválido: {e}")
+        return {"abono": False}
 
-    # Verificaciones de seguridad (NO abortar en HMAC para captura)
-    try:
-        await verify_ip_whitelist(request, config)
-    except HTTPException as e:
-        logger.warning(f"IP rechazada pero procesando en modo captura: {e.detail}")
-
-    await verify_rate_limit(request, config)
-
-    try:
-        await verify_auth_token(authorization, config)
-    except HTTPException as e:
-        logger.warning(f"Auth token falló pero procesando en modo captura: {e.detail}")
-
-    # HMAC: capturar fallo pero NO abortar (modo captura)
-    try:
-        await verify_hmac_signature_webhook(request, payload.dict(), R4Endpoint.R4NOTIFICA, config)
-        logger.info("✅ HMAC verificado OK")
-    except HTTPException as e:
-        from src.integrations.r4.hmac_auth import build_sign_string, compute_hmac_sha256
-        try:
-            sign_str = build_sign_string(payload.dict(), R4Endpoint.R4NOTIFICA)
-            expected = compute_hmac_sha256(sign_str, config.commerce_secret)
-            received = request.headers.get("Authorization", "") or \
-                       request.headers.get("X-Signature", "") or \
-                       request.headers.get("X-Hmac-Signature", "")
-            _log_hmac_failure(request, payload.dict(), "notifica", sign_str, expected, received)
-        except Exception as diag_err:
-            _log_hmac_failure(request, payload.dict(), "notifica")
-            logger.warning(f"   No se pudo construir sign string: {diag_err}")
-        logger.warning(f"HMAC falló pero procesando en modo captura: {e.detail}")
+    # Log resumido (sin secrets)
+    client_ip = request.headers.get("CF-Connecting-IP") or request.headers.get(
+        "X-Forwarded-For", "unknown"
+    )
+    logger.info(
+        f"Webhook notifica desde IP={client_ip}: ref={payload.Referencia} "
+        f"monto={payload.Monto} emisor={payload.TelefonoEmisor} cod={payload.CodigoRed}"
+    )
 
     # Procesar lógica de negocio
     result = await process_r4notifica(payload, config)
