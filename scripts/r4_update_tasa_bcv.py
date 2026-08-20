@@ -57,17 +57,67 @@ async def send_telegram(message: str) -> bool:
         return False
 
 
+async def fetch_fallback_tasas() -> dict[str, Any]:
+    """
+    Fallback: consulta tasas USD/VES y EUR/VES desde open.er-api.com.
+
+    Usado cuando R4 Conecta falla (code 108, credenciales pendientes, etc.).
+    API: https://open.er-api.com/v6/latest/USD
+    Devuelve rates contra USD; EUR/VES se calcula como EUR/USD * USD/VES.
+    """
+    import httpx
+
+    results: dict[str, Any] = {"USD": None, "EUR": None, "errors": [], "fuente": "open_er_api"}
+
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            # open.er-api.com devuelve rates contra USD base
+            resp = await client.get("https://open.er-api.com/v6/latest/USD")
+            if resp.status_code != 200:
+                results["errors"].append(f"Fallback HTTP {resp.status_code}")
+                return results
+
+            data = resp.json()
+            rates = data.get("rates", {})
+
+            # USD/VES directo
+            ves = rates.get("VES")
+            if ves:
+                results["USD"] = round(float(ves), 4)
+                logger.info(f"Fallback USD/VES: {results['USD']}")
+
+            # EUR/VES = EUR/USD * USD/VES
+            eur_usd = rates.get("EUR")
+            if eur_usd and ves:
+                results["EUR"] = round(float(eur_usd) * float(ves), 4)
+                logger.info(f"Fallback EUR/VES: {results['EUR']} (EUR/USD={eur_usd} * USD/VES={ves})")
+
+            if not results["USD"] and not results["EUR"]:
+                results["errors"].append("Fallback: no se encontraron tasas VES/EUR")
+
+    except Exception as e:
+        results["errors"].append(f"Fallback excepción: {e}")
+        logger.error(f"Error en fallback open.er-api.com: {e}")
+
+    return results
+
+
 async def update_tasa_bcv() -> dict[str, Any]:
-    """Actualiza tasa BCV desde R4."""
+    """
+    Actualiza tasa BCV desde R4 Conecta.
+
+    Si R4 falla (code 108, timeout, etc.), cae a fallback open.er-api.com.
+    """
     from src.integrations.r4.client import R4Client
 
-    results: dict[str, Any] = {"USD": None, "EUR": None, "errors": []}
+    results: dict[str, Any] = {"USD": None, "EUR": None, "errors": [], "fuente": "R4_BCV"}
+    r4_failed = False
 
     try:
         async with R4Client() as client:
-            # USD
             fechavalor = datetime.now(CARACAS_TZ).strftime("%Y-%m-%d")
 
+            # USD
             response_usd = await client.consulta_tasa_bcv(fechavalor, "USD")
             if response_usd.success and response_usd.data.get("tipocambio"):
                 tasa_usd = float(response_usd.data["tipocambio"])
@@ -77,28 +127,47 @@ async def update_tasa_bcv() -> dict[str, Any]:
                 error = f"USD: {response_usd.message}"
                 results["errors"].append(error)
                 logger.error(error)
+                r4_failed = True
 
-            # EUR
-            response_eur = await client.consulta_tasa_bcv(fechavalor, "EUR")
-            if response_eur.success and response_eur.data.get("tipocambio"):
-                tasa_eur = float(response_eur.data["tipocambio"])
-                results["EUR"] = tasa_eur
-                logger.info(f"Tasa BCV EUR: {tasa_eur}")
-            else:
-                error = f"EUR: {response_eur.message}"
-                results["errors"].append(error)
-                logger.error(error)
+            # EUR (solo consultar si USD tuvo exito)
+            if not r4_failed:
+                response_eur = await client.consulta_tasa_bcv(fechavalor, "EUR")
+                if response_eur.success and response_eur.data.get("tipocambio"):
+                    tasa_eur = float(response_eur.data["tipocambio"])
+                    results["EUR"] = tasa_eur
+                    logger.info(f"Tasa BCV EUR: {tasa_eur}")
+                else:
+                    error = f"EUR: {response_eur.message}"
+                    results["errors"].append(error)
+                    logger.error(error)
+                    r4_failed = True
 
     except Exception as e:
         error = f"Excepción R4: {e}"
         results["errors"].append(error)
         logger.exception(error)
+        r4_failed = True
+
+    # Fallback a open.er-api.com si R4 fallo
+    if r4_failed:
+        logger.warning("R4 BCV falló, usando fallback open.er-api.com")
+        fallback = await fetch_fallback_tasas()
+        if fallback["USD"] is not None:
+            results["USD"] = fallback["USD"]
+        if fallback["EUR"] is not None:
+            results["EUR"] = fallback["EUR"]
+        results["fuente"] = "open_er_api"
+        # Limpiar errores si el fallback obtuvo tasas
+        if results["USD"] is not None or results["EUR"] is not None:
+            results["errors"] = []
 
     return results
 
 
-def save_tasas(usd: float | None = None, eur: float | None = None) -> bool:
-    """Guarda tasas en SQLite fs_tasas_cambio."""
+def save_tasas(
+    usd: float | None = None, eur: float | None = None, fuente: str = "R4_BCV"
+) -> bool:
+    """Guarda tasas en SQLite fs_tasas_cambio (INSERT — tabla de historial)."""
     try:
         conn = sqlite3.connect(SQLITE_PATH)
         conn.execute("PRAGMA foreign_keys = ON")
@@ -110,26 +179,18 @@ def save_tasas(usd: float | None = None, eur: float | None = None) -> bool:
         if usd is not None:
             conn.execute(
                 """INSERT INTO fs_tasas_cambio (par, tasa, registrado_at, fuente)
-                   VALUES ('USD/VES', ?, ?, 'R4_BCV')
-                   ON CONFLICT(par) DO UPDATE SET
-                       tasa = excluded.tasa,
-                       registrado_at = excluded.registrado_at,
-                       fuente = excluded.fuente""",
-                (usd, now),
+                   VALUES ('USD/VES', ?, ?, ?)""",
+                (usd, now, fuente),
             )
-            logger.info(f"Guardado USD/VES = {usd}")
+            logger.info(f"Guardado USD/VES = {usd} (fuente: {fuente})")
 
         if eur is not None:
             conn.execute(
                 """INSERT INTO fs_tasas_cambio (par, tasa, registrado_at, fuente)
-                   VALUES ('EUR/VES', ?, ?, 'R4_BCV')
-                   ON CONFLICT(par) DO UPDATE SET
-                       tasa = excluded.tasa,
-                       registrado_at = excluded.registrado_at,
-                       fuente = excluded.fuente""",
-                (eur, now),
+                   VALUES ('EUR/VES', ?, ?, ?)""",
+                (eur, now, fuente),
             )
-            logger.info(f"Guardado EUR/VES = {eur}")
+            logger.info(f"Guardado EUR/VES = {eur} (fuente: {fuente})")
 
         conn.commit()
         conn.close()
@@ -165,24 +226,29 @@ async def main() -> None:
     prev_usd = prev.get("USD/VES", {}).get("tasa")
     prev_eur = prev.get("EUR/VES", {}).get("tasa")
 
-    # Consultar R4
+    # Consultar R4 (con fallback automático)
     results = await update_tasa_bcv()
 
     usd = results["USD"]
     eur = results["EUR"]
     errors = results["errors"]
+    fuente = results.get("fuente", "R4_BCV")
 
     # Guardar si hay cambios
     saved = False
     if usd is not None and usd != prev_usd or eur is not None and eur != prev_eur:
-        saved = save_tasas(usd=usd, eur=eur) or saved
+        saved = save_tasas(usd=usd, eur=eur, fuente=fuente) or saved
     elif usd is not None or eur is not None:
         # Primera vez o sin cambios
-        saved = save_tasas(usd=usd, eur=eur)
+        saved = save_tasas(usd=usd, eur=eur, fuente=fuente)
 
     # Preparar mensaje Telegram
     now_caracas = datetime.now(CARACAS_TZ).strftime("%Y-%m-%d %H:%M")
     lines = [f"📊 <b>Actualización Tasa BCV</b> ({now_caracas})"]
+
+    # Indicar fuente
+    if fuente == "open_er_api":
+        lines.append("ℹ️ Fuente: open.er-api.com (fallback — R4 pendiente)")
 
     if usd is not None:
         change = ""
