@@ -54,6 +54,7 @@ logs/
 backups/
 *.backup
 *.bak
+*.bak.*
 
 # Build
 dist/
