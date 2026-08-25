@@ -66,12 +66,20 @@ def extract_facts_with_ollama(text: str, model: str = "qwen2.5:7b") -> list[dict
     import httpx
 
     prompt = (
-        "Eres un extractor de hechos atómicos para un sistema de memoria.\n"
-        "Del siguiente texto, extrae hechos objetivos y verificables.\n"
-        "Formato: JSON array de objetos con 'fact', 'confidence' (certain|inferred|tentative).\n"
-        "Solo extraer hechos relevantes para futuras sesiones.\n"
-        "Ignora saludos, despedidas y conversación casual.\n\n"
-        f"Texto:\n{text[:2000]}\n\n"
+        "Eres un extractor de hechos para un sistema de memoria de un negocio "
+        "de venta de botellones de agua en Maracaibo, Venezuela.\n"
+        "Del siguiente registro de auditoría de cambio de estado, "
+        "extrae hechos OBJECTIVOS y relevantes para futuras sesiones.\n"
+        "Formato: JSON array de objetos con 'fact' y 'confidence' "
+        "(certain|inferred|tentative).\n"
+        "Ejemplos de hechos útiles:\n"
+        '  {"fact": "Pedido 42 cambió estado_pago a pagado", '
+        '"confidence": "certain"}\n'
+        '  {"fact": "Cliente tel 0414 tiene 3 pedidos pendientes", '
+        '"confidence": "inferred"}\n'
+        "Ignora cambios triviales (mismo estado → mismo estado).\n"
+        "Si no hay hechos relevantes, retorna [].\n\n"
+        f"Registro:\n{text[:2000]}\n\n"
         "Responde SOLO con JSON válido:\n"
     )
 
@@ -98,8 +106,32 @@ def extract_facts_with_ollama(text: str, model: str = "qwen2.5:7b") -> list[dict
         return []
 
 
+def get_embedding(text: str, model: str = "nomic-embed-text") -> list[float]:
+    """Genera embedding real con Ollama nomic-embed-text (768d)."""
+    import httpx
+
+    try:
+        with httpx.Client(timeout=30) as client:
+            resp = client.post(
+                f"{OLLAMA_URL}/api/embeddings",
+                json={"model": model, "prompt": text[:8000]},
+            )
+            resp.raise_for_status()
+            data = resp.json()
+            emb = data.get("embedding", [])
+            if len(emb) != 768:
+                logger.warning(
+                    f"Embedding dimension mismatch: "
+                    f"expected 768, got {len(emb)}"
+                )
+            return emb
+    except Exception as e:
+        logger.warning(f"Embedding generation failed: {e}")
+    return []
+
+
 def index_in_qdrant(facts: list[dict[str, Any]]) -> int:
-    """Indexa hechos en Qdrant collection hermes_memory. Retorna count exitoso."""
+    """Indexa hechos en Qdrant collection hermes_memory con embeddings reales."""
     try:
         from qdrant_client import QdrantClient
         from qdrant_client.models import PointStruct
@@ -111,12 +143,20 @@ def index_in_qdrant(facts: list[dict[str, Any]]) -> int:
             confidence = fact.get("confidence", "tentative")
             point_id = abs(hash(fact_text)) % (2**63)
 
+            # Embedding real con nomic-embed-text (768d)
+            vector = get_embedding(fact_text)
+            if not vector:
+                logger.warning(
+                    f"Skipping fact {point_id}: sin embedding"
+                )
+                continue
+
             client.upsert(
                 collection_name="hermes_memory",
                 points=[
                     PointStruct(
                         id=point_id,
-                        vector=[0.0] * 768,  # placeholder; real embedding via Ollama
+                        vector=vector,
                         payload={
                             "fact": fact_text,
                             "confidence": confidence,
