@@ -1,109 +1,88 @@
-# WORKLOG — Piloto Automático 2026-08-24
+# WORKLOG — Piloto Automático #2 · 2026-08-24
 
-## Deudas Técnicas Resueltas
+## R4 Coverage (CRÍTICO — seguridad bancaria)
 
-### D1 — Archivar Audit Log (CRÍTICO)
-- **Script creado:** `scripts/archive_audit_log.py`
-  - Lee registros >N días de `conversations.db::fs_audit_log`
-  - Los mueve a `data/conversations_archive.db::fs_audit_log` (crea BD si no existe)
-  - DELETE + VACUUM en BD principal
-  - Soporta `--dry-run` y `--threshold` configurable
-- **Ejecución:** threshold=14 días (los datos solo tienen 27 días de antigüedad)
-- **Resultado verificado:**
-  - Registros archivados: 29,447 (de 89,918 total)
-  - Registros restantes en conversations.db: 60,471
-  - conversations.db: 34MB → 23MB (−11MB, −33%)
-  - conversations_archive.db: 11MB (29,447 registros)
-  - Integridad: PRAGMA integrity_check = ok en ambas BDs
+### webhooks.py: 31% → 89% ✓
+- **Archivo creado:** `tests/unit/test_r4_webhooks_coverage.py` (117 tests)
+- **Cobertura alcanzada:** 89% (objetivo: 80%)
+- **Líneas cubiertas:**
+  - R4WebhookConfig: init, defaults, validate, reset, commerce_secret fallback
+  - Rate limiting: check_rate_limit (ok, exceeded, window cleanup)
+  - IP whitelist: verify_ip_whitelist (allowed, rejected 403, X-Forwarded-For, no client)
+  - Auth token: verify_auth_token (ok, missing 401, empty, mismatch 403, no config 503)
+  - verify_rate_limit: middleware (ok, exceeded 429, forwarded_for)
+  - security_dependency: chained verifications (ok, IP fail)
+  - detect_webhook_format: MBconsulta, R4consulta, default
+  - Pydantic models: R4ConsultaRequest, R4NotificaRequest (valid/invalid), responses
+  - WebhookProcessResult: to_consulta_response, to_notifica_response, with_data
+  - process_r4consulta: with pedidos, without pedidos, error graceful, V/E prefix normalization
+  - process_r4notifica: CodigoRed!=00, no pedido, internal error, full success flow, ambiguous match, verify failed, Odoo sync success
+  - process_mbconsulta: mapping to notifica, fallback partial
+  - FastAPI endpoints: /consulta (success, invalid JSON, MBconsulta format), /notifica (success, invalid payload), /health
+  - Router: prefix, routes, include_r4_webhooks
+  - Logging: _log_full_request, _log_hmac_failure (3 variants)
 
-### D7 — Limpiar .bak sin gitignore
-- **Borrado:** `src/integrations/r4/webhooks.py.bak.20260819_222203`
-  - 705 líneas de diff vs archivo actual — completamente obsoleto
-  - Git ya tiene historial completo del archivo real
-- **Preventivo:** Añadido patrón `*.bak.*` al `.gitignore` (el patrón `*.bak` no cubría `.bak.timestamp`)
+### hmac_auth.py: 58% → 100% ✓
+- **Cobertura alcanzada:** 100% (objetivo: 80%)
+- **Líneas cubiertas:**
+  - build_sign_string: R4BCV, R4CONSULTA, R4NOTIFICA, missing field, invalid endpoint, int values
+  - compute_hmac_sha256: valid, empty, no secret, different secrets
+  - verify_hmac_signature: valid, invalid, missing field, lowercase input
+  - build_auth_headers: with/without commerce_id
+  - get_sign_string_description: valid, invalid
+  - All 12 sign_* convenience functions
+  - __main__ block (via subprocess)
 
-### D8 — Crear .env.example
-- **Creado:** `config/.env.example` (3.4KB, 78 variables)
-- **Variables documentadas:** META_*, DIFY_*, BRIDGE_*, RATE_LIMIT_*, SQLITE_*, LOG_SALT,
-  TELEGRAM_* (3 bots), GOOGLE_*, BUSINESS_HOURS_*, FS_*, ODOO_*, R4_*, OLLAMA_*, NVIDIA_*, MEM0_*
-- **Fuente:** Inventariadas del config/.env real + os.getenv en código + EnvironmentFile en systemd units
-- **Formato:** Valores ficticios (ej: `your-token-here`), comentados por sección
+### Resultado final R4
+- 116 tests passed, 1 skipped, 0 failed
+- webhooks.py: 89% (31% → 89%)
+- hmac_auth.py: 100% (58% → 100%)
 
-### D11 — Coverage Report
-- **Ejecución:** `pytest --cov=src --cov=api --cov=skills --cov-report=html:docs/coverage-report`
-- **Tests:** 858 passed, 14 skipped, 0 failed
-- **Cobertura total:** 51% (9,842 statements, 4,817 cubiertos)
-- **Reporte HTML:** `docs/coverage-report/index.html` (81 archivos)
-- **Módulos destacados:**
-  - 100% cobertura: bridge.py (helpers), financial/cobranzas, financial/nomina, financial/reportes
-  - ≥90%: orchestrator (97%), memory_aware_agent (99%), skill_registry (92%)
-  - <40%: r4/webhooks.py (31%), memory/unified_memory.py (38%) — deuda de cobertura
+## FASE 3 SOUL — Scripts de memoria v2.1
 
-### D13 — Limpiar logs vacíos
-- **Borrados:** 8 archivos de log de 0 bytes
-  - logs/url_changes.log
-  - logs/analytics_7am.log
-  - logs/route_planner.log
-  - logs/backup.log
-  - logs/dispatcher_checkin.log
-  - logs/fs_recordatorios.log
-  - logs/fs_reporte.log
-  - logs/dispatch_consumer.log
-- **Verificación:** Los crons escriben a `cron_*.log`, no a estos. Ningún cron o systemd unit los referencia.
-- **Logs restantes:** 5 archivos `cron_*.log`, todos con contenido activo
+### scripts/consolidator.py
+- Lee fs_audit_log (últimas 24h, limit=50)
+- Extrae hechos con Ollama qwen2.5:7b local
+- Indexa en Qdrant + escribe en Obsidian vault
+- Registra en hermes_memory.db::consolidation_log
+- Guardarraíl: 3 fallos consecutivos → detiene y notifica
+- Dry-run verificado: Ollama procesa 50 audit logs sin colgarse
 
-### D15 — Limpiar config.yaml.bak
-- **Borrado:** `config/config.yaml.bak` (21 bytes, del 15-ago)
-- **Verificación:** diff mostró que config.yaml actual (365 bytes) tiene contenido extra (Obsidian + memory config). El .bak era obsoleto.
+### scripts/decay_social.py
+- Recorre interactions.db
+- Aplica decay 0.99/día
+- Archiva relevance < 0.1 a interactions_archive
+- Dry-run verificado: 0 interacciones a archivar (BD nueva)
 
----
+### scripts/decay_semantic.py
+- Recorre Qdrant hermes_memory (402 points)
+- Aplica decay 0.995/día
+- Archiva relevance < 0.1 en hermes_memory.db::archive
+- Dry-run verificado: 0 puntos a archivar (todos < 27 días)
 
-## Deudas Pendientes (requieren sudo)
+### scripts/warming.py
+- Lee cron_runs de hermes_memory.db
+- Detecta patrones temporales (≥3 ejecuciones mismo día/hora)
+- Pre-fetch top-10 chunks de Qdrant a Redis (TTL 2h)
+- Dry-run verificado: sin patrones (cron_runs vacía), --force funciona
+- Redis: import lazy (módulo redis no instalado en venv — se instala cuando se active)
 
-### D2 — Backups duplicados (ROOT)
-- **Problema:** Se ejecutan DOS backups diarios: 03:00 (crontab de skynet) + 03:06-03:26 (proceso de root)
-- **Fix requiere sudo:** Identificar y desactivar el crontab de root
-  ```bash
-  sudo crontab -l  # ver el cron de root
-  sudo crontab -e  # comentar la línea duplicada
-  ```
+## Runbooks
+- RUNBOOK_CI-CD.md: ya existía en docs/02-arquitectura/runbooks/ (2.7KB)
+- RUNBOOK_SwapBottles.md: ya existía en docs/02-arquitectura/runbooks/ (3.8KB)
+- RUNBOOK_DisasterRecovery.md: ya existía en docs/02-arquitectura/runbooks/ (6.1KB)
+- Subagentes verificaron y ampliaron el contenido existente
 
-### D4 — Kill switch endpoint 404 (ROOT)
-- **Problema:** `/kill-switch` devuelve 404. Health check reporta `kill_switch: false`
-- **Posible causa:** El endpoint fue removido o renombrado en bridge.py, pero el health check sigue referenciándolo
-- **Fix requiere sudo:** Reiniciar valentina-bridge.service tras corregir el código
-  ```bash
-  sudo systemctl restart valentina-bridge
-  ```
+## Archivos creados
+- tests/unit/test_r4_webhooks_coverage.py (117 tests, R4 coverage)
+- scripts/consolidator.py (consolidador automático episódica→semántica)
+- scripts/decay_social.py (decay exponencial capa Social)
+- scripts/decay_semantic.py (decay exponencial capa Semántica)
+- scripts/warming.py (warming selectivo Redis)
 
-### D5 — mem0 v1.0.11 → v2.0.18 (ROOT)
-- **Problema:** mem0 está en v1.0.11, v2.0.18 pendiente. Bloquea FASE 3 del SOUL (Consolidador)
-- **Fix requiere sudo:** Upgrade del paquete en el venv
-  ```bash
-  cd /mnt/ssd_trabajo/hermes-agent
-  venv/bin/pip install --upgrade mem0ai
-  # Verificar: venv/bin/python3 -c "import mem0; print(mem0.__version__)"
-  ```
+## .gitignore actualizado
+- Añadido: `*.consolidator_failures` (archivo de tracking de fallos)
 
 ---
 
-## Archivos Creados
-- `scripts/archive_audit_log.py` — Script de archivado de audit log
-- `config/.env.example` — Plantilla de variables de entorno
-- `data/conversations_archive.db` — BD de archivo (29,447 registros)
-- `data/hermes_memory.db` — BD de memoria v2.1 (6 tablas, FASE 2 SOUL)
-- `data/interactions.db` — BD de capa Social (3 tablas, FASE 2 SOUL)
-- `docs/coverage-report/` — Reporte HTML de cobertura (81 archivos)
-
-## Archivos Borrados
-- `src/integrations/r4/webhooks.py.bak.20260819_222203`
-- `config/config.yaml.bak`
-- 8 archivos de log de 0 bytes
-
-## Archivos Modificados
-- `.gitignore` — Añadido patrón `*.bak.*`
-- `docs/01-proyecto/SOUL-hermes-v2.md` — FASE 1 + FASE 2 patchset v2.1.0
-
----
-
-*Prometeo · Piloto Automático · 2026-08-24 · 💧*
+*Prometeo · Piloto Automático #2 · 2026-08-24 · 💧*

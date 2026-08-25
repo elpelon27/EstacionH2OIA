@@ -83,3 +83,5 @@ google_credentials.json
 *.zip
 cierre-dia-14/
 valentina-kit/
+data/.consolidator_failures
+*.consolidator_failures
