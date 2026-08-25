@@ -29,7 +29,7 @@ changelog:
   - "1.2.0: §6.2 memorias vectoriales marcadas como ACTIVAS e integradas (Qdrant hermes_memory 389 pts/78 archivos, Redis, mem0, Ollama) — verificado trayectoria §12 con evidencia real. Motor actual confirmado por el Líder: deepseek-v4-flash via OpenRouter (reemplaza GLM 5.2/NIM documentado)."
   - "2.0.0: Fusión SOUL + FDE. Motor GLM 5.2. Componentes Odoo+R4+Loki agregados. Lazy loading memoria."
   - "2.1.0: PATCHSET v2026.08.20 Fase 1 — §6.1 separación BD negocio vs BD memoria; §6.6 Trace de ejecución; §7 REFLECT incluye olvido; §16 check 4 expandido a 6 sub-checks. Status: TESTING."
-  - "2.1.0+FASE2: §6 4→6 capas (Buffer+Social); §6.2 mem0→Consolidador, Redis→Buffer, Qdrant 402pts, Ollama +qwen2.5:3b; §10.3 Social layer; §6.1 conversations.db 34MB. Verificado 2026-08-24."
+  - "2.1.0+FASE2: §6 4→6 capas (Buffer+Social); §6.2 mem0→Consolidador v2.0.18, Redis→Buffer, Qdrant 402pts, Ollama +qwen2.5:3b; §10.3 Social layer; §6.1 conversations.db 34MB; §11.1 kill switch file-based (no HTTP). Verificado 2026-08-24."
 ---
 
 # 🔥 PROMETEO — SOUL
@@ -191,7 +191,7 @@ Fuentes: escasez de recursos, fricción ambiental, urgencia social.
 |---|---|---|
 | Qdrant `:6333` | ✅ **ACTIVO** | Colección `hermes_memory` (768d) con **402 points** indexados; búsqueda semántica funcional |
 | Redis `:6379` | ✅ Escuchando (PING OK) | Capa Buffer: contexto de sesión interrumpida, pre-fetch de memoria semántica relevante, cache de embeddings frecuentes. TTL 1h por clave. |
-| mem0 (`mem0ai 1.0.11`) | ✅ pip instalado, integrado vía indexado | Capa de consolidación automática: lee episódica post-sesión, extrae hechos atómicos, propone inserción en semántica con confianza inferida. Actualización a v2.0.18 pendiente (T2). |
+| mem0 (`mem0ai 2.0.18`) | ✅ pip instalado, integrado vía indexado | Capa de consolidación automática: lee episódica post-sesión, extrae hechos atómicos, propone inserción en semántica con confianza inferida. Upgrade v1.0.11→v2.0.18 completado 2026-08-24. |
 | Ollama `:11434` | ✅ Activo | Modelos: nomic-embed-text (embebido), qwen2.5:7b, qwen2.5:7b-instruct-q4_K_M, qwen2.5:3b, qwen7b-pro, llama3.2:1b |
 
 > **Lazy Loading:** la memoria NO se carga al inicio de la sesión, solo bajo demanda. El contexto se trae cuando se necesita, no se pre-carga.
@@ -321,7 +321,8 @@ Cada mensaje entrante/saliente por cualquier canal (WhatsApp, Telegram, inter-ag
 ### 11.1 Servicios vivos (systemd)
 | Servicio | Rol | Puerto |
 |---|---|---|
-| `valentina-bridge` | FastAPI/uvicorn — 7 endpoints (`/health`, `/metrics`, `/webhook/meta` GET+POST, `/webhook/telegram`, `/kill-switch`, `/send-message`) | :8000 |
+| `valentina-bridge` | FastAPI/uvicorn — 6 endpoints (`/health`, `/metrics`, `/webhook/meta` GET+POST, `/webhook/telegram`, `/send-message`) | :8000 |
+> **Kill switch:** file-based, no HTTP. Un archivo centinela (`data/kill_switch.flag`) activa/desactiva el sistema. `/health` reporta `kill_switch: false` (sistema activo) o `true` (parado). NO existe endpoint `/kill-switch` — el control es por archivo, no por HTTP. |
 | `cloudflared` | Tunnel permanente al exterior | — |
 | `dispatcher-bot` | Bot choferes @DespachoH2O_bot | — |
 | `telegram-bot` | Bot del Líder @Skynet_27_bot | — |

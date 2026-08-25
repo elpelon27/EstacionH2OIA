@@ -294,4 +294,38 @@
 
 ---
 
-*Documento vivo - Actualizado tras cada sprint o cambio significativo* 💧
+## 🔧 DEUDAS TÉCNICAS D1-D15 — PILOTO AUTOMÁTICO 2026-08-24
+
+### ✅ RESUELTAS (9/15 — verificadas)
+
+| ID | Deuda | Acción tomada | Verificación |
+|---|---|---|---|
+| **D1** | conversations.db fs_audit_log = 29MB (87% de la BD) | `scripts/archive_audit_log.py`: archiva registros >14d a `conversations_archive.db` + VACUUM | 89,918→60,471 registros, 34MB→23MB (−33%), integridad ok |
+| **D2** | Backups duplicados (skynet 03:00 + root 03:06-03:26) | crontab de skynet comentado; `backup-daily.timer` (systemd) es la única fuente | Verificado por el Líder — una sola fuente de backup |
+| **D4** | Kill switch endpoint devolvía 404 | NO es un bug — es arquitectura file-based. `data/kill_switch.flag` activa/desactiva el sistema. `/health` reporta `kill_switch: false` (sistema activo) | SOUL §11.1 actualizado: 7→6 endpoints, nota kill switch file-based |
+| **D5** | mem0 v1.0.11 → v2.0.18 pendiente | Upgrade ejecutado por el Líder. OR-Tools verificado OK. Protobuf 6.33.6 (compatible) | `mem0ai 2.0.18` confirmado. SOUL §6.2 actualizado |
+| **D7** | `webhooks.py.bak.20260819_222203` sin gitignore | .bak borrado (705 líneas diff, obsoleto). Patrón `*.bak.*` añadido al `.gitignore` | `git status` limpio, patrón preventivo en lugar |
+| **D8** | No existía `.env.example` | `config/.env.example` creado (78 variables, 3.4KB): META, DIFY, BRIDGE, Telegram×3, Google, FS, Odoo, R4, Ollama, NVIDIA, mem0 | Inventariado del config/.env real + os.getenv en código + systemd units |
+| **D11** | Coverage sin reporte reciente | `pytest --cov --cov-report=html`: 858 passed, 51% total (9,842 stmts) | HTML en `docs/coverage-report/` (81 archivos). 100% en cobranzas/nomina/reportes |
+| **D13** | 8 logs vacíos (0 bytes) | Borrados: route_planner, fs_reporte, fs_recordatorios, dispatcher_checkin, analytics_7am, url_changes, backup, dispatch_consumer | Crons usan `cron_*.log`, no los sin prefijo — verificado |
+| **D15** | `config/config.yaml.bak` obsoleto | Borrado (21 bytes, del 15-ago vs config.yaml actual 365 bytes con Obsidian+memory) | diff confirmó que era obsoleto |
+
+### 🟡 POSTERGADAS (4/15 — dependen de FASE 3 SOUL v2.1.0)
+
+| ID | Deuda | Razón de postergación |
+|---|---|---|
+| **D6** | Redis DBSIZE=0 (vivo pero vacío) | La capa Buffer se activa con FASE 3 (warming.py). Sin código que escriba, seguirá vacío por diseño |
+| **D9** | SOUL §11.2 categorización de crons imprecisa | Mezcla crontab, systemd timers y Hermes platform. Se corrige cuando FASE 3 unifique el scheduling |
+| **D10** | SOUL v2.1.0 FASE 3 sin implementar | Parches 4, 5, 7, 10 (Consolidador, decay, warming, predictivo). Depende de D5 (mem0) — ya resuelto, desbloqueado |
+| **D12** | Qdrant: colección `mem0migrations` sin documentar | Se documenta cuando FASE 3 integre mem0 como Consolidador |
+
+### 🔴 PENDIENTES EXTERNAS (2/15 — fuera del control del servidor)
+
+| ID | Deuda | Razón |
+|---|---|---|
+| **D3** | R4 Conecta: token de producción pendiente | Requiere coordinación con el banco. Webhooks entrantes reescritos (auth UUID directo, no HMAC). Integración funcional en sandbox, pendiente token prod del banco |
+| **D14** | Meta: factura pendiente | Requiere gestión administrativa con Meta Cloud API, no es deuda técnica del servidor |
+
+---
+
+*Piloto Automático · Prometeo · 2026-08-24 · 💧*
