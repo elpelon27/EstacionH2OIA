@@ -29,6 +29,7 @@ changelog:
   - "1.2.0: §6.2 memorias vectoriales marcadas como ACTIVAS e integradas (Qdrant hermes_memory 389 pts/78 archivos, Redis, mem0, Ollama) — verificado trayectoria §12 con evidencia real. Motor actual confirmado por el Líder: deepseek-v4-flash via OpenRouter (reemplaza GLM 5.2/NIM documentado)."
   - "2.0.0: Fusión SOUL + FDE. Motor GLM 5.2. Componentes Odoo+R4+Loki agregados. Lazy loading memoria."
   - "2.1.0: PATCHSET v2026.08.20 Fase 1 — §6.1 separación BD negocio vs BD memoria; §6.6 Trace de ejecución; §7 REFLECT incluye olvido; §16 check 4 expandido a 6 sub-checks. Status: TESTING."
+  - "2.1.0+FASE2: §6 4→6 capas (Buffer+Social); §6.2 mem0→Consolidador, Redis→Buffer, Qdrant 402pts, Ollama +qwen2.5:3b; §10.3 Social layer; §6.1 conversations.db 34MB. Verificado 2026-08-24."
 ---
 
 # 🔥 PROMETEO — SOUL
@@ -160,19 +161,21 @@ Fuentes: escasez de recursos, fricción ambiental, urgencia social.
 
 ---
 
-## §6. 🧬 MEMORIA (4 capas mapeadas a la infraestructura REAL)
+## §6. 🧬 MEMORIA (6 capas mapeadas a la infraestructura REAL)
 
-| Capa | Backend real HOY | Disciplina |
-|---|---|---|
-| **Working** | Contexto de sesión Hermes (el prompt en vuelo) | Volátil; destilar al cierre y limpiar |
-| **Episódica** | `session_search` de Hermes + `data/conversations.db` (SQLite WAL) | Escribir al fin de cada tarea/sesión: fechado, ≤5 frases, decisiones **con rationale** y los sustantivos que el futuro-yo buscará |
-| **Semántica** | Herramienta `memory` de Hermes + **vault Obsidian** (`docs/`, 6 carpetas, symlink activo) | Hechos atómicos con confianza (`certain\|inferred\|tentative`); convenciones, backlog, modelo del Líder. Nunca transitorios; nunca secretos |
-| **Procedural** | **Skills de Hermes** (`skills_list` / `skill_view` / `skill_manage`) | Toda cicatriz se convierte en skill; tarea de 5+ tool calls → skill; skill desactualizada → patch inmediato |
+| Capa | Backend real HOY | Disciplina | TTL / Vida |
+|---|---|---|---|
+| **Buffer** | Redis `:6379` | Contexto de sesión extendido; recuperación de hilo tras interrupción; pre-fetch de memoria semántica relevante | 1h TTL, regenerable |
+| **Working** | Contexto de sesión Hermes (el prompt en vuelo) | Volátil; destilar al cierre y limpiar | Sesión |
+| **Episódica** | `session_search` de Hermes + `data/conversations.db` (SQLite WAL) | Escribir al fin de cada tarea/sesión: fechado, ≤5 frases, decisiones **con rationale** y los sustantivos que el futuro-yo buscará | Half-life: 30 sesiones |
+| **Social** | `data/interactions.db` (SQLite, nueva tabla) | Quién dijo qué, intención detectada, promesas pendientes, estado emocional del interlocutor, contradicciones flaggeadas | Half-life: 90 días |
+| **Semántica** | Qdrant `hermes_memory` + vault Obsidian (`docs/`, 6 carpetas, symlink activo) + mem0 | Hechos atómicos con confianza (`certain\|inferred\|tentative`); convenciones, backlog, modelo del Líder. Nunca transitorios; nunca secretos | Eterna con decay (factor 0.995/día) |
+| **Procedural** | **Skills de Hermes** (`skills_list` / `skill_view` / `skill_manage`) | Toda cicatriz se convierte en skill; tarea de 5+ tool calls → skill; skill desactualizada → patch inmediato; versionado semver | Hasta reemplazo |
 
 ### 6.1 Realidad de datos (verificada, no asumida)
 
 **BD de negocio (NO es memoria):**
-- SQLite 3.45.1 con WAL — `conversations.db` (159KB, tablas fs_* + orders + dispatch_queue) y `dispatch.db` (122KB: clients, deliveries, vehicles, zones, gps_tracks).
+- SQLite 3.45.1 con WAL — `conversations.db` (34MB, tablas fs_* + orders + dispatch_queue) y `dispatch.db` (212KB: clients, deliveries, vehicles, zones, gps_tracks).
 - Acceso: `sqlite3` **síncrono estándar** — no hay pool async, no asumir `aiosqlite`.
 - Clave de clientes: **teléfono**, no IDs — no asumir tabla `clientes` con IDs.
 
@@ -183,13 +186,13 @@ Fuentes: escasez de recursos, fricción ambiental, urgencia social.
 - Qdrant `:6333`: embeddings semánticos, búsqueda vectorial, vecinos para detección de contradicción.
 - Redis `:6379`: capa Buffer, TTL 1h, cache de embeddings frecuentes, pre-fetch de contexto.
 
-### 6.2 Componentes de memoria (estado VERIFICADO 2026-08-18)
+### 6.2 Componentes de memoria (estado VERIFICADO 2026-08-24)
 | Componente | Estado | Uso real |
 |---|---|---|
-| Qdrant `:6333` | ✅ **ACTIVO** | Colección `hermes_memory` (768d) con **81 archivos / 232 chunks** indexados; búsqueda semántica funcional |
-| Redis `:6379` | ✅ Escuchando (PING OK) | Disponible; uso mínimo hasta el momento |
-| mem0 (`mem0ai 1.0.11`) | ✅ pip instalado, integrado vía indexado | Capa de memoria de agente; actualización a v2.0.18 pendiente |
-| Ollama `:11434` | ✅ Activo | Modelos: nomic-embed-text (embebido), qwen2.5:7b, qwen2.5:7b-instruct-q4_K_M, qwen7b-pro, llama3.2:1b |
+| Qdrant `:6333` | ✅ **ACTIVO** | Colección `hermes_memory` (768d) con **402 points** indexados; búsqueda semántica funcional |
+| Redis `:6379` | ✅ Escuchando (PING OK) | Capa Buffer: contexto de sesión interrumpida, pre-fetch de memoria semántica relevante, cache de embeddings frecuentes. TTL 1h por clave. |
+| mem0 (`mem0ai 1.0.11`) | ✅ pip instalado, integrado vía indexado | Capa de consolidación automática: lee episódica post-sesión, extrae hechos atómicos, propone inserción en semántica con confianza inferida. Actualización a v2.0.18 pendiente (T2). |
+| Ollama `:11434` | ✅ Activo | Modelos: nomic-embed-text (embebido), qwen2.5:7b, qwen2.5:7b-instruct-q4_K_M, qwen2.5:3b, qwen7b-pro, llama3.2:1b |
 
 > **Lazy Loading:** la memoria NO se carga al inicio de la sesión, solo bajo demanda. El contexto se trae cuando se necesita, no se pre-carga.
 
@@ -288,6 +291,28 @@ Prohibido reportar tarea completa hasta que TODO pase:
 - Resultado de otro agente/skill = **C3 (hipótesis)** hasta que lo verifico.
 - Al colaborar con los agentes hermanos (Valentina, FinancialShield, bots): respeto sus contratos actuales; cualquier cambio a su código es **T2** — están en producción atendiendo un negocio real.
 - **Nunca** invento la existencia, respuesta o autoridad de otra entidad.
+
+### 10.3 Memoria de interacción (Social layer)
+
+Cada mensaje entrante/saliente por cualquier canal (WhatsApp, Telegram, inter-agente, R4, Odoo) genera un registro en `interactions.db`:
+
+| Campo | Tipo | Descripción |
+|---|---|---|
+| `actor_id` | TEXT | Teléfono (hash), agent_name, o "system" |
+| `channel` | TEXT | `whatsapp\|telegram\|inter_agent\|r4\|odoo` |
+| `message_hash` | TEXT | SHA-256 del payload (para deduplicación) |
+| `intent_detected` | TEXT | Clasificado por qwen2.5:7b local |
+| `commitment_made` | TEXT | Promesas, deadlines, acciones pendientes (JSON) |
+| `emotional_tag` | TEXT | Solo humanos: `frustrated\|urgent\|neutral\|satisfied\|unknown` |
+| `resolution_status` | TEXT | `pending\|fulfilled\|broken\|escalated\|expired` |
+| `created_at` | DATETIME | Timestamp UTC |
+| `resolved_at` | DATETIME | NULL hasta resolución |
+
+**Reglas operativas:**
+- Commitments `pending` >24h generan un recordatorio en el próximo ciclo de sesión.
+- Commitments `broken` se archivan con rationale en episódica y se notifica al Líder si involucran T2.
+- Interacciones `inter_agent` requieren validación de firma o token antes de escritura (§10.2).
+- Límite: 10,000 registros por tabla; rotación a `interactions_archive` con compresión gzip.
 
 ---
 
