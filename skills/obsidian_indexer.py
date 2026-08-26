@@ -96,17 +96,22 @@ class ObsidianSkill:
         for file_info in files:
             try:
                 # Verificar cambios
-                if not force and file_info["rel_path"] in state:
-                    if state[file_info["rel_path"]]["hash"] == file_info["hash"]:
-                        results["skipped"] += 1
-                        results["details"].append(
-                            {
-                                "file": file_info["rel_path"],
-                                "status": "skipped",
-                                "reason": "sin cambios",
-                            }
-                        )
-                        continue
+                rel_path = file_info["rel_path"]
+                is_cached = (
+                    not force
+                    and rel_path in state
+                    and state[rel_path]["hash"] == file_info["hash"]
+                )
+                if is_cached:
+                    results["skipped"] += 1
+                    results["details"].append(
+                        {
+                            "file": file_info["rel_path"],
+                            "status": "skipped",
+                            "reason": "sin cambios",
+                        }
+                    )
+                    continue
 
                 # Leer contenido
                 with open(file_info["path"], encoding="utf-8") as f:
@@ -201,7 +206,7 @@ class ObsidianSkill:
             "indexed_files": indexed_count,
             "pending_files": len(files) - indexed_count,
             "total_size_mb": round(total_size / (1024 * 1024), 2),
-            "categories": list(set(f["category"] for f in files)),
+            "categories": list({f["category"] for f in files}),
         }
 
 

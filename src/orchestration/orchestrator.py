@@ -158,8 +158,7 @@ class Orchestrator:
                 name="dispatcher",
                 agent_type=AgentType.DISPATCHER,
                 description=(
-                    "Route planning, driver assignment, vehicle tracking, "
-                    "delivery optimization"
+                    "Route planning, driver assignment, vehicle tracking, delivery optimization"
                 ),
                 instructions=self._get_dispatcher_instructions(),
                 tools=[
@@ -202,8 +201,7 @@ class Orchestrator:
                 name="inventory",
                 agent_type=AgentType.INVENTORY,
                 description=(
-                    "Bottle tracking, SWAP management (165 loaners), "
-                    "stock levels, cycle counts"
+                    "Bottle tracking, SWAP management (165 loaners), stock levels, cycle counts"
                 ),
                 instructions=self._get_inventory_instructions(),
                 tools=["bottle_tracker", "swap_manager", "stock_monitor", "cycle_counter"],
@@ -434,8 +432,8 @@ class Orchestrator:
             "- driver_assigner: Capacity/zone matching algorithm\n"
             "- delivery_scheduler: Time-window scheduling\n\n"
             "## Memory Usage\n"
-            "- Search procedural memories for \"route planning\", "
-            "\"driver assignment\"\n"
+            '- Search procedural memories for "route planning", '
+            '"driver assignment"\n'
             "- Store episodic memories of each delivery run\n"
             "- Reference semantic memories for client addresses, bottle specs"
         )

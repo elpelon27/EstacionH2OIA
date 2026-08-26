@@ -132,11 +132,14 @@ class UnifiedMemory:
             }
         )
 
-        return cast(dict[str, Any], self._memory.add(
-            messages=[{"role": "user", "content": content}],
-            user_id=user_id,
-            metadata=enriched_metadata,
-        ))
+        return cast(
+            dict[str, Any],
+            self._memory.add(
+                messages=[{"role": "user", "content": content}],
+                user_id=user_id,
+                metadata=enriched_metadata,
+            ),
+        )
 
     def search(
         self,
@@ -179,10 +182,7 @@ class UnifiedMemory:
     ) -> list[MemoryEntry]:
         """Obtiene todas las memorias (via search con query vacío)."""
         return [
-            r.entry
-            for r in self.search(
-                "", [memory_type] if memory_type else None, limit, user_id
-            )
+            r.entry for r in self.search("", [memory_type] if memory_type else None, limit, user_id)
         ]
 
     def health_check(self) -> dict[str, Any]:

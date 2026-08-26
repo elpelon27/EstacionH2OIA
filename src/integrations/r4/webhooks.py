@@ -809,7 +809,8 @@ async def r4_consulta_webhook(
         body = await request.json()
     except Exception:
         raw_body = await request.body()
-        logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {raw_body[:500]}")
+        decoded = raw_body[:500].decode("utf-8", errors="replace")
+        logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {decoded}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body JSON inválido",
@@ -890,7 +891,8 @@ async def r4_notifica_webhook(
         body = await request.json()
     except Exception:
         raw_body = await request.body()
-        logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {raw_body[:500]}")
+        decoded = raw_body[:500].decode("utf-8", errors="replace")
+        logger.warning(f"Body no es JSON válido. Raw (primeros 500 chars): {decoded}")
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Body JSON inválido",

@@ -13,7 +13,8 @@ No es un reemplazo de nada: reutiliza qdrant_client/mem0/ollama ya instalados.
 Uso (desde /mnt/ssd_trabajo/hermes-agent):
   ./venv/bin/python3 skills/memoria_hechos.py --status
   ./venv/bin/python3 skills/memoria_hechos.py --recall "deuda técnica del proyecto"
-  ./venv/bin/python3 skills/memoria_hechos.py --add "Tema" "Hecho atómico..." --conf certain|inferred|tentative
+  ./venv/bin/python3 skills/memoria_hechos.py --add "Tema" "Hecho..." \
+      --conf certain|inferred|tentative
 
 Realidad de datos (verificada, no asumida): SQLite síncrono, Embeddings nomic vía Ollama
 :11434, Qdrant :6333 colección hermes_memory (768d).
@@ -134,7 +135,11 @@ def cmd_status() -> int:
     info = q.get_collection(COLLECTION)
     puntos = info.points_count
     res = q.scroll(collection_name=COLLECTION, limit=500, with_payload=["source"])[0]
-    fuentes = {p.payload.get("source") for p in res if p.payload is not None and p.payload.get("source")}
+    fuentes = {
+        p.payload.get("source")
+        for p in res
+        if p.payload is not None and p.payload.get("source")
+    }
     print(f"L3 Qdrant [{COLLECTION}]: {puntos} pts, {len(fuentes)} archivos indexados")
     # L1 + L2
     n_s, n_m = _state_db()
@@ -146,7 +151,8 @@ def cmd_status() -> int:
     for h in hechos[-3:]:
         print(f"   #{h['id']} [{h['confianza']}] {h['tema']}: {h['hecho'][:70]}")
     print("═" * 58)
-    print("Verificación: OK" if (puntos is not None and puntos > 0 and n_s >= 0) else "Verificación: revisar capas")
+    ok = puntos is not None and puntos > 0 and n_s >= 0
+    print("Verificación: OK" if ok else "Verificación: revisar capas")
     return 0
 
 

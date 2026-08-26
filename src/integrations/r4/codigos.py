@@ -228,8 +228,7 @@ class CodigosRedInterbancaria(StrEnum):
             "51": "SIN FONDOS DISPONIBLES / INSUFICIENCIA DE FONDOS",
             "55": "TOKEN INVÁLIDO / TELÉFONO ORIGEN NO EXISTE",
             "56": (
-                "CELULAR NO COINCIDE / "
-                "NO COINCIDE NÚMERO DEL CELULAR CON EL AFILIADO A LA CÉDULA"
+                "CELULAR NO COINCIDE / NO COINCIDE NÚMERO DEL CELULAR CON EL AFILIADO A LA CÉDULA"
             ),
             "57": "NEGADA POR EL RECEPTOR",
             "62": "CUENTA RESTRINGIDA",

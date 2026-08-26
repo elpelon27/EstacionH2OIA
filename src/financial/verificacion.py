@@ -198,16 +198,23 @@ async def _process_reminder_cycle(pedido: PedidoFinanciero) -> dict[str, Any]:
         if result.get("success"):
             logger.info(
                 "Recordatorio #%d enviado por WhatsApp a %s",
-                intento, pedido.cliente_telefono,
+                intento,
+                pedido.cliente_telefono,
             )
         else:
             logger.warning(
                 "Recordatorio #%d: WhatsApp falló para %s (error: %s), continuando flujo",
-                intento, pedido.cliente_telefono, result.get("error"),
+                intento,
+                pedido.cliente_telefono,
+                result.get("error"),
             )
     except Exception as e:
-        logger.warning("Recordatorio #%d: no se pudo enviar WhatsApp a %s (%s), continuando flujo",
-                        intento, pedido.cliente_telefono, e)
+        logger.warning(
+            "Recordatorio #%d: no se pudo enviar WhatsApp a %s (%s), continuando flujo",
+            intento,
+            pedido.cliente_telefono,
+            e,
+        )
 
     # Persistir
     now = datetime.now(UTC).isoformat()

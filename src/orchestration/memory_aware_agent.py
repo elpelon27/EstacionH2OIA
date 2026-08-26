@@ -287,10 +287,7 @@ class DispatcherAgent(MemoryAwareAgent):
         )
 
     async def _manage_vehicles(self, context: dict[str, Any]) -> TaskResult:
-        msg = (
-            "Vehicle management - 2 triciclos with Honor X7b phones "
-            "(Digitel+Movilnet)"
-        )
+        msg = "Vehicle management - 2 triciclos with Honor X7b phones (Digitel+Movilnet)"
         return TaskResult(
             success=True,
             agent_name=self.config.name,

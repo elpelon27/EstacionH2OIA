@@ -41,9 +41,10 @@ class OdooClient:
         try:
             common = xmlrpc.client.ServerProxy(f"{self.config.url}/xmlrpc/2/common")
             models = xmlrpc.client.ServerProxy(f"{self.config.url}/xmlrpc/2/object")
-            uid = cast(int | None, common.authenticate(
-                self.config.db, self.config.username, self.config.password, {}
-            ))
+            uid = cast(
+                int | None,
+                common.authenticate(self.config.db, self.config.username, self.config.password, {}),
+            )
             if uid:
                 self._common = common
                 self._models = models
@@ -400,8 +401,7 @@ class OdooClient:
                 "origin": f"ND-{picking.get('origin') or picking['name']}",
                 # Referencia a nota original
                 "note": (
-                    f"Convertida de nota de entrega {picking['name']}. "
-                    f"Inventario ya descontado."
+                    f"Convertida de nota de entrega {picking['name']}. Inventario ya descontado."
                 ),
                 "state": "draft",
             }

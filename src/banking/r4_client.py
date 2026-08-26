@@ -398,7 +398,11 @@ def get_r4_client() -> R4Client:
     # R4_COMMERCE_SECRET: llave HMAC (secreto compartido)
     # Backward compat: R4_COMMERCE_TOKEN y R4_HMAC_KEY
     commerce_token = os.getenv("R4_COMMERCE_ID") or os.getenv("R4_COMMERCE_TOKEN")
-    hmac_key = os.getenv("R4_COMMERCE_SECRET") or os.getenv("R4_HMAC_KEY") or os.getenv("R4_COMMERCE_TOKEN")
+    hmac_key = (
+        os.getenv("R4_COMMERCE_SECRET")
+        or os.getenv("R4_HMAC_KEY")
+        or os.getenv("R4_COMMERCE_TOKEN")
+    )
     base_url = os.getenv("R4_BASE_URL", "https://r4conecta.mibanco.com.ve/")
     timeout = float(os.getenv("R4_TIMEOUT", "10"))
 

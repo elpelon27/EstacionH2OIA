@@ -205,7 +205,7 @@
 | ID | Deuda | Archivos afectados | Descripción | Esfuerzo estimado |
 |---|---|---|---|---|
 | **DT-12** | Cobertura de tests | `core/`, `agents/`, `api/` | ✅ EN PROGRESO: core/ al 61% (3116 stmts, 1214 miss). 580 passed. Modulos al 100%: meta_client, crypto, logger, qwen_client, judge, circuit_breaker, fusion, config, openrouter_client, rate_limiter, unified_messenger, guardrail, workload_router (99%). Pendiente: api/bridge.py (38%), src/orchestration/ (0%), src/financial/ (25-41%). | ~8-16h → reducido |
-| **DT-27** | Lint legacy en conftest.py | `tests/conftest.py` | 34 issues (W293, E501, I001, E402, F401, SIM105, W291/292) | ~1h |
+| **DT-27** | Lint legacy en conftest.py | `tests/conftest.py` | ✅ RESUELTO (verificado 2026-08-26: ruff check 0 errores, ruff format --check OK) | ~0h |
 
 ---
 

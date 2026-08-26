@@ -129,8 +129,7 @@ class SkillRegistry:
             "dispatcher_skill": {
                 "name": "dispatcher_skill",
                 "description": (
-                    "Dispatcher operations: route planning, driver assignment, "
-                    "delivery tracking"
+                    "Dispatcher operations: route planning, driver assignment, delivery tracking"
                 ),
                 "tags": ["dispatch", "routing", "driver", "delivery"],
                 "allowed_tools": ["route_optimizer", "vehicle_tracker", "driver_assigner"],

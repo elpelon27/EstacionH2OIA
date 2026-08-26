@@ -198,12 +198,16 @@ def compute_hmac_sha256(sign_string: str, commerce_secret: str) -> str:
     if not commerce_secret:
         raise ValueError("Commerce secret is required for HMAC computation")
 
-    hmac_obj = hmac.new(commerce_secret.encode("utf-8"), sign_string.encode("utf-8"), hashlib.sha256)
+    hmac_obj = hmac.new(
+        commerce_secret.encode("utf-8"), sign_string.encode("utf-8"), hashlib.sha256
+    )
     return hmac_obj.hexdigest().upper()
 
 
 def build_auth_headers(
-    payload: dict[str, Any], endpoint: R4Endpoint, commerce_secret: str,
+    payload: dict[str, Any],
+    endpoint: R4Endpoint,
+    commerce_secret: str,
     commerce_id: str | None = None,
 ) -> dict[str, str]:
     """
@@ -270,67 +274,95 @@ def get_sign_string_description(endpoint: R4Endpoint) -> str:
 # ============================================================
 
 
-def sign_r4bcv(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_r4bcv(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para consultar tasa BCV (R4bcv)."""
     return build_auth_headers(payload, R4Endpoint.R4BCV, commerce_secret, commerce_id)
 
 
-def sign_r4consulta(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_r4consulta(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para consulta/validación cliente (R4consulta)."""
     return build_auth_headers(payload, R4Endpoint.R4CONSULTA, commerce_secret, commerce_id)
 
 
-def sign_r4notifica(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_r4notifica(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para notificación pago entrante (R4notifica)."""
     return build_auth_headers(payload, R4Endpoint.R4NOTIFICA, commerce_secret, commerce_id)
 
 
-def sign_r4vuelto(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_r4vuelto(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para vuelto interbancario (R4vuelto)."""
     return build_auth_headers(payload, R4Endpoint.R4VUELTO, commerce_secret, commerce_id)
 
 
-def sign_generar_otp(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_generar_otp(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para generar OTP (GenerarOtp)."""
     return build_auth_headers(payload, R4Endpoint.GENERAR_OTP, commerce_secret, commerce_id)
 
 
-def sign_debito_inmediato(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_debito_inmediato(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para débito inmediato (DebitoInmediato)."""
     return build_auth_headers(payload, R4Endpoint.DEBITO_INMEDIATO, commerce_secret, commerce_id)
 
 
-def sign_credito_inmediato(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_credito_inmediato(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para crédito inmediato (CreditoInmediato)."""
     return build_auth_headers(payload, R4Endpoint.CREDITO_INMEDIATO, commerce_secret, commerce_id)
 
 
-def sign_ci_cuentas(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_ci_cuentas(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para crédito inmediato cuentas 20 dígitos (CICuentas)."""
     return build_auth_headers(payload, R4Endpoint.CI_CUENTAS, commerce_secret, commerce_id)
 
 
-def sign_domiciliacion_cnta(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_domiciliacion_cnta(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para domiciliación por cuenta (DomiciliacionCNTA)."""
     return build_auth_headers(payload, R4Endpoint.DOMICILIACION_CNTA, commerce_secret, commerce_id)
 
 
-def sign_domiciliacion_cele(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_domiciliacion_cele(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para domiciliación por teléfono (DomiciliacionCELE)."""
     return build_auth_headers(payload, R4Endpoint.DOMICILIACION_CELE, commerce_secret, commerce_id)
 
 
-def sign_consultar_operaciones(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_consultar_operaciones(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para consultar operaciones (ConsultarOperaciones)."""
-    return build_auth_headers(payload, R4Endpoint.CONSULTAR_OPERACIONES, commerce_secret, commerce_id)
+    return build_auth_headers(
+        payload, R4Endpoint.CONSULTAR_OPERACIONES, commerce_secret, commerce_id
+    )
 
 
-def sign_r4c2p(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_r4c2p(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para cobro C2P (R4c2p)."""
     return build_auth_headers(payload, R4Endpoint.R4C2P, commerce_secret, commerce_id)
 
 
-def sign_r4anulacion_c2p(payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None) -> dict[str, str]:
+def sign_r4anulacion_c2p(
+    payload: dict[str, Any], commerce_secret: str, commerce_id: str | None = None
+) -> dict[str, str]:
     """Headers para anulación C2P (R4anulacionC2P)."""
     return build_auth_headers(payload, R4Endpoint.R4ANULACION_C2P, commerce_secret, commerce_id)
 
