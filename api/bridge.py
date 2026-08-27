@@ -1352,7 +1352,47 @@ def _nearest_zone_id(lat: float | None, lng: float | None, max_km: float = 5.0) 
     return best_id
 
 
-def _sync_client_to_dispatch_db(ph_hash: str, from_phone: str, state: dict[str, Any]) -> None:
+def _ensure_client_registered(from_phone: str, contact_name: str) -> None:
+    """
+    Auto-registra un cliente nuevo cuando escribe por WhatsApp.
+
+    1. Registra/actualiza en Odoo (res.partner) via get_or_create_partner.
+    2. Inserta en dispatch.db tabla clients si no existe (INSERT OR IGNORE).
+
+    Fail-soft: si Odoo o SQLite fallan, solo loggea y continúa.
+    No toca la state machine de Valentina.
+    """
+    # 1. Odoo (res.partner) — fail-soft
+    try:
+        from src.integrations.odoo.odoo_sync import get_or_create_partner
+
+        get_or_create_partner(from_phone, contact_name)
+    except Exception as e:
+        logger.warning("Odoo auto-registro falló (fail-soft): %s", e)
+
+    # 2. dispatch.db (clients) — INSERT OR IGNORE por phone_hash
+    try:
+        ph_hash = _phone_hash(from_phone)
+        now = datetime.now(CARACAS_TZ).timestamp()
+        conn = _get_db_with_fk(DISPATCH_DB_PATH)
+        conn.execute(
+            """
+            INSERT OR IGNORE INTO clients (
+                phone, phone_hash, name, client_type, priority,
+                active, created_at, updated_at
+            ) VALUES (?, ?, ?, 'retail', 5, 1, ?, ?)
+            """,
+            (from_phone, ph_hash, contact_name or from_phone, now, now),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        logger.warning("dispatch.db auto-registro falló (fail-soft): %s", e)
+
+
+def _sync_client_to_dispatch_db(
+    ph_hash: str, from_phone: str, state: dict[str, Any]
+) -> None:
     """Upsert del cliente en dispatch.db (tabla clients) por phone_hash.
     Se llama después de encolar el pedido en dispatch_queue (conversations.db),
     para que el módulo dispatcher tenga un cliente real al planear rutas.
@@ -3286,6 +3326,11 @@ async def meta_webhook(request: Request) -> JSONResponse:
         MESSAGES_TOTAL.labels(status="ignored").inc()
         return JSONResponse({"status": "ignored", "reason": "missing_fields"})
 
+    # 4.1. Auto-registro de cliente nuevo (Odoo + dispatch.db)
+    # Intercepta ANTES de procesar el mensaje. Si Odoo falla, continúa (fail-soft).
+    contact_name = value.get("contacts", [{}])[0].get("profile", {}).get("name", "")
+    _ensure_client_registered(from_phone, contact_name)
+
     # 4.5. Rate limit por teléfono (antes de procesar)
     if not await _check_phone_rate_limit(from_phone):
         await _send_whatsapp_message(
@@ -3377,7 +3422,7 @@ async def meta_webhook(request: Request) -> JSONResponse:
 
     # 5. INTENTAR FLUJO DETERMINÍSTICO PRIMERO (latencia <1s)
     # Si el bridge puede manejar el mensaje sin Dify, lo hace
-    contact_name = value.get("contacts", [{}])[0].get("profile", {}).get("name", "")
+    # contact_name ya extraído en paso 4.1 (auto-registro cliente)
     det_result = _handle_deterministic(
         ph_short_full, text_body, from_phone, contact_name, msg, value
     )

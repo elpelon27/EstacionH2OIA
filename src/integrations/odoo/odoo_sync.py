@@ -594,6 +594,51 @@ class OdooClient:
 
         return inventory
 
+    def search_partner_by_phone(self, phone: str) -> int | None:
+        """Busca un partner por teléfono (phone o mobile). Retorna ID o None."""
+        if not phone:
+            return None
+        for field in ("phone", "mobile"):
+            partners = self.execute_kw(
+                "res.partner",
+                "search_read",
+                [[(field, "=", phone)]],
+                {"fields": ["id", "name", field], "limit": 1},
+            )
+            if partners:
+                return cast(int, partners[0]["id"])
+        return None
+
+    def create_partner_from_whatsapp(self, name: str, phone: str) -> int | None:
+        """Crea un res.partner mínimo desde un contacto de WhatsApp."""
+        partner_vals = {
+            "name": name or phone,
+            "phone": phone,
+            "mobile": phone,
+            "city": "Maracaibo",
+            "country_id": 238,  # Venezuela
+            "customer_rank": 1,
+            "supplier_rank": 0,
+            "lang": "es_419",
+        }
+        partner_id = self.execute_kw("res.partner", "create", [partner_vals])
+        logger.info("Nuevo cliente registrado: %s %s (ID=%s)", name, phone, partner_id)
+        return cast(int, partner_id)
+
+    def get_or_create_partner_by_phone(self, phone: str, name: str = "") -> int | None:
+        """
+        Busca un partner por teléfono. Si no existe, lo crea.
+        Retorna partner_id o None si hay error.
+        """
+        try:
+            existing = self.search_partner_by_phone(phone)
+            if existing:
+                return existing
+            return self.create_partner_from_whatsapp(name, phone)
+        except Exception as e:
+            logger.error("Error en get_or_create_partner_by_phone: %s", e)
+            return None
+
 
 # Singleton global
 _odoo_client: OdooClient | None = None
@@ -611,6 +656,40 @@ def get_odoo_client(config: OdooConfig | None = None) -> OdooClient:
 def reset_odoo_client() -> None:
     global _odoo_client
     _odoo_client = None
+
+
+def get_or_create_partner(phone: str, name: str = "") -> int | None:
+    """
+    Función módulo: busca o crea un partner en Odoo por teléfono.
+
+    Si Odoo no está disponible o falla, retorna None (fail-soft).
+    El llamador (bridge.py) debe continuar el flujo aunque retorne None.
+
+    Args:
+        phone: Teléfono en formato internacional (+58XXXXXXXXXX)
+        name: Nombre del contacto (opcional, usa phone si vacío)
+
+    Returns:
+        partner_id si existe o se creó, None si falló
+    """
+    try:
+        try:
+            client = get_odoo_client()
+        except RuntimeError:
+            logger.warning("Odoo no disponible — get_or_create_partner omitido")
+            return None
+        partner_id = client.get_or_create_partner_by_phone(phone, name)
+        if partner_id:
+            logger.info(
+                "Partner Odoo OK: %s phone=%s id=%s",
+                name or phone,
+                phone,
+                partner_id,
+            )
+        return partner_id
+    except Exception as e:
+        logger.error("Error en get_or_create_partner (fail-soft): %s", e)
+        return None
 
 
 if __name__ == "__main__":
