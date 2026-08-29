@@ -1,0 +1,17 @@
+{
+  "_comment": "Links oficiales Meta WhatsApp Business / Instagram — verificados 2026-08-28",
+  "whatsapp_docs_root": "https://developers.facebook.com/docs/whatsapp",
+  "cloud_api_docs": "https://developers.facebook.com/docs/whatsapp/cloud-api",
+  "business_management_api": "https://developers.facebook.com/docs/whatsapp/business-management-api",
+  "whatsapp_business_platform_help": "https://www.facebook.com/business/help/whatsapp-business-platform",
+  "business_settings": "https://business.facebook.com/settings/",
+  "apps_dashboard": "https://developers.facebook.com/apps/",
+  "cloud_api_get_started": "https://developers.facebook.com/docs/whatsapp/cloud-api/get-started",
+  "webhooks_reference": "https://developers.facebook.com/docs/whatsapp/cloud-api/webhooks",
+  "error_codes_reference": "https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes",
+  "message_templates_reference": "https://developers.facebook.com/docs/whatsapp/cloud-api/guides/send-message-templates",
+  "pricing": "https://business.facebook.com/whatsapp/pricing",
+  "instagram_messaging_api": "https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging",
+  "platform_status": "https://developers.facebook.com/status/",
+  "graph_api_explorer": "https://developers.facebook.com/tools/explorer/"
+}
