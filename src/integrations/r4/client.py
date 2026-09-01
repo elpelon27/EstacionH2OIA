@@ -24,6 +24,7 @@ Endpoints implementados (13):
 import asyncio
 import logging
 import os
+import socket
 from dataclasses import asdict, dataclass, field
 from typing import Any
 
@@ -184,6 +185,45 @@ class R4Response:
 # ============================================================
 
 
+class _IPv4Transport(httpx.AsyncHTTPTransport):
+    """Transporte httpx que fuerza resolucion IPv4 (solo registros A).
+
+    R4 hace whitelist de la IPv4 fija del comercio; si la peticion sale por
+    IPv6 dinamico el banco responde 401 code 108 ("No permitido").
+    httpx 0.28 no acepta local_addr, asi que parcheamos getaddrinfo del
+    modulo httpcore._backends.anyio unicamente durante la conexion.
+    """
+
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+        # httpx 0.28 no acepta local_addr; la resolucion pasa por anyio que
+        # termina en socket.getaddrinfo global. Parcheamos ese modulo durante
+        # la peticion, pero el wrapper SOLO altera hosts del banco: cualquier
+        # resolucion concurrente de otros hosts pasa intacta.
+        _real_getaddrinfo = socket.getaddrinfo
+        _r4_hosts = ("mibanco.com.ve",)
+
+        def _ipv4_getaddrinfo(
+            host: bytes | str | None,
+            port: bytes | str | int | None,
+            family: int = 0,
+            type: int = 0,
+            proto: int = 0,
+            flags: int = 0,
+        ) -> list[Any]:
+            _h = host if isinstance(host, str) else ""
+            if any(_h == r or _h.endswith("." + r) for r in _r4_hosts):
+                # Solo registros A. Si el banco no publica IPv4, falla la
+                # conexion (no caer a IPv6, que el banco rechaza con 108).
+                return _real_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
+            return _real_getaddrinfo(host, port, family, type, proto, flags)
+
+        socket.getaddrinfo = _ipv4_getaddrinfo
+        try:
+            return await super().handle_async_request(request)
+        finally:
+            socket.getaddrinfo = _real_getaddrinfo
+
+
 class R4Client:
     """Cliente asíncrono para API R4 Conecta V3.0."""
 
@@ -192,12 +232,13 @@ class R4Client:
         self._client: httpx.AsyncClient | None = None
 
     async def _get_client(self) -> httpx.AsyncClient:
-        """Obtiene cliente HTTP (lazy initialization)."""
+        """Obtiene cliente HTTP (lazy initialization, IPv4 obligatorio)."""
         if self._client is None or self._client.is_closed:
             timeout = httpx.Timeout(self.config.timeout)
             self._client = httpx.AsyncClient(
                 timeout=timeout,
                 limits=httpx.Limits(max_keepalive_connections=10, max_connections=20),
+                transport=_IPv4Transport(),
             )
         return self._client
 
