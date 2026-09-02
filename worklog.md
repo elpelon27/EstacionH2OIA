@@ -106,3 +106,13 @@ Además move_to() ahora tolera archivos ya movidos.
 - Open-Notebook configurado (verificado vía API /api/models):
   credential Ollama host.docker.internal:11434, modelos qwen2.5:7b y
   qwen2.5:3b registrados. Pipeline 100% operativo, sin bloqueos.
+
+## 2026-09-02 | Hardening SSD-first del pipeline de ingesta
+- TMPDIR/TMP/TEMP → /mnt/ssd_trabajo/biblioteca/.tmp (antes de imports; vale desde cron)
+- HF_HOME/TRANSFORMERS_CACHE/TORCH_HOME → /mnt/ssd_trabajo/skynet_cache (refuerzo del symlink)
+- ocrmypdf con --temp-dir al SSD (OCR temporales fuera del disco raíz)
+- RotatingFileHandler en ingest.log (10 MB x 5 backups)
+- Qdrant verificado: bind mount Docker → /mnt/ssd_trabajo/qdrant/storage (158M, ya en SSD; no usa /var/lib)
+- Procesos ingest/tesseract/ocrmypdf: cero colgados
+- Dry-run post-cambios OK (12 PDFs); script arranca limpio
+- Cron nocturno en standby (NO activado, orden del Líder)

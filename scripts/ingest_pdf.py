@@ -21,6 +21,20 @@ Uso:
 
 from __future__ import annotations
 
+# ── SSD-first: temporales y caches al SSD, NO al disco raíz ─────────────────
+# Debe ir ANTES de cualquier uso de OCR/tesseract/HF/torch. Relevante sobre
+# todo desde cron, donde el entorno puede traer otras variables.
+import os
+
+os.environ["TMPDIR"] = "/mnt/ssd_trabajo/biblioteca/.tmp"
+os.makedirs("/mnt/ssd_trabajo/biblioteca/.tmp", exist_ok=True)
+os.environ["TMP"] = os.environ["TMPDIR"]
+os.environ["TEMP"] = os.environ["TMPDIR"]
+# HF/torch en SSD (refuerza el symlink ~/.cache/huggingface del usuario)
+os.environ["HF_HOME"] = "/mnt/ssd_trabajo/skynet_cache/huggingface"
+os.environ["TRANSFORMERS_CACHE"] = "/mnt/ssd_trabajo/skynet_cache/huggingface"
+os.environ["TORCH_HOME"] = "/mnt/ssd_trabajo/skynet_cache/torch"
+
 import argparse
 import hashlib
 import json
@@ -32,6 +46,7 @@ import sys
 import time
 import unicodedata
 from datetime import datetime, timezone
+from logging.handlers import RotatingFileHandler
 from pathlib import Path
 
 import requests
@@ -59,10 +74,15 @@ FACT_MODEL = "qwen2.5:3b"
 POLL_SECONDS = 30
 
 # ── Logging ─────────────────────────────────────────────────────────────────
+# Rotación: 10 MB x 5 backups — evita que logs/ingest.log crezca indefinidamente
+LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(message)s",
-    handlers=[logging.FileHandler(LOG_FILE), logging.StreamHandler()],
+    handlers=[
+        RotatingFileHandler(LOG_FILE, maxBytes=10_000_000, backupCount=5),
+        logging.StreamHandler(),
+    ],
 )
 log = logging.getLogger("ingest_pdf")
 
@@ -100,7 +120,8 @@ def ensure_text_layer(pdf: Path) -> tuple[Path, bool, int, str]:
     out = OCR_TMP / f"{pdf.stem}.ocr.pdf"
     log.info("OCR: %s (escaneado, %s páginas)", pdf.name, pages)
     r = subprocess.run(
-        [ocrmypdf, str(pdf), str(out), "-l", "spa", "--force-ocr", "--deskew"],
+        [ocrmypdf, str(pdf), str(out), "-l", "spa", "--force-ocr", "--deskew",
+         "--temp-dir", str(OCR_TMP)],  # temporales del OCR al SSD, no al raíz
         capture_output=True, text=True,
     )
     if r.returncode != 0 or not out.exists():
