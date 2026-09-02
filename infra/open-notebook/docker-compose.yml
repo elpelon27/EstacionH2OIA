@@ -1,0 +1,61 @@
+# Open-Notebook — interfaz de consulta (chat con documentos)
+# UI: http://localhost:8502 | API: http://localhost:5055
+# Open-Notebook usa SurrealDB como su propia base (NO Qdrant).
+# El pipeline FASE 4 indexa además en Qdrant (colección biblioteca_h2o).
+# LLM: se configura desde la UI (Settings → API Keys → Ollama,
+# URL http://host.docker.internal:11434) con qwen2.5:3b.
+services:
+  surrealdb:
+    image: surrealdb/surrealdb:v2
+    container_name: opennotebook_surrealdb
+    command: ["start", "--log", "info", "--user", "${SURREAL_USER:-root}", "--pass", "${SURREAL_PASSWORD:-root}", "rocksdb:/mydata/mydatabase.db"]
+    user: root
+    ports:
+      - "127.0.0.1:8002:8000"
+    volumes:
+      - /mnt/ssd_trabajo/biblioteca/open-notebook/surreal_data:/mydata
+    environment:
+      - SURREAL_EXPERIMENTAL_GRAPHQL=true
+    restart: unless-stopped
+    networks:
+      - hermes_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  open_notebook:
+    image: lfnovo/open_notebook:v1-latest
+    container_name: opennotebook_web
+    ports:
+      - "127.0.0.1:8502:8502"
+      - "127.0.0.1:5055:5055"
+    environment:
+      - OPEN_NOTEBOOK_ENCRYPTION_KEY=biblioteca_h2o_open_notebook_key_2026
+      - SURREAL_URL=ws://surrealdb:8000/rpc
+      - SURREAL_USER=${SURREAL_USER:-root}
+      - SURREAL_PASSWORD=${SURREAL_PASSWORD:-root}
+      - SURREAL_NAMESPACE=open_notebook
+      - SURREAL_DATABASE=open_notebook
+      # Ollama en el host (red docker bridge → host.docker.internal)
+      - OLLAMA_API_BASE=http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - /mnt/ssd_trabajo/biblioteca/open-notebook/notebook_data:/app/data
+    depends_on:
+      - surrealdb
+    restart: unless-stopped
+    networks:
+      - hermes_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  hermes_net:
+    name: infra_hermes_net
+    external: true

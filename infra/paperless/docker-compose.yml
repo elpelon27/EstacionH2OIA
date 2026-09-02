@@ -1,0 +1,109 @@
+# Paperless-ngx — DMS para la biblioteca de PDFs del Líder
+# Puertos: 127.0.0.1:8001 (web). Datos: /mnt/ssd_trabajo/biblioteca/
+# Red externa infra_hermes_net (misma red que hermes_qdrant / hermes_redis).
+# Broker y DB dedicados (NO compartimos hermes_redis: su allkeys-lru
+# podría evictar tareas de ingesta bajo presión de memoria).
+
+services:
+  paperless-broker:
+    image: redis:7-alpine
+    container_name: paperless_broker
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - /mnt/ssd_trabajo/biblioteca/redis-data:/data
+    networks:
+      - hermes_net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  paperless-db:
+    image: postgres:16-alpine
+    container_name: paperless_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: paperless
+      POSTGRES_USER: paperless
+      POSTGRES_PASSWORD: paperless_db_dev_change_me
+    volumes:
+      - /mnt/ssd_trabajo/biblioteca/pgdata:/var/lib/postgresql/data
+    networks:
+      - hermes_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U paperless -d paperless"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  paperless-webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    container_name: paperless_webserver
+    restart: unless-stopped
+    depends_on:
+      paperless-db:
+        condition: service_healthy
+      paperless-broker:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8001:8000"
+    environment:
+      PAPERLESS_SECRET_KEY: 49ece24f4a7fa0b7076cbf3a26cd06132886685f22c208faee2aaacf29f00606
+      PAPERLESS_URL: http://localhost:8001
+      PAPERLESS_REDIS: redis://paperless-broker:6379
+      PAPERLESS_DBHOST: paperless-db
+      PAPERLESS_DBNAME: paperless
+      PAPERLESS_DBUSER: paperless
+      PAPERLESS_DBPASS: paperless_db_dev_change_me
+      # ⚠️ DOBLE CONSUMIDOR: si el consume dir fuera pdfs/inbox, Paperless
+      # MUEVE el archivo y scripts/ingest_pdf.py falla al moverlo a
+      # processed/ (verificado E2E 2026-09-01). Solución: Paperless
+      # consume SOLO de paperless-consume/ (depósito manual directo);
+      # el pipeline ingest_pdf.py es dueño exclusivo de pdfs/inbox/ y
+      # sube vía API. Los originales temáticos en pdfs/ nunca se tocan.
+      PAPERLESS_CONSUMPTION_DIR: /usr/src/paperless/consume
+      PAPERLESS_DATA_DIR: /usr/src/paperless/data
+      PAPERLESS_MEDIA_ROOT: /usr/src/paperless/media
+      PAPERLESS_OCR_LANGUAGE: spa
+      PAPERLESS_OCR_MODE: skip
+      PAPERLESS_TIME_ZONE: America/Caracas
+      PAPERLESS_ADMIN_USER: lider
+      PAPERLESS_ADMIN_PASSWORD: biblioteca_h2o_change_me
+      PAPERLESS_FILENAME_FORMAT_REMOVE_NONE: true
+      USERMAP_UID: 1000
+      USERMAP_GID: 1000
+    volumes:
+      # paperless-consume/ ≠ pdfs/inbox — ver comentario DOBLE CONSUMIDOR arriba
+      - /mnt/ssd_trabajo/biblioteca/paperless-consume:/usr/src/paperless/consume
+      - /mnt/ssd_trabajo/biblioteca/media:/usr/src/paperless/media
+      - /mnt/ssd_trabajo/biblioteca/data:/usr/src/paperless/data
+    networks:
+      - hermes_net
+    healthcheck:
+      test: ["CMD", "curl", "-fs", "http://localhost:8000"]
+      interval: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 120s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  hermes_net:
+    name: infra_hermes_net
+    external: true
