@@ -97,3 +97,12 @@ Además move_to() ahora tolera archivos ya movidos.
 - Open-Notebook usa SurrealDB propio; Qdrant es el índice del pipeline Hermes.
 - Credenciales dev en infra/*: rotar antes de exponer fuera de 127.0.0.1.
 - /mnt/ssd_trabajo/biblioteca → symlink a /mnt/ssd_trabajo/Biblioteca (spec pedía minúscula).
+
+## 2026-09-01 (cierre) | Bloqueos resueltos por el Líder
+- tesseract-ocr 5.3.4 + spa instalados → OCR E2E verificado:
+  "Siembra-Variedad de yuca forrajera" (2 págs, escaneado) → ocrmypdf spa →
+  Paperless doc_id c6727a50 → Qdrant 1 chunk → 6 hechos (43k plantas/ha,
+  35-85 t/ha/año) → docs/biblioteca/siembra-variedad-...md
+- Open-Notebook configurado (verificado vía API /api/models):
+  credential Ollama host.docker.internal:11434, modelos qwen2.5:7b y
+  qwen2.5:3b registrados. Pipeline 100% operativo, sin bloqueos.
