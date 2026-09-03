@@ -59,6 +59,9 @@ if env_path.exists():
             os.environ.setdefault(key.strip(), val.strip())
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent/scripts")
+
+from llm_client import LLMClient, detect_task_type  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -707,7 +710,8 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "  /status      — Estado bridge + servicios\n"
         "  /health      — Health check completo (bridge, dispatcher, financial, router)\n"
         "  /logs [svc]  — Logs systemd (bridge, dispatcher, telegram-bot, cloudflared)\n\n"
-        "🧠 Memoria & Skills:\n"
+        "🧠 Memoria & Skills & Chat:\n"
+        "  (mensaje libre) — Chatear con Prometeo (cadena LLM 3 tiers)\n"
         "  /memory      — Resumen memoria (semántica/episódica)\n"
         "  /memory semantic <query>  — Buscar en vault Obsidian\n"
         "  /memory episodic <query>  — Buscar en conversaciones\n"
@@ -731,12 +735,63 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(help_text)
 
 
+# Cadena de fallback LLM: glm-5.3-paid → glm-5.2-free → ollama-local (solo chat)
+llm = LLMClient()
+
+# Historial de chat libre del Líder con el bot
+_CHAT_SYSTEM_PROMPT = (
+    "Eres Prometeo, ingeniero senior full-stack que asiste a Luis Martinez "
+    "(@elpelon27) en el proyecto Estación H2O Maracaibo. Tono profesional pero "
+    "amable, venezolano natural, español de Venezuela. Firma con 💧 los "
+    "mensajes importantes. Si no sabes algo, dilo y verifica."
+)
+_chat_messages: list[dict] = [{"role": "system", "content": _CHAT_SYSTEM_PROMPT}]
+_CHAT_MAX_TURNS = 20
+
+
 async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
-    """Manejo de mensajes de texto libre (para confirmaciones)."""
+    """Chat libre con Prometeo vía cadena LLM de 3 tiers.
+
+    Regla del Líder: Ollama local SOLO para chat conversacional.
+    Tareas técnicas sin LLM pagado → rechazo explícito.
+    """
     if not _is_authorized(update):
         return await _unauthorized(update)
-    # Silencioso - solo para capturar "confirmo" en flujo de confirmación
-    pass
+    msg = update.message
+    if msg is None or not msg.text:
+        return
+    user_input = msg.text.strip()
+
+    # "confirmo" fuera de flujo de confirmación no va al LLM
+    if user_input.lower() in ("confirmo", "sí confirmo", "si confirmo"):
+        await msg.reply_text('✅ Registrado tu "confirmo" (sin acción pendiente).')
+        return
+
+    task_type = detect_task_type(user_input)
+    _chat_messages.append({"role": "user", "content": user_input})
+
+    def _call_llm() -> str:
+        result = llm.complete(list(_chat_messages), task_type=task_type)
+        if "error" in result:
+            logger.warning("Tarea técnica rechazada vía Telegram (sin LLM pagado)")
+            return (
+                "❌ " + result.get("message", "Sin LLM pagado disponible.")
+                + "\n\n(Ollama local queda reservado SOLO para chat, "
+                "no para tareas técnicas.) 💧"
+            )
+        content = result["content"]
+        _chat_messages.append({"role": "assistant", "content": content})
+        # Recortar historial: system + últimos N turnos
+        while len(_chat_messages) > 1 + 2 * _CHAT_MAX_TURNS:
+            _chat_messages.pop(1)
+        return content
+
+    try:
+        reply = await asyncio.to_thread(_call_llm)
+    except Exception as e:
+        logger.error("LLM chain falló en Telegram: %s", e)
+        reply = f"❌ Error de la cadena LLM: {e}"
+    await msg.reply_text(reply)
 
 
 # ============================================================
