@@ -1,0 +1,8 @@
+#!/bin/bash
+branch=$(git rev-parse --abbrev-ref HEAD)
+git push origin "$branch" 2>/dev/null
+if [ $? -eq 0 ]; then
+  echo "✓ Push a origin/$branch"
+else
+  echo "⚠ Push falló, queued para reintento"
+fi
