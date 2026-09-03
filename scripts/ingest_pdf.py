@@ -57,7 +57,7 @@ PROCESSED_DIR = Path("/mnt/ssd_trabajo/biblioteca/pdfs/processed")
 FAILED_DIR = Path("/mnt/ssd_trabajo/biblioteca/pdfs/failed")
 DOCS_DIR = Path("/mnt/ssd_trabajo/hermes-agent/docs/biblioteca")
 LOG_FILE = Path("/mnt/ssd_trabajo/hermes-agent/logs/ingest.log")
-OCR_TMP = Path("/mnt/ssd_trabajo/biblioteca/ocr-tmp")
+OCR_TMP = Path(os.environ["TMPDIR"])  # unificado con TMPDIR = biblioteca/.tmp
 
 PAPERLESS_URL = "http://localhost:8001"
 PAPERLESS_USER = "lider"
@@ -120,8 +120,9 @@ def ensure_text_layer(pdf: Path) -> tuple[Path, bool, int, str]:
     out = OCR_TMP / f"{pdf.stem}.ocr.pdf"
     log.info("OCR: %s (escaneado, %s páginas)", pdf.name, pages)
     r = subprocess.run(
-        [ocrmypdf, str(pdf), str(out), "-l", "spa", "--force-ocr", "--deskew",
-         "--temp-dir", str(OCR_TMP)],  # temporales del OCR al SSD, no al raíz
+        [ocrmypdf, str(pdf), str(out), "-l", "spa", "--force-ocr", "--deskew"],
+        # NOTA: ocrmypdf NO tiene flag --temp-dir. Los temporales se controlan
+        # SOLO vía TMPDIR (ya fijada a biblioteca/.tmp en el header del script).
         capture_output=True, text=True,
     )
     if r.returncode != 0 or not out.exists():
@@ -158,7 +159,7 @@ def embed(texts: list[str]) -> list[list[float]]:
     r = requests.post(
         f"{OLLAMA_URL}/api/embed",
         json={"model": EMBED_MODEL, "input": texts},
-        timeout=300,
+        timeout=1800,  # Ollama local: embeddings de documentos grandes
     )
     r.raise_for_status()
     return r.json()["embeddings"]
@@ -238,7 +239,7 @@ def extract_facts(text: str, model: str) -> list[str]:
             "stream": False,
             "options": {"temperature": 0.2},
         },
-        timeout=900,
+        timeout=1800,  # Ollama local: generación de hechos puede tardar en docs grandes
     )
     r.raise_for_status()
     raw = r.json().get("response", "")
