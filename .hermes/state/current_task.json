@@ -1,11 +1,16 @@
 {
-  "task_id": "maya-seguridad-fase-2",
-  "description": "Implementación maya de seguridad",
-  "current_step": "FASE 2: puntos de restauración",
-  "completed_steps": ["FASE 0: snapshot 2min", "FASE 1: push auto + backup externo"],
+  "task_id": "maya-seguridad",
+  "description": "Implementación maya de seguridad contra cortes eléctricos",
+  "current_step": "MAYA COMPLETA — FASES 0-3 terminadas",
+  "completed_steps": [
+    "FASE 0: snapshot 2min + tags safety-* (Líder)",
+    "FASE 1: push automático post-commit + cron push + backup externo USB (3-2-1)",
+    "FASE 2: checkpoint de tarea + branches de seguridad + limpieza tags semanal",
+    "FASE 3: health check post-corte systemd + hook pre-commit no-bypassable crítico"
+  ],
   "started_at": "2026-09-03T17:00:00",
-  "last_update": "2026-09-03T17:30:00",
-  "status": "in_progress",
+  "last_update": "2026-09-03T19:55:00",
+  "status": "completed",
   "safety_branch": "n/a",
-  "last_safety_tag": "safety-20260903_172801"
+  "last_safety_tag": "safety-20260903_195201"
 }

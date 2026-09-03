@@ -1,0 +1,12 @@
+#!/bin/bash
+branch=$(git rev-parse --abbrev-ref HEAD)
+if [[ "$branch" == "main" || "$branch" == feat/* ]]; then
+  for f in $(git diff --cached --name-only --diff-filter=ACM | grep "\.py$"); do
+    python -m py_compile "$f" 2>/dev/null
+    if [ $? -ne 0 ]; then
+      echo "❌ Sintaxis rota en $f — commit bloqueado"
+      exit 1
+    fi
+  done
+fi
+exit 0
