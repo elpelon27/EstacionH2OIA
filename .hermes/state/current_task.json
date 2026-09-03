@@ -1,0 +1,11 @@
+{
+  "task_id": "maya-seguridad-fase-2",
+  "description": "Implementación maya de seguridad",
+  "current_step": "FASE 2: puntos de restauración",
+  "completed_steps": ["FASE 0: snapshot 2min", "FASE 1: push auto + backup externo"],
+  "started_at": "2026-09-03T17:00:00",
+  "last_update": "2026-09-03T17:30:00",
+  "status": "in_progress",
+  "safety_branch": "n/a",
+  "last_safety_tag": "safety-20260903_172801"
+}
