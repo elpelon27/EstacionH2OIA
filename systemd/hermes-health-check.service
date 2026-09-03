@@ -1,0 +1,11 @@
+[Unit]
+After=network.target docker.service
+After=ollama.service
+
+[Service]
+Type=oneshot
+ExecStart=/home/skynet/health_check.sh
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
