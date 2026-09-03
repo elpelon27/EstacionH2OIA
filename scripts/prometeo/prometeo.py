@@ -16,12 +16,22 @@ Comandos especiales:
 """
 
 import json
+import logging
 import os
 import sys
 from datetime import datetime
 from pathlib import Path
 
-from openai import OpenAI
+# LLMClient vive en scripts/ (sin __init__.py) → shim de sys.path
+_REPO_ROOT = Path("/mnt/ssd_trabajo/hermes-agent")
+sys.path.insert(0, str(_REPO_ROOT / "scripts"))
+from llm_client import LLMClient, detect_task_type  # noqa: E402
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(name)s %(levelname)s %(message)s",
+    handlers=[logging.StreamHandler()],
+)
 
 # ============================================================================
 # Configuración
@@ -36,12 +46,8 @@ if _env_path.exists():
             _k, _, _v = _line.partition("=")
             os.environ.setdefault(_k.strip(), _v.strip())
 
-API_KEY = os.getenv("NVIDIA_API_KEY", "")
-if not API_KEY:
-    print("FATAL: NVIDIA_API_KEY no encontrada. Define NVIDIA_API_KEY en config/.env")
-    sys.exit(1)
-BASE_URL = "https://integrate.api.nvidia.com/v1"
-MODEL = "z-ai/glm-5.2"
+# Cadena de fallback LLM: glm-5.3-paid → glm-5.2-free → ollama-local (solo chat)
+llm = LLMClient()
 
 PROJECT_ROOT = Path("/mnt/ssd_trabajo/hermes-agent")
 MEMORY_DIR = PROJECT_ROOT / "memory" / "sessions"
@@ -102,23 +108,26 @@ SYSTEM_PROMPT = (
 # Cliente OpenAI compatible
 # ============================================================================
 
-client = OpenAI(base_url=BASE_URL, api_key=API_KEY)
-
 # Historial de conversación
 messages = [{"role": "system", "content": SYSTEM_PROMPT}]
 
 
 def chat(user_input: str) -> str:
-    """Envía mensaje a GLM 5.2 y retorna respuesta."""
+    """Envía mensaje a la cadena de fallback LLM y retorna respuesta."""
+    task_type = detect_task_type(user_input)
     messages.append({"role": "user", "content": user_input})
 
     try:
-        completion = client.chat.completions.create(
-            model=MODEL, messages=messages, temperature=0.7, max_tokens=4096, stream=False  # type: ignore[arg-type]
-        )
-        response = completion.choices[0].message.content  # type: ignore[union-attr]
-        messages.append({"role": "assistant", "content": response or ""})
-        return str(response) if response is not None else ""
+        result = llm.complete(messages, task_type=task_type)
+        if "error" in result:
+            return (
+                "❌ " + result.get("message", "Sin LLM pagado disponible")
+                + "\n\n(Ollama local queda reservado SOLO para chat, "
+                "no para tareas técnicas.) 💧"
+            )
+        response = result["content"]
+        messages.append({"role": "assistant", "content": response})
+        return response
     except Exception as e:
         return f"❌ Error: {e}"
 
@@ -128,7 +137,7 @@ def save_session() -> Path:
     filename = MEMORY_DIR / f"prometeo_{datetime.now().strftime('%Y-%m-%d_%H%M')}.json"
     with open(filename, "w", encoding="utf-8") as f:
         json.dump(
-            {"timestamp": datetime.now().isoformat(), "model": MODEL, "messages": messages},
+            {"timestamp": datetime.now().isoformat(), "model": "llm-chain-3tiers", "messages": messages},
             f,
             ensure_ascii=False,
             indent=2,
@@ -143,7 +152,7 @@ def save_session() -> Path:
 
 def main() -> None:
     print("=" * 60)
-    print("  PROMETEO CLI — GLM 5.2 vía NVIDIA NIM")
+    print("  PROMETEO CLI — Cadena LLM 3 tiers (GLM 5.3 → GLM 5.2 free → Ollama)")
     print("  Asistente de desarrollo · Estación H2O")
     print("=" * 60)
     print()
@@ -180,7 +189,7 @@ def main() -> None:
             elif user_input == "/context":
                 print(f"\nPrometeo: Contexto cargado ({len(SYSTEM_PROMPT)} chars)")
                 print(f"  Proyecto: {PROJECT_ROOT}")
-                print(f"  Modelo: {MODEL}")
+                print("  LLM: glm-5.3-paid → glm-5.2-free → ollama-local (solo chat)")
                 print(f"  Mensajes en historial: {len(messages)}\n")
                 continue
 
