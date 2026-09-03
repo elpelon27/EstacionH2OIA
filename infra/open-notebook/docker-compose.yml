@@ -40,6 +40,8 @@ services:
       - SURREAL_DATABASE=open_notebook
       # Ollama en el host (red docker bridge → host.docker.internal)
       - OLLAMA_API_BASE=http://host.docker.internal:11434
+      # Auth de UI/API (login en la web). Sin esto la API queda abierta.
+      - OPEN_NOTEBOOK_PASSWORD=${OPEN_NOTEBOOK_PASSWORD}
     extra_hosts:
       - "host.docker.internal:host-gateway"
     volumes:
