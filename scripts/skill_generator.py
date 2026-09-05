@@ -33,7 +33,7 @@ REPO = Path("/mnt/ssd_trabajo/hermes-agent")
 sys.path.insert(0, str(REPO))
 
 # Mapping tema → firma (para comando "sombrero", FASE 3)
-FIRMAS = {
+FIRMAS: dict[str, str] = {
     "agropecuario": "🐄",
     "h2o": "💧",
     "trading": "📈",
@@ -187,20 +187,21 @@ def main() -> int:
     skill_md.write_text(construir_skill_md(data, tema, topic),
                         encoding="utf-8")
     print(f"OK: creado {skill_md.relative_to(REPO)}")
-    r = subprocess.run(
+    add = subprocess.run(
         ["git", "add", str(skill_md.relative_to(REPO))],
         cwd=REPO, capture_output=True, text=True)
-    if r.returncode != 0:
-        print(f"git add falló: {r.stderr}", file=sys.stderr)
+    if add.returncode != 0:
+        print(f"git add falló: {add.stderr}", file=sys.stderr)
         return 1
-    r = subprocess.run(
+    commit = subprocess.run(
         ["git", "commit", "--no-verify", "-m",
          COMMIT_MSG.format(video_id=data.get("video_id", "?"))],
         cwd=REPO, capture_output=True, text=True)
-    if r.returncode != 0:
-        print(f"git commit falló: {r.stderr}", file=sys.stderr)
+    if commit.returncode != 0:
+        print(f"git commit falló: {commit.stderr}", file=sys.stderr)
         return 1
-    print(f"Commit: {r.stdout.strip().splitlines()[0] if r.stdout else 'ok'}")
+    print("Commit: " + (commit.stdout.strip().splitlines()[0]
+                       if commit.stdout else "ok"))
     return 0
 
 
