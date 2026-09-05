@@ -24,20 +24,19 @@ import logging
 import re
 import sys
 import tempfile
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 REPO = Path("/mnt/ssd_trabajo/hermes-agent")
 sys.path.insert(0, str(REPO))  # para scripts.llm_client
 sys.path.insert(0, str(REPO / "skills" / "claude-watch-source" / "scripts"))
 
+import httpx  # noqa: E402
 from download import download, is_url  # noqa: E402
 from frames import extract, get_metadata  # noqa: E402
-from transcribe import parse_vtt  # noqa: E402
-
-import httpx  # noqa: E402
 from qdrant_client import QdrantClient  # noqa: E402
 from qdrant_client.models import PointStruct  # noqa: E402
+from transcribe import parse_vtt  # noqa: E402
 
 from scripts.llm_client import LLMClient  # noqa: E402
 
@@ -178,7 +177,7 @@ def index_qdrant(collection: str, payload: dict, transcript: str,
                 "tema": tema,
                 "transcript_chunk_id": f"{base_id}-c{i:04d}",
                 "chunk": chunk,
-                "indexed_at": datetime.now(timezone.utc).isoformat(),
+                "indexed_at": datetime.now(UTC).isoformat(),
             },
         ))
     client = QdrantClient(url=QDRANT_URL, timeout=60)
@@ -290,10 +289,7 @@ def main() -> int:
     analysis = analyze(frames, transcript, args.intent, llm)
 
     # 5. Tema
-    if args.tema != "auto":
-        tema = args.tema
-    else:
-        tema = analysis.get("tema_sugerido", "otro")
+    tema = args.tema if args.tema != "auto" else analysis.get("tema_sugerido", "otro")
     if tema not in TEMAS_VALIDOS:
         tema = "otro"
     log.info("Tema: %s", tema)
@@ -322,7 +318,7 @@ def main() -> int:
         "analysis": analysis,
         "tema": tema,
         "llm_model": tier["model"],
-        "analyzed_at": datetime.now(timezone.utc).isoformat(),
+        "analyzed_at": datetime.now(UTC).isoformat(),
         "indexed_in_qdrant": n_points > 0,
         "qdrant_points": n_points,
         "obsidian_path": str((obsidian_dir / f"{vid}.md").relative_to(REPO)),
