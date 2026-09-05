@@ -28,6 +28,7 @@ import subprocess
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 
 REPO = Path("/mnt/ssd_trabajo/hermes-agent")
 sys.path.insert(0, str(REPO))
@@ -56,9 +57,9 @@ def _norm(s: str) -> str:
     return (s or "").lower().strip()
 
 
-def decidir_skill(data: dict) -> tuple[bool, list[str]]:
+def decidir_skill(data: dict[str, Any]) -> tuple[bool, list[str]]:
     """Aplica los criterios del Líder. Devuelve (genera, razones)."""
-    an = data.get("analysis", {}) or {}
+    an: dict[str, Any] = data.get("analysis", {}) or {}
     razones: list[str] = []
 
     propuesta = an.get("skill_proposal")
@@ -93,8 +94,8 @@ def decidir_skill(data: dict) -> tuple[bool, list[str]]:
     return False, razones
 
 
-def construir_skill_md(data: dict, tema: str, topic: str) -> str:
-    an = data.get("analysis", {}) or {}
+def construir_skill_md(data: dict[str, Any], tema: str, topic: str) -> str:
+    an: dict[str, Any] = data.get("analysis", {}) or {}
     firma = firma_para(tema)
     hoy = datetime.now(UTC).date().isoformat()
     desc = an.get("descripcion") or an.get("tldr") or []
