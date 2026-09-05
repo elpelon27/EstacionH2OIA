@@ -74,7 +74,7 @@ def download_url(url: str, out_dir: Path) -> dict:
         "--write-info-json",
         "--write-subs",
         "--write-auto-subs",
-        "--sub-langs", "en,en-US,en-GB,en-orig",
+        "--sub-langs", "es,es-419,es-ES,es-MX,en,en-US,en-GB,en-orig",
         "--sub-format", "vtt",
         "--convert-subs", "vtt",
         "--no-playlist",

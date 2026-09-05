@@ -107,7 +107,11 @@ def transcript_from(vtt_path: str | None) -> str:
     if not vtt_path or not Path(vtt_path).exists():
         return ""
     cues = parse_vtt(vtt_path)
-    return "\n".join(f"[{c.get('start', '?')}] {c.get('text', '')}" for c in cues)
+    return "\n".join(
+        f"[{int(c['start']) // 3600:02d}:{int(c['start']) % 3600 // 60:02d}:"
+        f"{int(c['start']) % 60:02d}] {c['text']}"
+        for c in cues
+    )
 
 
 def analyze(frames: list[dict], transcript: str, intent: str,
