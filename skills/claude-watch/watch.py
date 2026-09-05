@@ -258,7 +258,7 @@ def main() -> int:
 
     # 1. Descarga
     log.info("Descargando: %s", args.source)
-    d = download(args.source, str(work)) if is_url(args.source) else None
+    d = download(args.source, work) if is_url(args.source) else None
     if d is None:
         ap.error("Solo URLs soportadas en esta adaptación (usar yt-dlp para local)")
     video_path = d["video_path"]

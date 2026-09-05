@@ -28,7 +28,6 @@ sys.path.insert(0, str(_REPO_ROOT / "scripts"))
 from llm_client import LLMClient, detect_task_type  # noqa: E402
 from video_watch_service import (  # noqa: E402
     WatchError,
-    extract_youtube_url,
     find_existing,
     is_youtube_url,
     run_watch,
@@ -165,7 +164,7 @@ def cmd_watch(user_input: str) -> str | None:
     lines = [
         "✅ Video procesado:",
         f"  • MD: {result.get('md', '?')}",
-        f"  • Obsidian: docs/videos → obsidian-vault/videos (espejo)",
+        "  • Obsidian: docs/videos → obsidian-vault/videos (espejo)",
         f"  • Skill: {result.get('skill_decision', '—')}",
         f"  • Qdrant: {result.get('points', 0)} puntos (videos_h2o)",
         f"  • Costo estimado: ${result.get('cost_est_usd', 0):.2f}",

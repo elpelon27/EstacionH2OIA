@@ -186,10 +186,11 @@ def run_watch(url: str, user: str = "lider") -> dict[str, Any]:
             timeout=WATCH_TIMEOUT_SEC,
             cwd=REPO,
         )
-    except subprocess.TimeoutExpired:
+    except subprocess.TimeoutExpired as exc:
         raise WatchError(
             "⏱️ Timeout: el video es muy largo o la descarga demoró "
-            f"más de {WATCH_TIMEOUT_SEC // 60} min. Probá con uno más corto.")
+            f"más de {WATCH_TIMEOUT_SEC // 60} min. Probá con uno más corto."
+        ) from exc
 
     out = proc.stdout.strip()
     if proc.returncode != 0:

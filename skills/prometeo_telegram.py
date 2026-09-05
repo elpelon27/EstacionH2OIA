@@ -66,6 +66,7 @@ from video_watch_service import (  # noqa: E402
     WatchError,
     extract_youtube_url,
     find_existing,
+    is_youtube_url,
     run_watch,
     watch_status,
 )
@@ -175,7 +176,7 @@ async def cmd_watch(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         await msg.reply_text("Pasame una URL de YouTube")
         return
     url = extract_youtube_url(url) or url
-    if not find_youtube_ok(url):
+    if not is_youtube_url(url):
         await msg.reply_text("Solo soporto YouTube (youtube.com/watch?v=... o youtu.be/...)")
         return
 
@@ -206,11 +207,6 @@ async def cmd_watch(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await msg.reply_text("\n".join(lines) + "\n💧")
     logger.info("Video procesado vía Telegram: %s", url)
 
-
-def find_youtube_ok(url: str) -> bool:
-    from video_watch_service import is_youtube_url
-
-    return is_youtube_url(url)
 
 
 async def cmd_watch_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
@@ -776,6 +772,10 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "  /status      — Estado bridge + servicios\n"
         "  /health      — Health check completo (bridge, dispatcher, financial, router)\n"
         "  /logs [svc]  — Logs systemd (bridge, dispatcher, telegram-bot, cloudflared)\n\n"
+        "🎬 Videos:\n"
+        "  /watch <url> — Analizar video YouTube (claude-watch)\n"
+        "  (URL de YouTube en mensaje libre también dispara /watch)\n"
+        "  /watch-status — Estado pipeline videos\n\n"
         "🧠 Memoria & Skills & Chat:\n"
         "  (mensaje libre) — Chatear con Prometeo (cadena LLM 3 tiers)\n"
         "  /memory      — Resumen memoria (semántica/episódica)\n"
@@ -832,6 +832,12 @@ async def handle_message(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if user_input.lower() in ("confirmo", "sí confirmo", "si confirmo"):
         await msg.reply_text('✅ Registrado tu "confirmo" (sin acción pendiente).')
         return
+
+    # URL de YouTube en mensaje libre → trigger /watch
+    yt_url = extract_youtube_url(user_input)
+    if yt_url:
+        ctx.args = yt_url.split()
+        return await cmd_watch(update, ctx)
 
     task_type = detect_task_type(user_input)
     _chat_messages.append({"role": "user", "content": user_input})
@@ -1085,6 +1091,8 @@ def main() -> None:
     app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(_post_init).build()
 
     app.add_handler(CommandHandler("start", cmd_start))
+    app.add_handler(CommandHandler("watch", cmd_watch))
+    app.add_handler(CommandHandler("watch-status", cmd_watch_status))
     app.add_handler(CommandHandler("stop", cmd_stop))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("health", cmd_health))
