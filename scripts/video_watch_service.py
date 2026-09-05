@@ -48,7 +48,7 @@ WATCH_TIMEOUT_SEC = 20 * 60     # video muy largo → abortar a los 20 min
 EST_COST_PER_VIDEO_USD = 0.15
 
 _YT_RE = re.compile(
-    r"^https?://(www\.|m\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{11}"
+    r"^https?://(www\.|m\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{4,}"
 )
 
 
