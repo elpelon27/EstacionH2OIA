@@ -26,6 +26,14 @@ from pathlib import Path
 _REPO_ROOT = Path("/mnt/ssd_trabajo/hermes-agent")
 sys.path.insert(0, str(_REPO_ROOT / "scripts"))
 from llm_client import LLMClient, detect_task_type  # noqa: E402
+from video_watch_service import (  # noqa: E402
+    WatchError,
+    extract_youtube_url,
+    find_existing,
+    is_youtube_url,
+    run_watch,
+    watch_status,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -132,6 +140,43 @@ def chat(user_input: str) -> str:
         return f"❌ Error: {e}"
 
 
+def cmd_watch(user_input: str) -> str | None:
+    """Trigger manual /watch <url> — pipeline claude-watch completo."""
+    if user_input == "/watch" or user_input == "/watch ":
+        return "Pasame una URL de YouTube"
+    if not user_input.startswith("/watch "):
+        return None
+    url = user_input[7:].strip()
+    if not url:
+        return "Pasame una URL de YouTube"
+    if not is_youtube_url(url):
+        return "Solo soporto YouTube (youtube.com/watch?v=... o youtu.be/...)"
+
+    existing = find_existing(url)
+    if existing:
+        return f"Ya procesé ese video. Resumen: {existing}"
+
+    print("\nPrometeo: 🎬 Procesando video... puede tardar 1-3 min")
+    try:
+        result = run_watch(url, user="lider-cli")
+    except WatchError as e:
+        return f"{e}\n(Sugerencia: reintenta más tarde o probá otra URL) 💧"
+
+    lines = [
+        "✅ Video procesado:",
+        f"  • MD: {result.get('md', '?')}",
+        f"  • Obsidian: docs/videos → obsidian-vault/videos (espejo)",
+        f"  • Skill: {result.get('skill_decision', '—')}",
+        f"  • Qdrant: {result.get('points', 0)} puntos (videos_h2o)",
+        f"  • Costo estimado: ${result.get('cost_est_usd', 0):.2f}",
+    ]
+    return "\n".join(lines) + "\n💧"
+
+
+def cmd_watch_status() -> str:
+    return watch_status()
+
+
 def save_session() -> Path:
     """Guarda conversación actual en memory/sessions/."""
     filename = MEMORY_DIR / f"prometeo_{datetime.now().strftime('%Y-%m-%d_%H%M')}.json"
@@ -157,6 +202,8 @@ def main() -> None:
     print("=" * 60)
     print()
     print("Comandos especiales:")
+    print("  /watch <url> — Analizar video de YouTube (claude-watch)")
+    print("  /watch-status — Estado del pipeline de videos")
     print("  /context  - Recargar contexto del proyecto")
     print("  /clear    - Limpiar conversación")
     print("  /save     - Guardar conversación")
@@ -177,6 +224,14 @@ def main() -> None:
             if user_input == "/exit":
                 print("\nPrometeo: ¡Hasta pronto, Líder! 💧")
                 break
+            elif user_input == "/watch-status":
+                print("\nPrometeo: " + cmd_watch_status() + "\n")
+                continue
+            elif user_input.startswith("/watch"):
+                watch_reply = cmd_watch(user_input)
+                if watch_reply is not None:
+                    print("\nPrometeo: " + watch_reply + "\n")
+                    continue
             elif user_input == "/clear":
                 messages.clear()
                 messages.append({"role": "system", "content": SYSTEM_PROMPT})

@@ -62,6 +62,13 @@ sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent/scripts")
 
 from llm_client import LLMClient, detect_task_type  # noqa: E402
+from video_watch_service import (  # noqa: E402
+    WatchError,
+    extract_youtube_url,
+    find_existing,
+    run_watch,
+    watch_status,
+)
 
 logging.basicConfig(
     level=logging.INFO,
@@ -152,6 +159,65 @@ async def _require_confirmation(update: Update, action: str) -> bool:
         f'⚠️ Acción sensible: {action}\nResponde con "confirmo" o "sí confirmo" para proceder.'
     )
     return False
+
+
+async def cmd_watch(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    """Trigger /watch <url> — pipeline claude-watch en background."""
+    if not _is_authorized(update):
+        return await _unauthorized(update)
+    msg = update.message
+    assert msg is not None
+    user = update.effective_user
+    user_id = str(user.id) if user else "unknown"
+
+    url = " ".join(ctx.args).strip() if ctx.args else ""
+    if not url:
+        await msg.reply_text("Pasame una URL de YouTube")
+        return
+    url = extract_youtube_url(url) or url
+    if not find_youtube_ok(url):
+        await msg.reply_text("Solo soporto YouTube (youtube.com/watch?v=... o youtu.be/...)")
+        return
+
+    existing = find_existing(url)
+    if existing:
+        await msg.reply_text(f"Ya procesé ese video. Resumen: {existing}")
+        return
+
+    await msg.reply_text("🎬 Procesando video... puede tardar 1-3 min")
+
+    def _run() -> dict[str, Any]:
+        return run_watch(url, user=f"telegram-{user_id}")
+
+    try:
+        result = await asyncio.to_thread(_run)
+    except WatchError as e:
+        await msg.reply_text(str(e))
+        return
+
+    obsidian_rel = Path(result.get("md", "")).name
+    lines = [
+        f"✅ {result.get('video_id', 'video')} procesado",
+        f"• Tema: {result.get('tema', '?')}",
+        f"• Skill: {result.get('skill_decision', '—')}",
+        f"• Obsidian: obsidian-vault/videos/{obsidian_rel}",
+        f"• Qdrant: {result.get('points', 0)} puntos (videos_h2o)",
+    ]
+    await msg.reply_text("\n".join(lines) + "\n💧")
+    logger.info("Video procesado vía Telegram: %s", url)
+
+
+def find_youtube_ok(url: str) -> bool:
+    from video_watch_service import is_youtube_url
+
+    return is_youtube_url(url)
+
+
+async def cmd_watch_status(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+    if not _is_authorized(update):
+        return await _unauthorized(update)
+    assert update.message is not None
+    await update.message.reply_text(watch_status())
 
 
 async def cmd_start(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
