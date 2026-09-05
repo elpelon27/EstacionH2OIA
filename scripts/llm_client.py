@@ -74,7 +74,7 @@ class LLMClient:
                 # con task_type="video".
                 "name": "gemini-3-pro-preview",
                 "model": os.getenv(
-                    "OPENROUTER_MODEL_VIDEO", "google/gemini-3-pro-preview"
+                    "OPENROUTER_MODEL_VIDEO", "google/gemini-3.1-pro-preview"
                 ),
                 "base_url": "https://openrouter.ai/api/v1",
                 "api_key": os.getenv("OPENROUTER_API_KEY", ""),
