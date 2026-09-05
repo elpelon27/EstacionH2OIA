@@ -15,6 +15,9 @@ REGLA DEL LÍDER (grabada en piedra):
   con NO_PAID_LLM_AVAILABLE.
 
 Ver docs/LLM_FALLBACK.md para el diseño completo.
+Tier adicional (no está en la cadena de chat): "gemini-3-pro-preview",
+invocado explícitamente con task_type="video" (análisis de videos,
+claude-watch).
 """
 
 import logging
@@ -66,6 +69,20 @@ class LLMClient:
                 "chat_ok": True,
             },
             {
+                # Tier dedicado a análisis de video (claude-watch).
+                # NO entra en la cadena de chat/técnico: se invoca explícitamente
+                # con task_type="video".
+                "name": "gemini-3-pro-preview",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_VIDEO", "google/gemini-3-pro-preview"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": True,
+                "chat_ok": True,
+                "video_ok": True,
+            },
+            {
                 "name": "ollama-local",
                 "model": os.getenv("OLLAMA_MODEL", "qwen2.5:7b"),
                 "base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
@@ -90,6 +107,9 @@ class LLMClient:
             if task_type == "technical" and not tier["technical_ok"]:
                 logger.warning("SKIP %s: no apto para tareas técnicas", tier["name"])
                 continue
+            if task_type == "video":
+                if not tier.get("video_ok"):
+                    continue
             if task_type == "chat" and not tier["chat_ok"]:
                 continue
             try:
