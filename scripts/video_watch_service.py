@@ -43,9 +43,10 @@ RATE_INTERVAL_SEC = 5 * 60      # 1 video cada 5 min por usuario
 DAILY_LIMIT = 20                # máx 20 videos por día
 WATCH_TIMEOUT_SEC = 20 * 60     # video muy largo → abortar a los 20 min
 
-# Costo estimado por video (Gemini 3 Pro preview, ~60 frames + transcript)
-# Ajustar cuando haya datos reales de uso.
-EST_COST_PER_VIDEO_USD = 0.15
+# Costo por video medido en test real 2026-09-05 (yt-_igtBYf0CMY, 2:20 min,
+# 14 frames + 4.5k chars transcript, gemini-3.1-pro-preview):
+#   input ≈6.0k tok ($2/M) + output ≈0.63k tok ($12/M) ≈ $0.0196
+EST_COST_PER_VIDEO_USD = 0.02
 
 _YT_RE = re.compile(
     r"^https?://(www\.|m\.)?(youtube\.com/(watch\?v=|shorts/)|youtu\.be/)[A-Za-z0-9_-]{4,}"
