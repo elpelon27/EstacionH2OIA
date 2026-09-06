@@ -318,16 +318,14 @@ def main() -> int:
     ap.add_argument("--tema", default="auto",
                     help="auto|agropecuario|h2o|otro (auto = Gemini clasifica)")
     ap.add_argument("--intent", default="", help="Por qué se mira el video")
-    ap.add_argument("--frame-interval", type=int,
-                    default=int(__import__("os").environ.get(
-                        "YOUTUBE_VIDEO_FRAME_INTERVAL", "10")),
-                    help="Segundos entre frames (default: env o 10)")
+    ap.add_argument("--frame-interval", type=int, default=0,
+                    help="Segundos entre frames (default: adaptativo por "
+                         "duración; 0 = auto)")
     ap.add_argument("--no-qdrant", action="store_true")
     ap.add_argument("--no-frames", action="store_true",
                     help="Solo transcript + análisis de texto")
     args = ap.parse_args()
 
-    interval = max(5, args.frame_interval)
     work = Path(tempfile.mkdtemp(prefix="claude-watch-"))
     out_dir = (REPO / args.output_dir).resolve()
     obsidian_dir = (REPO / args.obsidian_dir).resolve()
@@ -344,20 +342,40 @@ def main() -> int:
     vid = video_id_from(url, title)
     log.info("Video: %s (%s)", title, vid)
 
-    # 2. Frames
-    meta = {}
-    frames = []
-    if not args.no_frames:
-        frames, meta = extract_frames(video_path, work, interval)
-        log.info("Frames: %d", len(frames))
-    else:
-        meta = get_metadata(video_path)
+    # 2. Duración (BUG 2 fix: metadata ffprobe leída ANTES de frames para
+    # permitir intervalo adaptativo y validar MAX_DURATION)
+    meta = get_metadata(video_path)
+    duration_sec = int(meta.get("duration_seconds")
+                       or meta.get("duration")
+                       or (d.get("info") or {}).get("duration")
+                       or 0)
+    log.info("Duración: %ds", duration_sec)
+    if duration_sec and duration_sec > MAX_DURATION:
+        log.error("Video de %ds excede YOUTUBE_VIDEO_MAX_DURATION=%ds",
+                  duration_sec, MAX_DURATION)
+        print(json.dumps({"error": "video_too_long",
+                          "duration_sec": duration_sec,
+                          "max_duration": MAX_DURATION}))
+        return 3
 
-    # 3. Transcript
+    # 3. Intervalo adaptativo (PARTE 6): --frame-interval explícito gana
+    if args.frame_interval:
+        interval = max(5, args.frame_interval)
+    else:
+        interval = adaptive_interval(duration_sec)
+    log.info("Frame interval: %ds (adaptativo por duración)", interval)
+
+    # 4. Frames
+    frames: list[dict] = []
+    if not args.no_frames:
+        frames, _ = extract_frames(video_path, work, interval)
+        log.info("Frames: %d (cap %d)", len(frames), MAX_FRAMES)
+
+    # 5. Transcript
     transcript = transcript_from(d.get("subtitle_path"))
     log.info("Transcript: %d chars", len(transcript))
 
-    # 4. Análisis LLM
+    # 6. Análisis LLM
     llm = LLMClient()
     tier = next((t for t in llm.tier_chain if t["name"] == args.llm_tier), None)
     if not tier or not tier.get("video_ok"):
@@ -365,18 +383,18 @@ def main() -> int:
         return 2
     analysis = analyze(frames, transcript, args.intent, llm)
 
-    # 5. Tema
+    # 7. Tema
     tema = args.tema if args.tema != "auto" else analysis.get("tema_sugerido", "otro")
     if tema not in TEMAS_VALIDOS:
         tema = "otro"
     log.info("Tema: %s", tema)
 
-    # 6. Outputs + Qdrant
+    # 8. Outputs + Qdrant
     payload = {
         "video_id": vid,
         "url": url,
         "title": title,
-        "duration_sec": int(meta.get("duration") or 0),
+        "duration_sec": duration_sec,
     }
     n_points = 0
     if not args.no_qdrant:
@@ -401,7 +419,8 @@ def main() -> int:
         "obsidian_path": str((obsidian_dir / f"{vid}.md").relative_to(REPO)),
     }
     write_outputs(out_dir, obsidian_dir, data)
-    log.info("OK: %s | %s | %s.json", vid, tema, out_dir / f"{vid}.json")
+    # BUG 3 fix: antes se logueaba f"{vid}.json" con %s.json → ".json.json"
+    log.info("OK: %s | %s | %s", vid, tema, (out_dir / f"{vid}.json").name)
     print(json.dumps({"video_id": vid, "tema": tema, "points": n_points,
                       "md": str(out_dir / f"{vid}.md"),
                       "json": str(out_dir / f"{vid}.json")}, ensure_ascii=False))

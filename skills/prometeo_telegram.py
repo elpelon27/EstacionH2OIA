@@ -775,7 +775,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "🎬 Videos:\n"
         "  /watch <url> — Analizar video YouTube (claude-watch)\n"
         "  (URL de YouTube en mensaje libre también dispara /watch)\n"
-        "  /watch-status — Estado pipeline videos\n\n"
+        "  /watchstatus — Estado pipeline videos\n\n"
         "🧠 Memoria & Skills & Chat:\n"
         "  (mensaje libre) — Chatear con Prometeo (cadena LLM 3 tiers)\n"
         "  /memory      — Resumen memoria (semántica/episódica)\n"
@@ -1092,7 +1092,9 @@ def main() -> None:
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("watch", cmd_watch))
-    app.add_handler(CommandHandler("watch-status", cmd_watch_status))
+    # BUG 4 fix: Telegram solo acepta [a-z0-9_] en comandos — "watch-status"
+    # (con guion) crasheaba el bot al registrar el handler.
+    app.add_handler(CommandHandler("watchstatus", cmd_watch_status))
     app.add_handler(CommandHandler("stop", cmd_stop))
     app.add_handler(CommandHandler("status", cmd_status))
     app.add_handler(CommandHandler("health", cmd_health))

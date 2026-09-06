@@ -170,10 +170,20 @@ class LLMClient:
         r = httpx.post(url, json=body, headers=headers, timeout=self.timeout)
         r.raise_for_status()
         data = r.json()
+        # BUG 5 fix: loguear token usage (viene en el response, sin API key extra)
+        usage = data.get("usage") or {}
+        if usage:
+            logger.info(
+                "LLM usage %s: in=%s, out=%s",
+                tier["name"],
+                usage.get("prompt_tokens", "?"),
+                usage.get("completion_tokens", "?"),
+            )
         return {
             "content": data["choices"][0]["message"]["content"],
             "tier": tier["name"],
             "model": tier["model"],
+            "usage": usage,
         }
 
 
