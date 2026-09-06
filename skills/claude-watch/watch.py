@@ -57,16 +57,16 @@ extraídos (en orden cronológico, con timestamps) y el transcript del video.
 
 Tu trabajo:
 1. Devolver un JSON válido (SIN markdown, sin ```json, JSON puro) con:
-{
+{{
   "tldr": ["3-5 bullets con lo esencial"],
-  "key_moments": [{"timestamp": "MM:SS o HH:MM:SS", "desc": "..."}],
+  "key_moments": [{{"timestamp": "MM:SS o HH:MM:SS", "desc": "..."}}],
   "key_facts": ["hechos concretos, datos, afirmaciones verificables"],
   "quotable": ["2-3 frases textuales destacadas"],
   "entities": ["personas, empresas, herramientas, lugares"],
   "concepts": ["frameworks, modelos mentales, patrones"],
   "tema_sugerido": "agropecuario|h2o|otro",
   "skill_proposal": "nombre-kebab-case o null"
-}
+}}
 2. tema_sugerido: clasificá por contenido (producción agropecuaria/ganadería/
 agricultura → agropecuario; negocio de agua/botellones/despacho → h2o;
 resto → otro).
