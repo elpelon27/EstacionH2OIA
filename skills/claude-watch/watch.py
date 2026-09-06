@@ -21,9 +21,11 @@ import argparse
 import base64
 import json
 import logging
+import os
 import re
 import sys
 import tempfile
+import uuid
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -44,11 +46,35 @@ logging.basicConfig(level=logging.INFO, format="%(levelname)s %(message)s")
 log = logging.getLogger("claude-watch")
 
 FRAME_WIDTH = 512
-MAX_FRAMES = 60          # presupuesto de tokens: ~40-80k para 512px
 CHUNK_CHARS = 1200       # tamaño de chunk de transcript para Qdrant
 EMBED_MODEL = "nomic-embed-text:latest"
 QDRANT_URL = "http://localhost:6333"
 EMBED_URL = "http://localhost:11434/api/embeddings"
+
+# --- Frame sampling adaptativo (videos largos) ---
+def _env_int(name: str, default: int) -> int:
+    try:
+        return int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+
+MAX_FRAMES = _env_int("YOUTUBE_VIDEO_MAX_FRAMES", 240)
+FRAME_INTERVAL_SHORT = _env_int("YOUTUBE_VIDEO_FRAME_INTERVAL_SHORT", 10)
+FRAME_INTERVAL_MEDIUM = _env_int("YOUTUBE_VIDEO_FRAME_INTERVAL_MEDIUM", 30)
+FRAME_INTERVAL_LONG = _env_int("YOUTUBE_VIDEO_FRAME_INTERVAL_LONG", 60)
+MAX_DURATION = _env_int("YOUTUBE_VIDEO_MAX_DURATION", 7200)
+TRANSCRIPT_WINDOW = _env_int("YOUTUBE_VIDEO_TRANSCRIPT_WINDOW", 30000)
+TRANSCRIPT_OVERLAP = _env_int("YOUTUBE_VIDEO_TRANSCRIPT_OVERLAP", 5000)
+
+
+def adaptive_interval(duration_sec: int) -> int:
+    """Intervalo de frames según duración (regla del Líder, PARTE 6):
+    <=30min → 10s | 30-60min → 30s | >60min → 60s."""
+    if duration_sec > 3600:
+        return FRAME_INTERVAL_LONG
+    if duration_sec > 1800:
+        return FRAME_INTERVAL_MEDIUM
+    return FRAME_INTERVAL_SHORT
 
 TEMAS_VALIDOS = {"agropecuario", "h2o", "otro"}
 
@@ -113,12 +139,70 @@ def transcript_from(vtt_path: str | None) -> str:
     )
 
 
+def _windows(text: str, size: int, overlap: int) -> list[str]:
+    """Ventanas deslizantes: si text cabe en una ventana → [text]."""
+    if len(text) <= size:
+        return [text] if text else []
+    step = max(1, size - overlap)
+    return [text[i:i + size] for i in range(0, len(text) - overlap, step)]
+
+
 def analyze(frames: list[dict], transcript: str, intent: str,
             llm: LLMClient) -> dict:
-    """LLM multimodal: frames base64 + transcript → JSON de análisis."""
+    """LLM multimodal: frames base64 + transcript → JSON de análisis.
+
+    Videos largos: el transcript se analiza en ventanas deslizantes de
+    TRANSCRIPT_WINDOW chars con TRANSCRIPT_OVERLAP de solapamiento; los
+    análisis parciales se consolidan en un análisis final (PARTE 6)."""
+    wins = _windows(transcript, TRANSCRIPT_WINDOW, TRANSCRIPT_OVERLAP)
+    if len(wins) <= 1:
+        return _analyze_single(frames, transcript or "", intent, llm)
+
+    log.info("Transcript %d chars → %d ventanas de %d (overlap %d)",
+             len(transcript), len(wins), TRANSCRIPT_WINDOW, TRANSCRIPT_OVERLAP)
+    partials: list[dict] = []
+    for i, w in enumerate(wins):
+        log.info("Análisis parcial %d/%d...", i + 1, len(wins))
+        partials.append(_analyze_single(frames, w, intent, llm,
+                                        partial_label=f" (parte {i+1}/{len(wins)})"))
+
+    # Consolidación: pedir al LLM que fusione los análisis parciales
+    consolid_prompt = (
+        "Recibís análisis parciales (JSON) de un MISMO video largo, "
+        "generados sobre ventanas solapadas del transcript. Fusionálos en un "
+        "UNICO JSON con el MISMO esquema (tldr 3-5 bullets, key_moments, "
+        "key_facts, quotable, entities, concepts, tema_sugerido, "
+        "skill_proposal). Deduplicá hechos/entidades repetidos por el "
+        "overlap. Devolvé JSON puro sin markdown.\n\n"
+        + "\n\n".join(json.dumps(p, ensure_ascii=False) for p in partials)
+    )
+    resp = llm.complete(
+        [{"role": "user", "content": [{"type": "text", "text": consolid_prompt}]}],
+        task_type="video", temperature=0.2, max_tokens=4096)
+    return _parse_json_resp(resp)
+
+
+def _parse_json_resp(resp: dict) -> dict:
+    if "error" in resp:
+        raise RuntimeError(f"LLM video falló: {resp['error']}")
+    txt = resp["content"].strip()
+    if txt.startswith("```"):
+        txt = re.sub(r"^```(json)?\s*|\s*```$", "", txt)
+    try:
+        return json.loads(txt)
+    except json.JSONDecodeError:
+        m = re.search(r"\{.*\}", txt, re.S)
+        if not m:
+            raise
+        return json.loads(m.group(0))
+
+
+def _analyze_single(frames: list[dict], transcript: str, intent: str,
+                    llm: LLMClient, partial_label: str = "") -> dict:
+    """Un llamado LLM: frames + una ventana de transcript → JSON."""
     content: list[dict] = [{"type": "text", "text":
-        ANALYSIS_PROMPT.format(intent=intent or "resumen general")
-        + "\n\nTRANSCRIPT:\n" + (transcript[:30000] or "(sin transcript)")}]
+        ANALYSIS_PROMPT.format(intent=intent or "resumen general") + partial_label
+        + "\n\nTRANSCRIPT:\n" + (transcript or "(sin transcript)")}]
     n_frames = 0
     for f in frames:
         p = Path(f["frame_path"])
@@ -138,18 +222,7 @@ def analyze(frames: list[dict], transcript: str, intent: str,
         temperature=0.3,
         max_tokens=4096,
     )
-    if "error" in resp:
-        raise RuntimeError(f"LLM video falló: {resp['error']}")
-    txt = resp["content"].strip()
-    if txt.startswith("```"):
-        txt = re.sub(r"^```(json)?\s*|\s*```$", "", txt)
-    try:
-        return json.loads(txt)
-    except json.JSONDecodeError:
-        m = re.search(r"\{.*\}", txt, re.S)
-        if not m:
-            raise
-        return json.loads(m.group(0))
+    return _parse_json_resp(resp)
 
 
 def embed(text: str) -> list[float]:
@@ -166,16 +239,20 @@ def index_qdrant(collection: str, payload: dict, transcript: str,
         return 0
     chunks = [transcript[i:i + CHUNK_CHARS]
               for i in range(0, len(transcript), CHUNK_CHARS)]
-    base_id = re.sub(r"[^a-z0-9-]", "", payload["video_id"].lower())
     points = []
     for i, chunk in enumerate(chunks):
+        # BUG 1 fix: Qdrant exige point IDs UUID/entero — los string crudos
+        # ("yt-...-c0000") devuelven 400. uuid5 = determinístico (mismo
+        # input → mismo UUID), permite re-indexar sin duplicar.
+        point_id = str(uuid.uuid5(uuid.NAMESPACE_URL,
+                                  f"{payload['video_id']}-c{i:04d}"))
         points.append(PointStruct(
-            id=f"{base_id}-c{i:04d}",
+            id=point_id,
             vector=embed(chunk),
             payload={
                 **payload,
                 "tema": tema,
-                "transcript_chunk_id": f"{base_id}-c{i:04d}",
+                "transcript_chunk_id": f"{payload['video_id']}-c{i:04d}",
                 "chunk": chunk,
                 "indexed_at": datetime.now(UTC).isoformat(),
             },
