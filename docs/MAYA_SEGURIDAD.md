@@ -34,6 +34,18 @@ Implementado 2026-09-03. 4 fases, 3 grietas cerradas.
 | 0 23 * * * | Ingest de PDFs (nocturno) |
 | 0 3 * * 0 | Limpieza de tags viejos (semanal) |
 
+## Flujos de datos cubiertos por snapshots + push auto
+
+- **Código y docs** (todo el repo, incluido `skills/claude-watch/`).
+- **Skill de videos** (ver docs/VIDEO_SKILL_SETUP.md): los outputs
+  `docs/videos/*.md|*.json` y el espejo `obsidian-vault/videos/*.md`
+  viven en el repo → quedan cubiertos por el snapshot de 2 min y el
+  push automático post-commit. Un video procesado queda preservado en
+  GitHub (off-site) a lo sumo 2 minutos después de generarse. La
+  memoria semántica (Qdrant videos_h2o) NO está en el repo, pero es
+  re-construible re-ejecutando el pipeline (point IDs UUID5
+  determinísticos → re-index sin duplicar).
+
 ## Servicios systemd
 
 | Servicio | Función |
