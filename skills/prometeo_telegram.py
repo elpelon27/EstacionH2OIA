@@ -40,7 +40,7 @@ from datetime import UTC, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-from telegram import Update
+from telegram import BotCommand, Update
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -1079,6 +1079,23 @@ async def cmd_reject(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def _post_init(app: Application[Any, Any, Any, Any, Any, Any]) -> None:
     """Inicializa background tasks tras arrancar el bot."""
+    # Registrar lista de comandos para el menu "/" de Telegram.
+    # Sin esto, /watchstatus existe en el dispatcher pero no aparece en el
+    # menu ni autocompleta, y el cliente lo muestra como "unknown command".
+    commands = [
+        BotCommand("start", "Iniciar bot"),
+        BotCommand("help", "Comandos disponibles"),
+        BotCommand("watch", "Analizar video YouTube"),
+        BotCommand("watchstatus", "Estado del skill de videos"),
+        BotCommand("status", "Estado del agente"),
+        BotCommand("health", "Salud del agente"),
+        BotCommand("stop", "Detener el agente"),
+    ]
+    try:
+        await app.bot.set_my_commands(commands)
+        logger.info("set_my_commands OK: %d comandos registrados", len(commands))
+    except Exception:
+        logger.exception("Fallo set_my_commands (no bloquea el arranque)")
     asyncio.create_task(_approval_notifier(app))
     logger.info("Background tasks iniciados")
 
