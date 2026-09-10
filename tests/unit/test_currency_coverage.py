@@ -21,13 +21,13 @@ if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.financial.currency import (
+    _try_frankfurter,
+    _try_open_er_api,
     convert_eur_to_ves,
     convert_ves_to_eur,
     get_eur_ves_rate,
     get_tasa_display,
     set_manual_rate,
-    _try_frankfurter,
-    _try_open_er_api,
 )
 
 

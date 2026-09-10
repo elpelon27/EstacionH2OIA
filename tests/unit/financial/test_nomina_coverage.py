@@ -4,14 +4,12 @@ Coverage tests for src/financial/nomina.py — mock BD, test cálculo de nómina
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from src.financial.models import Empleado, Nomina
 from src.financial.nomina import (
     _contar_botellones_repartidos,
     calcular_nomina_periodo,
-    guardar_nomina,
     generar_reporte_nomina,
+    guardar_nomina,
 )
 
 
@@ -32,6 +30,7 @@ def _make_empleado(**overrides) -> Empleado:
 # ---------------------------------------------------------------------------
 # calcular_nomina_periodo
 # ---------------------------------------------------------------------------
+
 
 class TestCalcularNominaPeriodo:
     async def test_calcular_con_empleados_explicitos(self):
@@ -61,9 +60,7 @@ class TestCalcularNominaPeriodo:
             patch("src.financial.nomina._contar_botellones_repartidos", return_value=0),
             patch("src.financial.nomina.convert_eur_to_ves", return_value=0.0),
         ):
-            nominas = await calcular_nomina_periodo(
-                "2026-08-01", "2026-08-15", [_make_empleado()]
-            )
+            nominas = await calcular_nomina_periodo("2026-08-01", "2026-08-15", [_make_empleado()])
         assert len(nominas) == 1
         assert nominas[0].tasa_eur_ves == 0
         assert nominas[0].total_ves == 0.0  # mocked convert returns 0
@@ -75,9 +72,7 @@ class TestCalcularNominaPeriodo:
             patch("src.financial.nomina.get_eur_ves_rate", AsyncMock(return_value=105.0)),
             patch("src.financial.nomina._contar_botellones_repartidos", return_value=0),
         ):
-            nominas = await calcular_nomina_periodo(
-                "2026-08-01", "2026-08-15", [_make_empleado()]
-            )
+            nominas = await calcular_nomina_periodo("2026-08-01", "2026-08-15", [_make_empleado()])
         assert nominas[0].comision_total_eur == 0.0
         assert nominas[0].total_eur == 300.0
         assert nominas[0].total_ves == 31500.0  # 300 * 105
@@ -96,9 +91,7 @@ class TestCalcularNominaPeriodo:
 
     async def test_calcular_lista_vacia(self):
         with patch("src.financial.nomina.get_eur_ves_rate", AsyncMock(return_value=100.0)):
-            nominas = await calcular_nomina_periodo(
-                "2026-08-01", "2026-08-15", empleados=[]
-            )
+            nominas = await calcular_nomina_periodo("2026-08-01", "2026-08-15", empleados=[])
         assert nominas == []
 
     async def test_calcular_multiples_empleados_diferentes_botellones(self):
@@ -131,6 +124,7 @@ class TestCalcularNominaPeriodo:
 # _contar_botellones_repartidos
 # ---------------------------------------------------------------------------
 
+
 class TestContarBotellones:
     def test_contar_con_error_bd(self):
         """When get_db raises, should return 0."""
@@ -158,6 +152,7 @@ class TestContarBotellones:
 # guardar_nomina
 # ---------------------------------------------------------------------------
 
+
 class TestGuardarNomina:
     def test_guardar_nomina_calls_db(self):
         nom = Nomina(
@@ -182,6 +177,7 @@ class TestGuardarNomina:
 # ---------------------------------------------------------------------------
 # generar_reporte_nomina
 # ---------------------------------------------------------------------------
+
 
 class TestGenerarReporteNomina:
     async def test_reporte_con_empleados(self):

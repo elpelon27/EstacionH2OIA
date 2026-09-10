@@ -26,6 +26,7 @@ import core.crypto as crypto_mod
 # Fixtures — reset del estado global _LOG_SALT entre tests
 # ============================================================================
 
+
 @pytest.fixture(autouse=True, scope="module")
 def _reset_log_salt_module():
     """Resetea _LOG_SALT a None al inicio y fin del modulo de tests crypto.
@@ -57,6 +58,7 @@ def _reset_log_salt(request):
 # ============================================================================
 # set_log_salt
 # ============================================================================
+
 
 class TestSetLogSalt:
     def test_sets_valid_salt(self):
@@ -103,6 +105,7 @@ class TestSetLogSalt:
 # get_log_salt
 # ============================================================================
 
+
 class TestGetLogSalt:
     def test_not_initialized_raises(self):
         with pytest.raises(RuntimeError, match="no inicializado"):
@@ -117,6 +120,7 @@ class TestGetLogSalt:
 # ============================================================================
 # hash_phone
 # ============================================================================
+
 
 class TestHashPhone:
     def test_empty_phone_raises(self):
@@ -163,6 +167,7 @@ class TestHashPhone:
 # hash_phone_legacy
 # ============================================================================
 
+
 class TestHashPhoneLegacy:
     def test_empty_phone_raises(self):
         with pytest.raises(ValueError, match="no puede ser vacío"):
@@ -194,6 +199,7 @@ class TestHashPhoneLegacy:
 # ============================================================================
 # is_legacy_hash / is_current_hash
 # ============================================================================
+
 
 class TestHashFormatChecks:
     def test_is_legacy_hash_true(self):
@@ -233,6 +239,7 @@ class TestHashFormatChecks:
 # ============================================================================
 # Constantes
 # ============================================================================
+
 
 class TestConstants:
     def test_phone_hash_length(self):

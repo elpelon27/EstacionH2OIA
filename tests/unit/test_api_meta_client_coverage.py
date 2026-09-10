@@ -11,7 +11,7 @@ import hashlib
 import hmac
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock
 
 import httpx
 import pytest
@@ -24,17 +24,19 @@ if PROJECT_ROOT not in sys.path:
 # NO setear un salt diferente al de .env — bridge.py fallaria al importar despues
 os.environ.setdefault("BRIDGE_ALLOW_INSECURE_SALT", "1")
 import core.crypto as _crypto
+
 if _crypto._LOG_SALT is None:
     _env_salt = os.getenv("LOG_SALT", "change-this-in-production")
     _crypto.set_log_salt(_env_salt)
 
-from api.meta_client import MetaClient, get_meta_client, get_http_client, set_http_client
+from api.meta_client import MetaClient, get_http_client, get_meta_client, set_http_client
 
 
 @pytest.fixture(autouse=True)
 def _reset_state():
     """Reset singleton y http_client entre tests."""
     import api.meta_client as mc_mod
+
     old_http = mc_mod._http_client
     old_client = mc_mod._meta_client
     mc_mod._http_client = None
@@ -47,6 +49,7 @@ def _reset_state():
 # ============================================================================
 # set_http_client / get_http_client
 # ============================================================================
+
 
 class TestHttpClient:
     def test_set_and_get(self):
@@ -69,6 +72,7 @@ class TestHttpClient:
 # ============================================================================
 # MetaClient __init__
 # ============================================================================
+
 
 class TestMetaClientInit:
     def test_init_loads_settings(self):
@@ -110,13 +114,14 @@ class TestMetaClientInit:
 # _verify_signature
 # ============================================================================
 
+
 class TestVerifySignature:
     def test_valid_signature(self):
         client = MetaClient()
         body = b'{"test": "data"}'
-        expected_sig = "sha256=" + hmac.new(
-            client.app_secret.encode(), body, hashlib.sha256
-        ).hexdigest()
+        expected_sig = (
+            "sha256=" + hmac.new(client.app_secret.encode(), body, hashlib.sha256).hexdigest()
+        )
         assert client._verify_signature(body, expected_sig) is True
 
     def test_invalid_signature(self):
@@ -126,24 +131,25 @@ class TestVerifySignature:
     def test_no_app_secret(self):
         client = MetaClient()
         client.app_secret = ""
-        assert client._verify_signature(b'data', "sha256=sig") is False
+        assert client._verify_signature(b"data", "sha256=sig") is False
 
     def test_no_signature_header(self):
         client = MetaClient()
-        assert client._verify_signature(b'data', "") is False
+        assert client._verify_signature(b"data", "") is False
 
     def test_empty_body(self):
         client = MetaClient()
-        body = b''
-        expected_sig = "sha256=" + hmac.new(
-            client.app_secret.encode(), body, hashlib.sha256
-        ).hexdigest()
+        body = b""
+        expected_sig = (
+            "sha256=" + hmac.new(client.app_secret.encode(), body, hashlib.sha256).hexdigest()
+        )
         assert client._verify_signature(body, expected_sig) is True
 
 
 # ============================================================================
 # send_text
 # ============================================================================
+
 
 def _mock_response(status_code: int, text: str = "ok"):
     resp = MagicMock()
@@ -209,6 +215,7 @@ class TestSendText:
 # ============================================================================
 # send_interactive
 # ============================================================================
+
 
 class TestSendInteractive:
     @pytest.mark.asyncio
@@ -308,7 +315,9 @@ class TestSendInteractive:
         set_http_client(mock_http)
 
         result = await client.send_interactive(
-            "584121234567", "test", "button",
+            "584121234567",
+            "test",
+            "button",
             buttons=[{"id": "b1", "title": "B1"}],
         )
         assert result is True
@@ -326,7 +335,9 @@ class TestSendInteractive:
 
         long_title = "A" * 50
         await client.send_interactive(
-            "584121234567", "test", "button",
+            "584121234567",
+            "test",
+            "button",
             buttons=[{"id": "b1", "title": long_title}],
         )
         payload = mock_http.post.call_args.kwargs["json"]
@@ -349,6 +360,7 @@ class TestSendInteractive:
 # ============================================================================
 # get_meta_client singleton
 # ============================================================================
+
 
 class TestGetMetaClient:
     def test_returns_instance(self):

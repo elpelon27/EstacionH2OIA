@@ -1,4 +1,5 @@
 """Tests para core/rate_limiter.py."""
+
 import asyncio
 import time
 
@@ -175,11 +176,13 @@ def test_get_status_nonexistent_bucket(limiter):
 
 def test_reset_bucket(limiter):
     """reset debe eliminar bucket y permitir nuevos requests."""
+
     async def exhaust():
         for _ in range(10):
             await limiter.acquire("reset_key", timeout=0)
 
     import asyncio
+
     asyncio.run(exhaust())
 
     # Reset
@@ -193,6 +196,7 @@ def test_reset_bucket(limiter):
 @pytest.mark.asyncio
 async def test_concurrent_access_different_keys(limiter):
     """Diferentes keys deben ser independientes."""
+
     async def consume(key):
         return await limiter.acquire(key)
 

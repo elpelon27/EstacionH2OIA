@@ -117,16 +117,12 @@ class TestGetOrCreatePartnerByPhone:
 
         result = client.get_or_create_partner_by_phone("+584123334422", "Pedro Nuevo")
         assert result == 55
-        client.create_partner_from_whatsapp.assert_called_once_with(
-            "Pedro Nuevo", "+584123334422"
-        )
+        client.create_partner_from_whatsapp.assert_called_once_with("Pedro Nuevo", "+584123334422")
 
     def test_odoo_error_returns_none(self):
         """Si Odoo lanza excepción, retorna None (fail-soft)."""
         client = OdooClient.__new__(OdooClient)
-        client.search_partner_by_phone = MagicMock(
-            side_effect=ConnectionError("Odoo down")
-        )
+        client.search_partner_by_phone = MagicMock(side_effect=ConnectionError("Odoo down"))
 
         result = client.get_or_create_partner_by_phone("+584123334422", "Pedro")
         assert result is None
@@ -191,6 +187,4 @@ class TestGetOrCreatePartnerModule:
             result = get_or_create_partner("+584123334422", "")
             assert result == 99
             # Verificar que se llamó con phone y name vacío
-            mock_client.get_or_create_partner_by_phone.assert_called_once_with(
-                "+584123334422", ""
-            )
+            mock_client.get_or_create_partner_by_phone.assert_called_once_with("+584123334422", "")

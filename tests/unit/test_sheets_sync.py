@@ -95,17 +95,19 @@ class TestSheetsSyncAPI:
         # (no ejecutamos _sync real que necesita credenciales)
 
         # No debe lanzar excepción por estructura
-        data = [{
-            "vehicle_id": 1,
-            "operator": "YORDANIS",
-            "lat": 10.6500,
-            "lng": -71.6200,
-            "sector": "Bella Vista",
-            "calle": "Av. 4",
-            "pasadas": 2,
-            "source": "tasker",
-            "track_type": "periodic",
-        }]
+        data = [
+            {
+                "vehicle_id": 1,
+                "operator": "YORDANIS",
+                "lat": 10.6500,
+                "lng": -71.6200,
+                "sector": "Bella Vista",
+                "calle": "Av. 4",
+                "pasadas": 2,
+                "source": "tasker",
+                "track_type": "periodic",
+            }
+        ]
 
         # La función debe existir y ser callable
         assert callable(sync_mapa_calor)
@@ -118,11 +120,18 @@ class TestSheetsSyncAPI:
 
         # Verificar parámetros esperados
         import inspect
+
         sig = inspect.signature(sync_feedback)
         params = list(sig.parameters.keys())
         expected = [
-            "delivery_id", "client_id", "client_name", "phone",
-            "feedback_score", "feedback_comment", "vehicle_id", "operator"
+            "delivery_id",
+            "client_id",
+            "client_name",
+            "phone",
+            "feedback_score",
+            "feedback_comment",
+            "vehicle_id",
+            "operator",
         ]
         for p in expected:
             assert p in params
@@ -137,6 +146,7 @@ class TestSheetsSyncAPI:
     async def test_sync_all_dispatcher_exists(self):
         """sync_all_dispatcher existe."""
         from skills.dispatch.sheets_sync import sync_all_dispatcher
+
         assert callable(sync_all_dispatcher)
 
 

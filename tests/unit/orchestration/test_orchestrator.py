@@ -6,29 +6,27 @@ Cubre: AgentType, AgentConfig, AgentMessage, TaskResult, BaseAgent, Orchestrator
 import asyncio
 import os
 import sys
-from datetime import datetime
-from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
+from src.memory.unified_memory import MemoryType
 from src.orchestration.orchestrator import (
     AgentConfig,
     AgentMessage,
     AgentType,
-    BaseAgent,
-    Orchestrator,
     TaskResult,
 )
-from src.memory.unified_memory import MemoryType
-
 
 # ============================================================
 # Enums and Dataclasses
 # ============================================================
+
 
 class TestAgentType:
     def test_values(self):
@@ -127,6 +125,7 @@ class TestTaskResult:
 # ============================================================
 # Orchestrator
 # ============================================================
+
 
 class TestOrchestratorInit:
     def test_init_registers_default_agents(self, mock_orchestrator):
@@ -311,27 +310,19 @@ class TestOrchestratorWorkflow:
 
 class TestRenderTemplate:
     def test_simple_substitution(self, mock_orchestrator):
-        result = mock_orchestrator._render_template(
-            "Hello {name}", {"name": "World"}
-        )
+        result = mock_orchestrator._render_template("Hello {name}", {"name": "World"})
         assert result == "Hello World"
 
     def test_multiple_substitutions(self, mock_orchestrator):
-        result = mock_orchestrator._render_template(
-            "{a} and {b}", {"a": "1", "b": "2"}
-        )
+        result = mock_orchestrator._render_template("{a} and {b}", {"a": "1", "b": "2"})
         assert result == "1 and 2"
 
     def test_no_substitution_needed(self, mock_orchestrator):
-        result = mock_orchestrator._render_template(
-            "no vars", {}
-        )
+        result = mock_orchestrator._render_template("no vars", {})
         assert result == "no vars"
 
     def test_missing_var_stays(self, mock_orchestrator):
-        result = mock_orchestrator._render_template(
-            "Hello {missing}", {}
-        )
+        result = mock_orchestrator._render_template("Hello {missing}", {})
         assert result == "Hello {missing}"
 
 

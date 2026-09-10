@@ -5,8 +5,6 @@ Coverage tests for src/financial/reportes.py — mock BD/Telegram/httpx.
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from src.financial.models import ReporteDiario
 from src.financial.reportes import (
     enviar_reporte_telegram,
@@ -40,6 +38,7 @@ def _make_reporte(**overrides) -> ReporteDiario:
 # ---------------------------------------------------------------------------
 # formatear_reporte_telegram (pure function)
 # ---------------------------------------------------------------------------
+
 
 class TestFormatearReporte:
     def test_formato_basico(self):
@@ -76,13 +75,20 @@ class TestFormatearReporte:
 # generar_reporte_diario (uses BD + currency)
 # ---------------------------------------------------------------------------
 
+
 class TestGenerarReporteDiario:
     async def test_generar_con_tasa(self, tmp_db):
         """Test report generation with mocked tasa and empty BD."""
         with (
             patch("src.financial.reportes.get_eur_ves_rate", AsyncMock(return_value=100.0)),
-            patch("src.financial.reportes.get_total_egresos_periodo", return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0}),
-            patch("src.financial.reportes.get_resumen_cobranzas", return_value={"num_activas": 0, "num_vencidas": 0}),
+            patch(
+                "src.financial.reportes.get_total_egresos_periodo",
+                return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0},
+            ),
+            patch(
+                "src.financial.reportes.get_resumen_cobranzas",
+                return_value={"num_activas": 0, "num_vencidas": 0},
+            ),
         ):
             reporte = await generar_reporte_diario()
 
@@ -96,8 +102,14 @@ class TestGenerarReporteDiario:
         """When tasa is None, should use 0.0."""
         with (
             patch("src.financial.reportes.get_eur_ves_rate", AsyncMock(return_value=None)),
-            patch("src.financial.reportes.get_total_egresos_periodo", return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0}),
-            patch("src.financial.reportes.get_resumen_cobranzas", return_value={"num_activas": 0, "num_vencidas": 0}),
+            patch(
+                "src.financial.reportes.get_total_egresos_periodo",
+                return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0},
+            ),
+            patch(
+                "src.financial.reportes.get_resumen_cobranzas",
+                return_value={"num_activas": 0, "num_vencidas": 0},
+            ),
         ):
             reporte = await generar_reporte_diario()
 
@@ -130,8 +142,14 @@ class TestGenerarReporteDiario:
         )
         with (
             patch("src.financial.reportes.get_eur_ves_rate", AsyncMock(return_value=100.0)),
-            patch("src.financial.reportes.get_total_egresos_periodo", return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0}),
-            patch("src.financial.reportes.get_resumen_cobranzas", return_value={"num_activas": 0, "num_vencidas": 0}),
+            patch(
+                "src.financial.reportes.get_total_egresos_periodo",
+                return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0},
+            ),
+            patch(
+                "src.financial.reportes.get_resumen_cobranzas",
+                return_value={"num_activas": 0, "num_vencidas": 0},
+            ),
         ):
             reporte = await generar_reporte_diario()
 
@@ -144,6 +162,7 @@ class TestGenerarReporteDiario:
 # ---------------------------------------------------------------------------
 # enviar_reporte_telegram
 # ---------------------------------------------------------------------------
+
 
 class TestEnviarReporteTelegram:
     async def test_sin_token(self, tmp_db, monkeypatch):
@@ -214,14 +233,21 @@ class TestEnviarReporteTelegram:
 # generar_y_enviar_reporte
 # ---------------------------------------------------------------------------
 
+
 class TestGenerarYEnviar:
     async def test_generar_y_enviar_sin_token(self, tmp_db, monkeypatch):
         """End-to-end: generate + attempt send (no token → send fails)."""
         monkeypatch.setattr("src.financial.reportes.TELEGRAM_BOT_TOKEN", "")
         with (
             patch("src.financial.reportes.get_eur_ves_rate", AsyncMock(return_value=100.0)),
-            patch("src.financial.reportes.get_total_egresos_periodo", return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0}),
-            patch("src.financial.reportes.get_resumen_cobranzas", return_value={"num_activas": 0, "num_vencidas": 0}),
+            patch(
+                "src.financial.reportes.get_total_egresos_periodo",
+                return_value={"num_pagos": 0, "total_eur": 0.0, "total_ves": 0.0},
+            ),
+            patch(
+                "src.financial.reportes.get_resumen_cobranzas",
+                return_value={"num_activas": 0, "num_vencidas": 0},
+            ),
         ):
             reporte = await generar_y_enviar_reporte()
 

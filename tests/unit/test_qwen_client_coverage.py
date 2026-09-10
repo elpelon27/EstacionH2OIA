@@ -39,9 +39,7 @@ class TestChatErrorPaths:
         mock_response.status_code = 500
         mock_response.text = "Internal Server Error"
 
-        error = httpx.HTTPStatusError(
-            "Server error", request=MagicMock(), response=mock_response
-        )
+        error = httpx.HTTPStatusError("Server error", request=MagicMock(), response=mock_response)
 
         with (
             patch.object(client.client, "post", new=AsyncMock(side_effect=error)),
@@ -62,7 +60,9 @@ class TestChatErrorPaths:
     async def test_timeout_exception(self, client):
         """chat() con httpx.TimeoutException → re-raise via except Exception."""
         with (
-            patch.object(client.client, "post", new=AsyncMock(side_effect=httpx.TimeoutException("timeout"))),
+            patch.object(
+                client.client, "post", new=AsyncMock(side_effect=httpx.TimeoutException("timeout"))
+            ),
             pytest.raises(httpx.TimeoutException),
         ):
             await client.chat(messages=[{"role": "user", "content": "test"}])

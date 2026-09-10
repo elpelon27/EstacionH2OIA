@@ -47,20 +47,21 @@ os.environ.setdefault("DISPATCH_DB_PATH", "/tmp/bridge_network_test_dispatch.db"
 
 import bridge  # noqa: E402
 
-import pytest  # noqa: E402
-
 
 @pytest.fixture(autouse=True)
 def _ensure_log_salt():
     """Asegura que LOG_SALT este inicializado (otros tests pueden resetearlo)."""
     import core.crypto as _crypto
+
     if _crypto._LOG_SALT is None:
         _crypto.set_log_salt(bridge.LOG_SALT)
     yield
 
+
 # ============================================================================
 # Fixtures de aislamiento
 # ============================================================================
+
 
 def _init_schema(path: str) -> None:
     """Crea el esquema minimo (dispatch_queue + fs_tasas_cambio)."""
@@ -147,6 +148,7 @@ def _module_isolation(tmp_path, monkeypatch):
 # _send_whatsapp_message — Meta Graph API (texto)
 # ============================================================================
 
+
 class TestSendWhatsappMessage:
     async def test_envia_mensaje_con_exito(self):
         assert await bridge._send_whatsapp_message("+584120000000", "hola") is True
@@ -185,10 +187,13 @@ class TestSendWhatsappMessage:
 # _send_whatsapp_interactive — Meta Graph API (list / button)
 # ============================================================================
 
+
 class TestSendWhatsappInteractive:
     async def test_envia_button_con_exito(self):
         ok = await bridge._send_whatsapp_interactive(
-            "+584120000000", "Elija", "button",
+            "+584120000000",
+            "Elija",
+            "button",
             buttons=[{"id": "1", "title": "Opcion A"}, {"id": "2", "title": "Opcion B"}],
             header_text="Titulo largo que excede el limite de sesenta caracteres",
             footer_text="Pie",
@@ -203,7 +208,9 @@ class TestSendWhatsappInteractive:
 
     async def test_envia_list_con_exito(self):
         ok = await bridge._send_whatsapp_interactive(
-            "+584120000000", "Menú", "list",
+            "+584120000000",
+            "Menú",
+            "list",
             list_sections=[{"title": "S", "rows": [{"id": "1", "title": "A"}]}],
         )
         assert ok is True
@@ -212,34 +219,27 @@ class TestSendWhatsappInteractive:
         assert payload["interactive"]["action"]["button"] == "Ver opciones"
 
     async def test_tipo_no_soportado_retorna_false_sin_post(self):
-        assert await bridge._send_whatsapp_interactive(
-            "+584120000000", "x", "desconocido"
-        ) is False
+        assert await bridge._send_whatsapp_interactive("+584120000000", "x", "desconocido") is False
         bridge._http_client.post.assert_not_awaited()
 
     async def test_error_si_falta_token(self, monkeypatch):
         monkeypatch.setattr(bridge, "META_ACCESS_TOKEN", "")
-        assert await bridge._send_whatsapp_interactive(
-            "+584120000000", "x", "button"
-        ) is False
+        assert await bridge._send_whatsapp_interactive("+584120000000", "x", "button") is False
         bridge._http_client.post.assert_not_awaited()
 
     async def test_error_status_no_200(self):
         bridge._http_client = _fake_http_client(status_code=500)
-        assert await bridge._send_whatsapp_interactive(
-            "+584120000000", "x", "button"
-        ) is False
+        assert await bridge._send_whatsapp_interactive("+584120000000", "x", "button") is False
 
     async def test_error_httpx_http_error(self):
         bridge._http_client.post.side_effect = bridge.httpx.HTTPError("boom")
-        assert await bridge._send_whatsapp_interactive(
-            "+584120000000", "x", "button"
-        ) is False
+        assert await bridge._send_whatsapp_interactive("+584120000000", "x", "button") is False
 
 
 # ============================================================================
 # _call_dify — Dify Chatflow
 # ============================================================================
+
 
 class TestCallDify:
     async def test_llamada_con_exito(self):
@@ -287,6 +287,7 @@ class TestCallDify:
 # _send_telegram — Telegram bot
 # ============================================================================
 
+
 class TestSendTelegram:
     async def test_no_envia_si_deshabilitado(self, monkeypatch):
         monkeypatch.setattr(bridge, "TELEGRAM_ENABLED", False)
@@ -314,6 +315,7 @@ class TestSendTelegram:
 # _alert_critical — alerta critica -> Telegram + log
 # ============================================================================
 
+
 class TestAlertCritical:
     async def test_loguea_error_y_envia_telegram(self, monkeypatch):
         send = AsyncMock()
@@ -330,6 +332,7 @@ class TestAlertCritical:
 # ============================================================================
 # _send_to_dispatch_queue — INSERT en SQLite dispatch_queue
 # ============================================================================
+
 
 class TestSendToDispatchQueue:
     def _state(self, **overrides):
@@ -367,13 +370,13 @@ class TestSendToDispatchQueue:
         row = conn.execute("SELECT * FROM dispatch_queue").fetchone()
         conn.close()
         assert row is not None
-        assert row[1] == "Juan"                    # cliente_nombre
-        assert row[2] == "58412000000"             # cliente_telefono
+        assert row[1] == "Juan"  # cliente_nombre
+        assert row[2] == "58412000000"  # cliente_telefono
         assert "2 botellones de agua + 1 bolsas de hielo" in row[3]  # producto_desc
-        assert row[4] == 3.2                       # total_eur
-        assert row[5] == 200.0                     # total_bs
-        assert row[6] == "efectivo"                # metodo_pago
-        assert row[11] == "pending"                # estado
+        assert row[4] == 3.2  # total_eur
+        assert row[5] == 200.0  # total_bs
+        assert row[6] == "efectivo"  # metodo_pago
+        assert row[11] == "pending"  # estado
 
     def test_sin_gps_no_genera_url(self, monkeypatch):
         self._mock_workload_router(monkeypatch)
@@ -381,7 +384,9 @@ class TestSendToDispatchQueue:
         monkeypatch.setattr(bridge, "_sync_client_to_dispatch_db", MagicMock())
         monkeypatch.setattr(bridge, "_assign_vehicle_for_order", MagicMock(return_value=1))
 
-        bridge._send_to_dispatch_queue("hash1234", self._state(latitude=None, longitude=None), "58412000000")
+        bridge._send_to_dispatch_queue(
+            "hash1234", self._state(latitude=None, longitude=None), "58412000000"
+        )
 
         conn = sqlite3.connect(bridge.SQLITE_PATH)
         row = conn.execute("SELECT * FROM dispatch_queue").fetchone()
@@ -395,4 +400,6 @@ class TestSendToDispatchQueue:
         monkeypatch.setattr(bridge, "_sync_client_to_dispatch_db", MagicMock())
         monkeypatch.setattr(bridge, "_assign_vehicle_for_order", MagicMock(return_value=1))
         with patch.object(bridge, "SQLITE_PATH", str(bridge.SQLITE_PATH) + "/noexiste/x.db"):
-            bridge._send_to_dispatch_queue("hash1234", self._state(), "58412000000")  # no debe lanzar
+            bridge._send_to_dispatch_queue(
+                "hash1234", self._state(), "58412000000"
+            )  # no debe lanzar

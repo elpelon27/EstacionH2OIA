@@ -157,9 +157,7 @@ def test_request_approval_returns_for_sudo_password(approval_dirs, fixed_uuid):
         ("sudo_password", "pass123", "pass123"),
     ],
 )
-def test_request_approval_response_variants(
-    approval_dirs, fixed_uuid, atype, response, expected
-):
+def test_request_approval_response_variants(approval_dirs, fixed_uuid, atype, response, expected):
     req = pa.ApprovalRequest(approval_type=atype, prompt="p", request_id=fixed_uuid)
     req.status = "completed"
     req.response = response
@@ -169,9 +167,7 @@ def test_request_approval_response_variants(
 
 
 def test_request_approval_raises_when_not_completed(approval_dirs, fixed_uuid):
-    req = pa.ApprovalRequest(
-        approval_type="validation", prompt="p", request_id=fixed_uuid
-    )
+    req = pa.ApprovalRequest(approval_type="validation", prompt="p", request_id=fixed_uuid)
     req.status = "cancelled"
     req.save_completed()
 

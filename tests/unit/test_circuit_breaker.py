@@ -1,4 +1,5 @@
 """Tests para core/circuit_breaker.py."""
+
 import asyncio
 
 import pytest
@@ -39,6 +40,7 @@ def test_circuit_breaker_initial_state(breaker):
 @pytest.mark.asyncio
 async def test_call_success_in_closed(breaker):
     """Llamada exitosa en CLOSED mantiene estado."""
+
     async def success_func():
         return "ok"
 
@@ -51,6 +53,7 @@ async def test_call_success_in_closed(breaker):
 @pytest.mark.asyncio
 async def test_call_failure_in_closed(breaker):
     """Fallo en CLOSED incrementa contador."""
+
     async def fail_func():
         raise ConnectionError("connection failed")
 
@@ -65,6 +68,7 @@ async def test_call_failure_in_closed(breaker):
 @pytest.mark.asyncio
 async def test_call_trips_to_open(breaker):
     """Tras failure_threshold fallos, pasa a OPEN."""
+
     async def fail_func():
         raise ConnectionError("connection failed")
 
@@ -83,6 +87,7 @@ async def test_call_trips_to_open(breaker):
 @pytest.mark.asyncio
 async def test_call_rejected_when_open(breaker):
     """En OPEN, rechaza rápido sin ejecutar func."""
+
     async def fail_func():
         raise ConnectionError("connection failed")
 
@@ -103,6 +108,7 @@ async def test_call_rejected_when_open(breaker):
 @pytest.mark.asyncio
 async def test_call_half_open_after_timeout(breaker):
     """Tras recovery_timeout, pasa a HALF_OPEN."""
+
     async def fail_func():
         raise ConnectionError("connection failed")
 
@@ -130,6 +136,7 @@ async def test_call_half_open_after_timeout(breaker):
 @pytest.mark.asyncio
 async def test_call_half_open_success_closes(breaker):
     """Éxito en HALF_OPEN → CLOSED (success_threshold=1)."""
+
     async def fail_func():
         raise ConnectionError("connection failed")
 
@@ -153,6 +160,7 @@ async def test_call_half_open_success_closes(breaker):
 @pytest.mark.asyncio
 async def test_call_half_open_failure_reopens(breaker):
     """Fallo en HALF_OPEN → vuelve a OPEN."""
+
     async def fail_func():
         raise ConnectionError("connection failed")
 
@@ -172,6 +180,7 @@ async def test_call_half_open_failure_reopens(breaker):
 @pytest.mark.asyncio
 async def test_excluded_exceptions_count_as_failure(breaker):
     """Excepciones en excluded_exceptions cuentan como fallo."""
+
     async def timeout_func():
         raise TimeoutError("timeout")
 
@@ -185,6 +194,7 @@ async def test_excluded_exceptions_count_as_failure(breaker):
 @pytest.mark.asyncio
 async def test_non_excluded_exceptions_do_not_count(breaker):
     """Otras excepciones NO cuentan como fallo del proveedor."""
+
     async def value_error_func():
         raise ValueError("validation error")
 

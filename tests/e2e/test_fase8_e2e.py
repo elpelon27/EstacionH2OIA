@@ -48,10 +48,12 @@ TEST_RIF = "J-12345678-9"
 # FIXTURES Y UTILIDADES
 # =============================================================================
 
+
 @pytest.fixture(scope="session")
 def odoo_client():
     """Cliente XML-RPC a Odoo real (Docker)."""
     import xmlrpc.client
+
     common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
     uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASS, {})
     assert uid, "No se pudo autenticar en Odoo"
@@ -301,6 +303,7 @@ def temp_dispatch_db():
 def _make_odoo_models():
     """Helper para crear cliente Odoo."""
     import xmlrpc.client
+
     common = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/common")
     uid = common.authenticate(ODOO_DB, ODOO_USER, ODOO_PASS, {})
     models = xmlrpc.client.ServerProxy(f"{ODOO_URL}/xmlrpc/2/object")
@@ -342,6 +345,7 @@ def _create_test_product_in_odoo(odoo, name: str, lst_price: float) -> int:
 # TEST 1: PAGO MÓVIL COMPLETO (SANDBOX)
 # =============================================================================
 
+
 class TestPagoMovilCompleto:
     """Test flujo completo: WhatsApp → Valentina → Odoo (nota) → Webhook R4 → paid."""
 
@@ -363,11 +367,11 @@ class TestPagoMovilCompleto:
         import skills.dispatch.consumer as consumer_module
         import skills.dispatch.telegram_bot as tbot_module
 
-        monkeypatch.setattr(bridge_module, 'SQLITE_PATH', temp_conv_db)
-        monkeypatch.setattr(bridge_module, 'DISPATCH_DB_PATH', temp_dispatch_db)
-        monkeypatch.setattr(consumer_module, 'CONV_DB', temp_conv_db)
-        monkeypatch.setattr(consumer_module, 'DISPATCH_DB', temp_dispatch_db)
-        monkeypatch.setattr(tbot_module, 'DISPATCH_DB', temp_dispatch_db)
+        monkeypatch.setattr(bridge_module, "SQLITE_PATH", temp_conv_db)
+        monkeypatch.setattr(bridge_module, "DISPATCH_DB_PATH", temp_dispatch_db)
+        monkeypatch.setattr(consumer_module, "CONV_DB", temp_conv_db)
+        monkeypatch.setattr(consumer_module, "DISPATCH_DB", temp_dispatch_db)
+        monkeypatch.setattr(tbot_module, "DISPATCH_DB", temp_dispatch_db)
 
         # ─── PASO 1: Simular pedido en Valentina ───
         from api.bridge import _phone_hash, _send_to_dispatch_queue, _sync_client_to_dispatch_db
@@ -397,7 +401,7 @@ class TestPagoMovilCompleto:
         conn.row_factory = sqlite3.Row
         order = conn.execute(
             "SELECT * FROM dispatch_queue WHERE cliente_telefono = ? ORDER BY id DESC LIMIT 1",
-            (TEST_PHONE,)
+            (TEST_PHONE,),
         ).fetchone()
         conn.close()
 
@@ -417,9 +421,7 @@ class TestPagoMovilCompleto:
         # Verificar delivery creado
         conn = sqlite3.connect(temp_dispatch_db)
         conn.row_factory = sqlite3.Row
-        delivery = conn.execute(
-            "SELECT * FROM deliveries ORDER BY id DESC LIMIT 1"
-        ).fetchone()
+        delivery = conn.execute("SELECT * FROM deliveries ORDER BY id DESC LIMIT 1").fetchone()
         conn.close()
 
         assert delivery is not None
@@ -428,20 +430,28 @@ class TestPagoMovilCompleto:
 
         # ─── PASO 3: Crear fs_pedido (simula Financial Shield) ───
         conn = sqlite3.connect(temp_conv_db)
-        conn.execute("""
+        conn.execute(
+            """
             INSERT INTO fs_pedidos (
                 pedido_id, cliente_telefono, cliente_nombre, monto_total_eur,
                 tasa_eur_ves, botellones_cantidad, metodo_pago,
                 estado_pago, estado_entrega, creado_at, actualizado_at,
                 monto_pagado_eur, tasa_eur_ves_deuda
             ) VALUES (?, ?, ?, ?, ?, ?, ?, 'pendiente', 'sin_entregar', ?, ?, 0, ?)
-        """, (
-            dispatch_queue_id, TEST_PHONE, "Cliente Test", 3.0,
-            36.0, 3, "pago_movil",
-            datetime.now(CARACAS_TZ).isoformat(),
-            datetime.now(CARACAS_TZ).isoformat(),
-            36.0
-        ))
+        """,
+            (
+                dispatch_queue_id,
+                TEST_PHONE,
+                "Cliente Test",
+                3.0,
+                36.0,
+                3,
+                "pago_movil",
+                datetime.now(CARACAS_TZ).isoformat(),
+                datetime.now(CARACAS_TZ).isoformat(),
+                36.0,
+            ),
+        )
         conn.commit()
 
         # Obtener fs_pedido_id
@@ -467,7 +477,7 @@ class TestPagoMovilCompleto:
             Monto="3.00",
             FechaHora=datetime.now(CARACAS_TZ).isoformat(),
             Referencia="0012345678",
-            CodigoRed="00"
+            CodigoRed="00",
         )
 
         # Pedido candidato fake (PedidoFinanciero) con los atributos que usa el procesador
@@ -495,7 +505,8 @@ class TestPagoMovilCompleto:
             patch.object(bv, "buscar_pedidos_por_telefono_monto", return_value=[pedido_fake]),
             patch.object(bv, "seleccionar_mejor_match", return_value=pedido_fake),
             patch.object(
-                bv.verificacion, "verificar_pago_manual",
+                bv.verificacion,
+                "verificar_pago_manual",
                 side_effect=_fake_verificar_pago_manual,
             ) as mock_verificar,
         ):
@@ -515,8 +526,7 @@ class TestPagoMovilCompleto:
         conn = sqlite3.connect(temp_conv_db)
         conn.row_factory = sqlite3.Row
         pedido = conn.execute(
-            "SELECT estado_pago, monto_pagado_eur FROM fs_pedidos WHERE id = ?",
-            (fs_pedido_id,)
+            "SELECT estado_pago, monto_pagado_eur FROM fs_pedidos WHERE id = ?", (fs_pedido_id,)
         ).fetchone()
         conn.close()
 
@@ -529,6 +539,7 @@ class TestPagoMovilCompleto:
 # =============================================================================
 # TEST 2: CONVERSIÓN NOTA → FACTURA
 # =============================================================================
+
 
 class TestConversionNotaFactura:
     """Test conversión de nota de entrega a factura en Odoo."""
@@ -558,8 +569,13 @@ class TestConversionNotaFactura:
         # ─── PASO 1: Crear nota de entrega (stock.picking) ───
         # Crear picking type para notas de entrega
         picking_type = models.execute_kw(
-            db, uid, password, "stock.picking.type", "search",
-            [[("code", "=", "outgoing")]], {"limit": 1}
+            db,
+            uid,
+            password,
+            "stock.picking.type",
+            "search",
+            [[("code", "=", "outgoing")]],
+            {"limit": 1},
         )
         picking_type_id = picking_type[0] if picking_type else 1
 
@@ -572,14 +588,20 @@ class TestConversionNotaFactura:
             "location_dest_id": 15,  # Customers
             "origin": "Nota Test N-2026-001",
             "note": "Nota de entrega de prueba",
-            "move_ids": [(0, 0, {
-                "name": "Botellón 19L",
-                "product_id": botellon_id,
-                "product_uom_qty": 3,
-                "product_uom": 1,
-                "location_id": 8,
-                "location_dest_id": 15,
-            })],
+            "move_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "name": "Botellón 19L",
+                        "product_id": botellon_id,
+                        "product_uom_qty": 3,
+                        "product_uom": 1,
+                        "location_id": 8,
+                        "location_dest_id": 15,
+                    },
+                )
+            ],
         }
         picking_id = models.execute_kw(db, uid, password, "stock.picking", "create", [picking_vals])
 
@@ -588,19 +610,28 @@ class TestConversionNotaFactura:
 
         # Setear quantity done en el move (fuerza validación sin reserva previa)
         move_ids = models.execute_kw(
-            db, uid, password, "stock.move", "search",
-            [[("picking_id", "=", picking_id)]], {"limit": 1}
+            db,
+            uid,
+            password,
+            "stock.move",
+            "search",
+            [[("picking_id", "=", picking_id)]],
+            {"limit": 1},
         )
         if move_ids:
             models.execute_kw(
-                db, uid, password, "stock.move", "write",
-                [move_ids[0], {"quantity": 3}]
+                db, uid, password, "stock.move", "write", [move_ids[0], {"quantity": 3}]
             )
 
         # Hacer done (descuenta inventario) — Odoo 17: button_validate confirma entrega
         models.execute_kw(
-            db, uid, password, "stock.picking", "button_validate",
-            [picking_id], {"context": {"skip_sms": True}}
+            db,
+            uid,
+            password,
+            "stock.picking",
+            "button_validate",
+            [picking_id],
+            {"context": {"skip_sms": True}},
         )
 
         # Verificar estado de la nota
@@ -611,9 +642,12 @@ class TestConversionNotaFactura:
 
         # Verificar que stock se descontó (quant en location_dest_id)
         quants = models.execute_kw(
-            db, uid, password, "stock.quant", "search_read",
-            [[("product_id", "=", botellon_id), ("location_id", "=", 15)],
-             ["quantity"]]
+            db,
+            uid,
+            password,
+            "stock.quant",
+            "search_read",
+            [[("product_id", "=", botellon_id), ("location_id", "=", 15)], ["quantity"]],
         )
         qty_before_conversion = sum(q["quantity"] for q in quants)
         assert qty_before_conversion == 3, f"Stock en customers={qty_before_conversion}"
@@ -628,11 +662,17 @@ class TestConversionNotaFactura:
         order_vals = {
             "partner_id": partner_id,
             "origin": f"Nota #{picking_id}",
-            "order_line": [(0, 0, {
-                "product_id": botellon_id,
-                "product_uom_qty": 3,
-                "price_unit": 1.0,
-            })],
+            "order_line": [
+                (
+                    0,
+                    0,
+                    {
+                        "product_id": botellon_id,
+                        "product_uom_qty": 3,
+                        "price_unit": 1.0,
+                    },
+                )
+            ],
         }
         order_id = models.execute_kw(db, uid, password, "sale.order", "create", [order_vals])
 
@@ -643,11 +683,17 @@ class TestConversionNotaFactura:
         invoice_vals = {
             "move_type": "out_invoice",
             "partner_id": partner_id,
-            "invoice_line_ids": [(0, 0, {
-                "product_id": botellon_id,
-                "quantity": 3,
-                "price_unit": 1.0,
-            })],
+            "invoice_line_ids": [
+                (
+                    0,
+                    0,
+                    {
+                        "product_id": botellon_id,
+                        "quantity": 3,
+                        "price_unit": 1.0,
+                    },
+                )
+            ],
         }
         invoice_id = models.execute_kw(db, uid, password, "account.move", "create", [invoice_vals])
 
@@ -660,9 +706,12 @@ class TestConversionNotaFactura:
 
         # ─── PASO 3: Verificar inventario NO se modificó ───
         quants_after = models.execute_kw(
-            db, uid, password, "stock.quant", "search_read",
-            [[("product_id", "=", botellon_id), ("location_id", "=", 15)],
-             ["quantity"]]
+            db,
+            uid,
+            password,
+            "stock.quant",
+            "search_read",
+            [[("product_id", "=", botellon_id), ("location_id", "=", 15)], ["quantity"]],
         )
         qty_after_conversion = sum(q["quantity"] for q in quants_after)
         assert qty_after_conversion == qty_before_conversion, (
@@ -682,6 +731,7 @@ class TestConversionNotaFactura:
 # =============================================================================
 # TEST 3: REPORTES AUTOMÁTICOS
 # =============================================================================
+
 
 class TestReportesAutomaticos:
     """Test trigger manual de crons y verificación envío Telegram."""
@@ -709,9 +759,13 @@ class TestReportesAutomaticos:
 
         # Buscar acciones de servidor relacionadas con reportes
         server_actions = models.execute_kw(
-            db, uid, password, "ir.actions.server", "search_read",
+            db,
+            uid,
+            password,
+            "ir.actions.server",
+            "search_read",
             [[("name", "ilike", "reporte")], ["name", "model_id", "code"]],
-            {"limit": 10}
+            {"limit": 10},
         )
 
         print(f"Server actions tipo reporte: {len(server_actions)}")
@@ -720,9 +774,15 @@ class TestReportesAutomaticos:
 
         # Verificar crons existentes
         crons = models.execute_kw(
-            db, uid, password, "ir.cron", "search_read",
-            [[("name", "ilike", "reporte")],
-             ["name", "model_id", "code", "interval_type", "interval_number"]]
+            db,
+            uid,
+            password,
+            "ir.cron",
+            "search_read",
+            [
+                [("name", "ilike", "reporte")],
+                ["name", "model_id", "code", "interval_type", "interval_number"],
+            ],
         )
 
         print(f"Crons tipo reporte: {len(crons)}")
@@ -742,6 +802,7 @@ class TestReportesAutomaticos:
 # =============================================================================
 # TEST 4: ALGORITMO DECISIÓN DOCUMENTO
 # =============================================================================
+
 
 class TestAlgoritmoDecisionDocumento:
     """Test decidir_documento() con todos los escenarios."""
@@ -802,9 +863,10 @@ class TestAlgoritmoDecisionDocumento:
         assert decidir_con_override("J-12345678-9", "pago_movil", False, "FACTURA") == "FACTURA"
 
         # Override a NOTA_ENTREGA
-        assert decidir_con_override(
-            "J-12345678-9", "pago_movil", True, "NOTA_ENTREGA"
-        ) == "NOTA_ENTREGA"
+        assert (
+            decidir_con_override("J-12345678-9", "pago_movil", True, "NOTA_ENTREGA")
+            == "NOTA_ENTREGA"
+        )
         assert decidir_con_override("", "pago_movil", False, "NOTA_ENTREGA") == "NOTA_ENTREGA"
 
         print("✅ TestAlgoritmoDecisionDocumento PASSED")

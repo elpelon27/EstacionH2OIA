@@ -38,6 +38,7 @@ print("\n=== Test P1-2: Watchdog systemd ===\n")
 print("[1] sdnotify importable")
 try:
     import sdnotify
+
     test("import sdnotify OK", sdnotify is not None)
 except ImportError:
     test("import sdnotify OK", False)
@@ -82,6 +83,7 @@ async def test_watchdog():
     except asyncio.CancelledError:
         pass
     test("Task cancelada limpiamente", task.cancelled())
+
 
 asyncio.run(test_watchdog())
 

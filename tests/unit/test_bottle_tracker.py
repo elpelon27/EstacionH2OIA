@@ -92,9 +92,7 @@ def test_db():
             "INSERT INTO bottles (bottle_code, status) VALUES (?, 'available')",
             (f"H2O-{i:03d}",),
         )
-    conn.execute(
-        "INSERT INTO clients (id, name) VALUES (1, 'Test Client 1'), (2, 'Test Client 2')"
-    )
+    conn.execute("INSERT INTO clients (id, name) VALUES (1, 'Test Client 1'), (2, 'Test Client 2')")
     conn.commit()
     conn.close()
 
@@ -120,6 +118,7 @@ def tracker(test_db):
     bt_module._bottle_tracker_instance = None
     try:
         from skills.dispatch.bottle_tracker import get_bottle_tracker
+
         tracker = get_bottle_tracker()
         yield tracker
     finally:
@@ -255,9 +254,7 @@ class TestBottleTracker:
         # Verificar estado
         conn = sqlite3.connect("/tmp/test_bottle_tracker.db")
         conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT status FROM bottles WHERE bottle_code = 'H2O-060'"
-        ).fetchone()
+        row = conn.execute("SELECT status FROM bottles WHERE bottle_code = 'H2O-060'").fetchone()
         conn.close()
 
         assert row["status"] == "maintenance"
@@ -280,9 +277,7 @@ class TestBottleTracker:
 
         conn = sqlite3.connect("/tmp/test_bottle_tracker.db")
         conn.row_factory = sqlite3.Row
-        row = conn.execute(
-            "SELECT status FROM bottles WHERE bottle_code = 'H2O-070'"
-        ).fetchone()
+        row = conn.execute("SELECT status FROM bottles WHERE bottle_code = 'H2O-070'").fetchone()
         conn.close()
 
         assert row["status"] == "available"

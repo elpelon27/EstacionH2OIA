@@ -14,6 +14,7 @@ def test_settings_loads_env():
 def test_openrouter_config():
     """OpenRouter debe tener API key y modelos configurados."""
     import pytest
+
     settings = get_settings()
     if not settings.openrouter_api_key or settings.openrouter_api_key == "test-key-dummy":
         pytest.skip("OPENROUTER_API_KEY no configurado en .env (dummy)")
@@ -32,6 +33,7 @@ def test_ollama_config():
 def test_telegram_config():
     """Telegram debe tener tokens y chat_id."""
     import pytest
+
     settings = get_settings()
     if not settings.telegram_bot_token_h2o or settings.telegram_bot_token_h2o == "test-token":
         pytest.skip("TELEGRAM_BOT_TOKEN_H2O no configurado en .env (dummy)")

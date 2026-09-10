@@ -10,21 +10,22 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
 from src.memory.unified_memory import MemoryEntry, MemoryType, SearchResult
-from src.orchestration.orchestrator import AgentConfig, AgentType, Orchestrator, TaskResult
 from src.orchestration.memory_aware_agent import (
     AnalyticsAgent,
     DispatcherAgent,
     FinancialAgent,
     InventoryAgent,
-    MemoryAwareAgent,
     MemoryContext,
     ValentinaAgent,
 )
+from src.orchestration.orchestrator import AgentType, Orchestrator, TaskResult
 
 
 @pytest.fixture
@@ -82,6 +83,7 @@ def analytics_agent(orchestrator, mock_memory_with_results):
 # MemoryContext
 # ============================================================
 
+
 class TestMemoryContext:
     def test_defaults(self):
         ctx = MemoryContext()
@@ -95,6 +97,7 @@ class TestMemoryContext:
 # ============================================================
 # DispatcherAgent
 # ============================================================
+
 
 class TestDispatcherAgentRoutes:
     @pytest.mark.asyncio
@@ -170,6 +173,7 @@ class TestDispatcherAgentRoutes:
 # FinancialAgent
 # ============================================================
 
+
 class TestFinancialAgentRoutes:
     @pytest.mark.asyncio
     async def test_payment_processing(self, financial_agent):
@@ -228,6 +232,7 @@ class TestFinancialAgentRoutes:
 # InventoryAgent
 # ============================================================
 
+
 class TestInventoryAgentRoutes:
     @pytest.mark.asyncio
     async def test_bottle_tracking(self, inventory_agent):
@@ -269,6 +274,7 @@ class TestInventoryAgentRoutes:
 # ============================================================
 # ValentinaAgent
 # ============================================================
+
 
 class TestValentinaAgentRoutes:
     @pytest.mark.asyncio
@@ -318,6 +324,7 @@ class TestValentinaAgentRoutes:
 # AnalyticsAgent
 # ============================================================
 
+
 class TestAnalyticsAgentRoutes:
     @pytest.mark.asyncio
     async def test_report_generation(self, analytics_agent):
@@ -354,6 +361,7 @@ class TestAnalyticsAgentRoutes:
 # MemoryAwareAgent internals
 # ============================================================
 
+
 class TestMemoryAwareAgentInternals:
     @pytest.mark.asyncio
     async def test_retrieve_memories_populates_context(self, dispatcher_agent):
@@ -363,9 +371,7 @@ class TestMemoryAwareAgentInternals:
 
     @pytest.mark.asyncio
     async def test_retrieve_memories_with_context(self, dispatcher_agent):
-        await dispatcher_agent._retrieve_memories(
-            "task", {"client": "ACME", "order_id": "123"}
-        )
+        await dispatcher_agent._retrieve_memories("task", {"client": "ACME", "order_id": "123"})
         # search should have been called multiple times (task + agent-specific + client + order)
         assert dispatcher_agent.memory_context is not None
 
@@ -408,7 +414,9 @@ class TestMemoryAwareAgentInternals:
     async def test_execute_handles_exception(self, dispatcher_agent):
         """execute() should catch exceptions and return TaskResult with error."""
         # Patch _retrieve_memories to raise
-        with patch.object(dispatcher_agent, "_retrieve_memories", side_effect=Exception("test error")):
+        with patch.object(
+            dispatcher_agent, "_retrieve_memories", side_effect=Exception("test error")
+        ):
             result = await dispatcher_agent.execute("plan route", {})
         assert result.success is False
         assert "Execution error" in result.error

@@ -28,6 +28,7 @@ from core.meta_client import MetaWhatsAppClient, get_meta_client
 # Fixtures
 # ============================================================================
 
+
 @pytest.fixture(autouse=True)
 def _reset_singleton():
     """Resetea el singleton entre tests para evitar contaminación de estado."""
@@ -55,6 +56,7 @@ def _mock_response(status_code: int, json_data: dict | None = None):
 # Singleton — get_instance
 # ============================================================================
 
+
 class TestSingleton:
     def test_get_instance_returns_instance(self):
         client = MetaWhatsAppClient.get_instance()
@@ -78,6 +80,7 @@ class TestSingleton:
 # ============================================================================
 # send_text_message
 # ============================================================================
+
 
 class TestSendTextMessage:
     @pytest.mark.asyncio
@@ -212,6 +215,7 @@ class TestSendTextMessage:
 # send_template_message
 # ============================================================================
 
+
 class TestSendTemplateMessage:
     @pytest.mark.asyncio
     async def test_success(self):
@@ -297,6 +301,7 @@ class TestSendTemplateMessage:
 # close()
 # ============================================================================
 
+
 class TestClose:
     @pytest.mark.asyncio
     async def test_close_calls_aclose(self):
@@ -323,6 +328,7 @@ class TestClose:
 # get_meta_client() helper
 # ============================================================================
 
+
 class TestGetMetaClient:
     @pytest.mark.asyncio
     async def test_returns_instance(self):
@@ -339,6 +345,7 @@ class TestGetMetaClient:
 # ============================================================================
 # Constructor — atributos básicos
 # ============================================================================
+
 
 class TestConstructor:
     def test_attributes_set(self):
@@ -360,6 +367,7 @@ class TestConstructor:
 # ============================================================================
 # Helper
 # ============================================================================
+
 
 def httpx_error(msg: str) -> Exception:
     """Crea una excepción simulando un error de httpx."""

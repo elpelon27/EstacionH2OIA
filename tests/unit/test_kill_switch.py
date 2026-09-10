@@ -54,6 +54,7 @@ def test_bridge_health_kill_switch(reset_prometheus):
     # En CI, setear KILL_SWITCH_FILE env var antes del reload
     if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
         import tempfile
+
         os.environ["KILL_SWITCH_FILE"] = tempfile.mktemp(suffix="_valentina.kill")
 
     # Need to reimport after prometheus reset
@@ -93,6 +94,7 @@ def test_bridge_startup_clears_kill_switch(reset_prometheus):
     # En CI, setear KILL_SWITCH_FILE env var antes del reload
     if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
         import tempfile
+
         os.environ["KILL_SWITCH_FILE"] = tempfile.mktemp(suffix="_valentina.kill")
 
     import importlib
@@ -151,6 +153,7 @@ async def test_meta_webhook_respects_kill_switch(reset_prometheus):
     # En CI, setear KILL_SWITCH_FILE env var antes del reload
     if os.environ.get("CI") or os.environ.get("GITHUB_ACTIONS"):
         import tempfile
+
         os.environ["KILL_SWITCH_FILE"] = tempfile.mktemp(suffix="_valentina.kill")
 
     import importlib

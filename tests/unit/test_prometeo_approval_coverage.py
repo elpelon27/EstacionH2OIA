@@ -9,7 +9,6 @@ ramas except de get_pending_approvals / complete_approval / cancel_approval.
 Usa fixtures propios (cov_*) para no colisionar con los del test original.
 """
 
-
 import pytest
 
 import core.prometeo_approval as pa
@@ -40,9 +39,7 @@ def cov_dirs(monkeypatch, tmp_path):
 
 
 def _save_completed(cov_dirs, approval_type, response, request_id, status="completed"):
-    req = pa.ApprovalRequest(
-        approval_type=approval_type, prompt="p", request_id=request_id
-    )
+    req = pa.ApprovalRequest(approval_type=approval_type, prompt="p", request_id=request_id)
     req.status = status
     req.response = response
     req.save_completed()
@@ -68,9 +65,7 @@ def test_request_approval_poll_sleeps_then_expires(cov_dirs, cov_uuid, monkeypat
         pa.request_approval("validation", "p", timeout_seconds=5)
 
 
-def test_request_approval_corrupt_completed_ignored_then_expires(
-    cov_dirs, cov_uuid, monkeypatch
-):
+def test_request_approval_corrupt_completed_ignored_then_expires(cov_dirs, cov_uuid, monkeypatch):
     """Completed con JSON corrupto -> except del while (181-182) y luego expira."""
     (pa.COMPLETED_DIR / f"{FIXED_ID}.json").write_text("{json roto")
 

@@ -9,8 +9,6 @@ We mock db.log_verificacion to avoid this.
 from datetime import UTC, datetime
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from src.financial import database as db
 from src.financial.models import PedidoFinanciero
 from src.financial.verificacion import (
@@ -77,15 +75,18 @@ def _set_pedido_extras(pedido_id, **updates):
     """Update pedido fields not persisted by create_pedido_financiero."""
     with db.get_db() as conn:
         sets = ", ".join(f"{k} = ?" for k in updates)
-        conn.execute(f"UPDATE fs_pedidos SET {sets} WHERE pedido_id = ?",
-                     list(updates.values()) + [pedido_id])
+        conn.execute(
+            f"UPDATE fs_pedidos SET {sets} WHERE pedido_id = ?",
+            list(updates.values()) + [pedido_id],
+        )
 
 
 def _mock_meta_client(success=True):
     """Create a mock MetaWhatsAppClient."""
     mock = MagicMock()
     mock.send_text_message = AsyncMock(
-        return_value={"success": success, "message_id": "msg_123"} if success
+        return_value={"success": success, "message_id": "msg_123"}
+        if success
         else {"success": False, "error": "fail"}
     )
     return mock
@@ -94,6 +95,7 @@ def _mock_meta_client(success=True):
 # ---------------------------------------------------------------------------
 # _compute_phash / _check_vram
 # ---------------------------------------------------------------------------
+
 
 class TestPhashVram:
     def test_compute_phash_no_lib(self):
@@ -109,6 +111,7 @@ class TestPhashVram:
 # ---------------------------------------------------------------------------
 # _process_reminder_cycle
 # ---------------------------------------------------------------------------
+
 
 class TestProcessReminderCycle:
     async def test_process_reminder_success(self, tmp_db):
@@ -150,7 +153,9 @@ class TestProcessReminderCycle:
         pedido = _create_pedido_in_db(pedido_id=1003)
 
         with (
-            patch("core.meta_client.get_meta_client", AsyncMock(side_effect=Exception("conn error"))),
+            patch(
+                "core.meta_client.get_meta_client", AsyncMock(side_effect=Exception("conn error"))
+            ),
             patch("src.financial.verificacion.db.log_verificacion"),
         ):
             result = await _process_reminder_cycle(pedido)
@@ -162,6 +167,7 @@ class TestProcessReminderCycle:
 # ---------------------------------------------------------------------------
 # _escalar_humano
 # ---------------------------------------------------------------------------
+
 
 class TestEscalarHumano:
     async def test_escalar_humano(self, tmp_db):
@@ -181,6 +187,7 @@ class TestEscalarHumano:
 # ---------------------------------------------------------------------------
 # _get_pedidos_para_recordatorio
 # ---------------------------------------------------------------------------
+
 
 class TestGetPedidosParaRecordatorio:
     async def test_empty_list(self, tmp_db):
@@ -203,7 +210,9 @@ class TestGetPedidosParaRecordatorio:
 
     async def test_invalid_timestamp_passes(self, tmp_db):
         _create_pedido_in_db(pedido_id=3003)
-        _set_pedido_extras(3003, ultimo_recordatorio_at="invalid-timestamp", recordatorios_enviados=1)
+        _set_pedido_extras(
+            3003, ultimo_recordatorio_at="invalid-timestamp", recordatorios_enviados=1
+        )
         result = _get_pedidos_para_recordatorio()
         assert len(result) == 1
 
@@ -211,6 +220,7 @@ class TestGetPedidosParaRecordatorio:
 # ---------------------------------------------------------------------------
 # run_reminder_cycle
 # ---------------------------------------------------------------------------
+
 
 class TestRunReminderCycle:
     async def test_empty_cycle(self, tmp_db):
@@ -237,6 +247,7 @@ class TestRunReminderCycle:
 # recovery_scan_stuck_payments
 # ---------------------------------------------------------------------------
 
+
 class TestRecoveryScan:
     async def test_empty_scan(self, tmp_db):
         result = await recovery_scan_stuck_payments()
@@ -257,6 +268,7 @@ class TestRecoveryScan:
 # ---------------------------------------------------------------------------
 # verificar_pago_manual
 # ---------------------------------------------------------------------------
+
 
 class TestVerificarPagoManual:
     async def test_verificar_pago_manual_success(self, tmp_db):
@@ -312,6 +324,7 @@ class TestVerificarPagoManual:
 # verificar_pago_api_bancaria
 # ---------------------------------------------------------------------------
 
+
 class TestVerificarApiBancaria:
     async def test_api_bancaria_delegates_to_manual(self, tmp_db):
         pedido = _create_pedido_in_db(pedido_id=7001)
@@ -329,6 +342,7 @@ class TestVerificarApiBancaria:
 # verificar_pago_ocr
 # ---------------------------------------------------------------------------
 
+
 class TestVerificarPagoOcr:
     async def test_ocr_disabled(self, tmp_db):
         result = await verificar_pago_ocr(
@@ -344,6 +358,7 @@ class TestVerificarPagoOcr:
 # ---------------------------------------------------------------------------
 # _download_whatsapp_image
 # ---------------------------------------------------------------------------
+
 
 class TestDownloadImage:
     async def test_no_token_returns_none(self):
@@ -385,6 +400,7 @@ class TestDownloadImage:
 # ---------------------------------------------------------------------------
 # _ocr_qwen_vl
 # ---------------------------------------------------------------------------
+
 
 class TestOcrQwenVl:
     async def test_qwen_success(self):

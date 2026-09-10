@@ -40,7 +40,6 @@ os.environ.setdefault("SQLITE_PATH", "/tmp/bridge_test_default.db")
 os.environ.setdefault("DISPATCH_DB_PATH", "/tmp/bridge_test_dispatch.db")
 
 import bridge  # noqa: E402
-
 import pytest  # noqa: E402
 
 
@@ -48,13 +47,16 @@ import pytest  # noqa: E402
 def _ensure_log_salt():
     """Asegura que LOG_SALT este inicializado (otros tests pueden resetearlo)."""
     import core.crypto as _crypto
+
     if _crypto._LOG_SALT is None:
         _crypto.set_log_salt(bridge.LOG_SALT)
     yield
 
+
 # ============================================================================
 # Fixtures de aislamiento SQLite
 # ============================================================================
+
 
 def _create_conversation_db(path: str) -> None:
     """Crea el esquema mínimo (conversation_state + fs_tasas_cambio)."""
@@ -106,10 +108,10 @@ def _create_dispatch_db(path: str) -> None:
     conn.close()
 
 
-
 # ============================================================================
 # _is_duplicate — deduplicación in-memory
 # ============================================================================
+
 
 class TestIsDuplicate:
     def test_primera_vez_false(self):
@@ -132,12 +134,13 @@ class TestIsDuplicate:
         bridge._seen_messages.clear()
         bridge._seen_messages["viejo"] = time.time() - (bridge.DEDUP_TTL_SECONDS + 10)
         assert bridge._is_duplicate("viejo") is False  # se purga y se re-registra
-        assert bridge._is_duplicate("viejo") is True   # ahora sí cuenta
+        assert bridge._is_duplicate("viejo") is True  # ahora sí cuenta
 
 
 # ============================================================================
 # _is_kill_switch_active — archivo centinela
 # ============================================================================
+
 
 class TestIsKillSwitchActive:
     def test_sin_archivo_false(self, tmp_path):
@@ -155,6 +158,7 @@ class TestIsKillSwitchActive:
 # ============================================================================
 # _convert_eur_to_bs — tasa EUR/VES desde SQLite local (parchea SQLITE_PATH)
 # ============================================================================
+
 
 class TestConvertEurToBs:
     def test_conversion_con_tasa(self, tmp_path):
@@ -213,8 +217,10 @@ class TestConvertEurToBs:
 # _is_within_business_hours / _get_out_of_hours_message — horario laboral
 # ============================================================================
 
+
 class _FakeDatetime:
     """Reemplaza bridge.datetime; now() devuelve un datetime fijo con tz."""
+
     _current = None
 
     @classmethod
@@ -262,8 +268,10 @@ class TestIsWithinBusinessHours:
     def test_dia_excluido_por_config(self):
         # Config solo Lun a Vie (sin Sáb). Sáb 22-ago-2026 12:00 → False
         _FakeDatetime.set(_now_at(month=8, day=22, hour=12))
-        with patch.object(bridge, "datetime", _FakeDatetime), \
-             patch.object(bridge, "BUSINESS_HOURS_DAYS", "1,2,3,4,5"):
+        with (
+            patch.object(bridge, "datetime", _FakeDatetime),
+            patch.object(bridge, "BUSINESS_HOURS_DAYS", "1,2,3,4,5"),
+        ):
             assert bridge._is_within_business_hours() is False
 
 
@@ -294,6 +302,7 @@ class TestGetOutOfHoursMessage:
 # ============================================================================
 # _validate_meta_payload — validación de estructura de Meta
 # ============================================================================
+
 
 def _valid_payload():
     return {
@@ -382,6 +391,7 @@ class TestValidateMetaPayload:
 # _check_tcp_up — health TCP local (sin red externa)
 # ============================================================================
 
+
 class TestCheckTcpUp:
     def test_puerto_cerrado_false(self):
         # 127.0.0.1 con un puerto alto que casi seguro no escucha → conexión
@@ -399,6 +409,7 @@ class TestCheckTcpUp:
 # ============================================================================
 # _nearest_zone_id — Haversine contra dispatch.db (parchea DISPATCH_DB_PATH)
 # ============================================================================
+
 
 class TestNearestZoneId:
     def test_sin_gps_none(self):
@@ -463,6 +474,7 @@ class TestNearestZoneId:
 # ============================================================================
 # Estado conversacional (FSM) — SQLite local
 # ============================================================================
+
 
 class TestConversationStatePersistence:
     def test_set_get_roundtrip(self, tmp_path):

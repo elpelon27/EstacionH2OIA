@@ -1,4 +1,5 @@
 """Unit test fixtures - overrides test file fixtures to prevent conflicts."""
+
 import pytest
 
 # =============================================================================
@@ -7,6 +8,7 @@ import pytest
 
 # The test_bottle_tracker.py has its own fixtures that conflict with root conftest.
 # We override them here (tests/unit/conftest.py takes precedence over test file fixtures).
+
 
 @pytest.fixture(autouse=True)
 def reset_bottle_tracker_singleton():
@@ -23,13 +25,14 @@ def test_db():
 @pytest.fixture
 def tracker():
     """Override test file's fixture - root conftest handles DB patching.
-    
+
     This replaces the test file's tracker fixture which does its own DISPATCH_DB patching
     and restores the production DB at teardown (breaking isolation).
     """
     # Our root conftest's patch_dispatch_db fixture already patched DISPATCH_DB
     # to a temp DB. Just get the tracker instance.
     from skills.dispatch.bottle_tracker import get_bottle_tracker
+
     tracker = get_bottle_tracker()
     yield tracker
     # Don't restore original DB - root conftest handles cleanup

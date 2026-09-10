@@ -2,10 +2,10 @@
 Coverage tests for src/financial/database.py — CRUD functions with SQLite tmp.
 """
 
+import sqlite3
 from datetime import UTC, datetime
 
 import pytest
-import sqlite3
 
 from src.financial import database as db
 from src.financial.models import (
@@ -18,10 +18,10 @@ from src.financial.models import (
     ReporteDiario,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_pedido(**overrides) -> PedidoFinanciero:
     defaults = dict(
@@ -49,6 +49,7 @@ def _make_pedido(**overrides) -> PedidoFinanciero:
 # now_iso / init
 # ---------------------------------------------------------------------------
 
+
 class TestNowIso:
     def test_now_iso_returns_str(self):
         result = db.now_iso()
@@ -64,6 +65,7 @@ class TestNowIso:
 # ---------------------------------------------------------------------------
 # Productos
 # ---------------------------------------------------------------------------
+
 
 class TestProductos:
     def test_get_producto_by_id_found(self, tmp_db):
@@ -95,6 +97,7 @@ class TestProductos:
 # Pedidos
 # ---------------------------------------------------------------------------
 
+
 class TestPedidos:
     def test_create_and_get_pedido(self, tmp_db):
         pedido = _make_pedido()
@@ -111,9 +114,7 @@ class TestPedidos:
 
     def test_get_pedidos_by_cliente(self, tmp_db):
         db.create_pedido_financiero(_make_pedido(pedido_id=2001))
-        db.create_pedido_financiero(
-            _make_pedido(pedido_id=2002, cliente_telefono="+584121234567")
-        )
+        db.create_pedido_financiero(_make_pedido(pedido_id=2002, cliente_telefono="+584121234567"))
         pedidos = db.get_pedidos_by_cliente("+584121234567")
         assert len(pedidos) == 2
 
@@ -168,6 +169,7 @@ class TestPedidos:
 # Buscar pedidos por teléfono + monto + mejor match
 # ---------------------------------------------------------------------------
 
+
 class TestBuscarPedidos:
     def test_buscar_por_telefono_monto_normalizado(self, tmp_db):
         db.create_pedido_financiero(
@@ -207,6 +209,7 @@ class TestBuscarPedidos:
 # ---------------------------------------------------------------------------
 # Pagos
 # ---------------------------------------------------------------------------
+
 
 class TestPagos:
     def test_add_pago_and_update_pedido_full(self, tmp_db):
@@ -297,6 +300,7 @@ class TestPagos:
 # Cuentas por cobrar
 # ---------------------------------------------------------------------------
 
+
 class TestCuentasCobrar:
     def _create_pedido_first(self) -> int:
         """Create a pedido and return its fs_pedido id (needed for FK)."""
@@ -338,6 +342,7 @@ class TestCuentasCobrar:
 # Tasas de cambio
 # ---------------------------------------------------------------------------
 
+
 class TestTasas:
     def test_save_and_get_last_tasa(self, tmp_db):
         db.save_tasa("EUR/VES", 105.5, "manual", "test")
@@ -361,6 +366,7 @@ class TestTasas:
 # Verificación log
 # ---------------------------------------------------------------------------
 
+
 class TestVerificacionLog:
     def test_log_verificacion(self, tmp_db):
         pid = db.create_pedido_financiero(_make_pedido())
@@ -378,6 +384,7 @@ class TestVerificacionLog:
 # ---------------------------------------------------------------------------
 # Empleados y nómina
 # ---------------------------------------------------------------------------
+
 
 class TestEmpleadosNomina:
     def test_create_and_get_empleados(self, tmp_db):
@@ -426,6 +433,7 @@ class TestEmpleadosNomina:
 # Proveedores
 # ---------------------------------------------------------------------------
 
+
 class TestProveedores:
     def test_create_proveedor_pago(self, tmp_db):
         pago = ProveedorPago(
@@ -445,6 +453,7 @@ class TestProveedores:
 # ---------------------------------------------------------------------------
 # Reportes diarios
 # ---------------------------------------------------------------------------
+
 
 class TestReportesDiarios:
     def test_save_and_mark_reporte(self, tmp_db):
@@ -475,14 +484,14 @@ class TestReportesDiarios:
 # get_db error handling
 # ---------------------------------------------------------------------------
 
+
 class TestGetDbErrors:
     def test_get_db_rollback_on_error(self, tmp_db):
         """Verify that get_db rolls back on exception."""
         pid = db.create_pedido_financiero(_make_pedido())
         # Force an error inside the context manager
-        with pytest.raises(Exception):
-            with db.get_db() as conn:
-                conn.execute("INSERT INTO fs_pedidos (id) VALUES (?)", (pid,))
+        with pytest.raises(Exception), db.get_db() as conn:
+            conn.execute("INSERT INTO fs_pedidos (id) VALUES (?)", (pid,))
         # The failed insert should have been rolled back
         with db.get_db() as conn:
             rows = conn.execute("SELECT * FROM fs_pedidos WHERE id = ?", (pid,)).fetchall()

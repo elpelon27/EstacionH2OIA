@@ -71,15 +71,23 @@ print("\n=== Test P0-1: FSM Persistente en SQLite ===\n")
 # Test 1: _set_state → reinicio → _get_state recupera
 print("[1] Persistencia basica de _set_state / _get_state")
 bridge._set_state("hash_test_1", {"state": "awaiting_payment"})
-test("Estado en cache tras _set_state", bridge._get_state("hash_test_1")["state"] == "awaiting_payment")
+test(
+    "Estado en cache tras _set_state",
+    bridge._get_state("hash_test_1")["state"] == "awaiting_payment",
+)
 simular_reinicio()
 recuperado = bridge._get_state("hash_test_1")
-test("Estado recuperado de SQLite tras reinicio simulado", recuperado["state"] == "awaiting_payment")
+test(
+    "Estado recuperado de SQLite tras reinicio simulado", recuperado["state"] == "awaiting_payment"
+)
 
 # Test 2: _save_order_totals → reinicio → _get_order_totals recupera
 print("\n[2] Persistencia de _save_order_totals / _get_order_totals")
 bridge._save_order_totals("hash_test_2", total=5.20, qty_bot=4, qty_hielo=1)
-test("Totales en cache tras _save_order_totals", bridge._get_order_totals("hash_test_2")["total"] == 5.20)
+test(
+    "Totales en cache tras _save_order_totals",
+    bridge._get_order_totals("hash_test_2")["total"] == 5.20,
+)
 simular_reinicio()
 tot = bridge._get_order_totals("hash_test_2")
 test("Totales recuperados de SQLite tras reinicio", tot is not None and tot["total"] == 5.20)
@@ -100,7 +108,10 @@ bridge._save_order_totals("hash_test_4", total=3.00, qty_bot=3, qty_hielo=0)
 bridge._clear_order_totals("hash_test_4")
 test("Cache vacia tras _clear_order_totals", bridge._get_order_totals("hash_test_4") is None)
 simular_reinicio()
-test("SQLite NULL tras _clear_order_totals + reinicio", bridge._get_order_totals("hash_test_4") is None)
+test(
+    "SQLite NULL tras _clear_order_totals + reinicio",
+    bridge._get_order_totals("hash_test_4") is None,
+)
 
 # Test 5: Estado awaiting_payment con datos del pedido
 print("\n[5] Estado awaiting_payment con datos completos")
@@ -132,7 +143,10 @@ bridge._set_state("hash_test_7", {"state": "awaiting_payment"})
 bridge._set_state("hash_test_7", {"state": "awaiting_confirmation"})
 simular_reinicio()
 rec = bridge._get_state("hash_test_7")
-test("Estado final es awaiting_confirmation (no awaiting_payment)", rec["state"] == "awaiting_confirmation")
+test(
+    "Estado final es awaiting_confirmation (no awaiting_payment)",
+    rec["state"] == "awaiting_confirmation",
+)
 
 # Test 8: Multiples telefonos con estados diferentes
 print("\n[8] Multiples telefonos, estados independientes")
@@ -153,7 +167,9 @@ test("Telefono nuevo: state=None", result == {"state": None})
 # Test 10: Verificar que la tabla existe en _init_db
 print("\n[10] Tabla conversation_state existe en la BD")
 conn = sqlite3.connect(TEST_DB)
-tables = conn.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_state'").fetchall()
+tables = conn.execute(
+    "SELECT name FROM sqlite_master WHERE type='table' AND name='conversation_state'"
+).fetchall()
 conn.close()
 test("Tabla conversation_state creada por _init_db", len(tables) == 1)
 

@@ -3,9 +3,7 @@ Coverage tests for src/financial/cobranzas.py — mock BD, test recordatorios/es
 """
 
 from datetime import UTC, datetime
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import patch
 
 from src.financial.cobranzas import (
     calcular_fecha_vencimiento,
@@ -40,6 +38,7 @@ def _make_pedido(**overrides) -> PedidoFinanciero:
 # calcular_fecha_vencimiento
 # ---------------------------------------------------------------------------
 
+
 class TestCalcularFechaVencimiento:
     def test_express(self):
         result = calcular_fecha_vencimiento("express")
@@ -73,10 +72,13 @@ class TestCalcularFechaVencimiento:
 # crear_cuenta_cobrar
 # ---------------------------------------------------------------------------
 
+
 class TestCrearCuentaCobrar:
     def test_creacion_exitosa(self):
         pedido = _make_pedido()
-        with patch("src.financial.cobranzas.db.create_cuenta_cobrar", return_value=42) as mock_create:
+        with patch(
+            "src.financial.cobranzas.db.create_cuenta_cobrar", return_value=42
+        ) as mock_create:
             cuenta_id = crear_cuenta_cobrar(pedido, "semanal")
 
         assert cuenta_id == 42
@@ -97,6 +99,7 @@ class TestCrearCuentaCobrar:
 # ---------------------------------------------------------------------------
 # get_pedidos_para_recordatorio
 # ---------------------------------------------------------------------------
+
 
 class TestGetPedidosParaRecordatorio:
     def test_lista_vacia(self):
@@ -136,6 +139,7 @@ class TestGetPedidosParaRecordatorio:
 # ---------------------------------------------------------------------------
 # procesar_recordatorio
 # ---------------------------------------------------------------------------
+
 
 class TestProcesarRecordatorio:
     def test_enviar_recordatorio(self):
@@ -195,6 +199,7 @@ class TestProcesarRecordatorio:
 # ---------------------------------------------------------------------------
 # get_resumen_cobranzas
 # ---------------------------------------------------------------------------
+
 
 class TestGetResumenCobranzas:
     def test_resumen_vacio(self):

@@ -16,7 +16,6 @@ sys.path.insert(0, os.path.join(PROJECT_ROOT, "api"))
 os.environ["BRIDGE_ALLOW_INSECURE_SALT"] = "1"
 
 import bridge  # noqa: E402
-
 import pytest  # noqa: E402
 
 
@@ -24,6 +23,7 @@ import pytest  # noqa: E402
 def _ensure_log_salt():
     """Asegura que LOG_SALT este inicializado (otros tests pueden resetearlo)."""
     import core.crypto as _crypto
+
     if _crypto._LOG_SALT is None:
         _crypto.set_log_salt(bridge.LOG_SALT)
     yield
@@ -74,9 +74,7 @@ class TestVerifyMetaSignature:
 
         app_secret = "test_secret"
         body = b'{"event": "ping"}'
-        expected = "sha256=" + hmac.new(
-            app_secret.encode(), body, hashlib.sha256
-        ).hexdigest()
+        expected = "sha256=" + hmac.new(app_secret.encode(), body, hashlib.sha256).hexdigest()
         with patch.object(bridge, "META_APP_SECRET", app_secret):
             assert bridge._verify_meta_signature(body, expected) is True
 

@@ -14,7 +14,9 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+PROJECT_ROOT = os.path.dirname(
+    os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+)
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 
@@ -29,12 +31,12 @@ from src.orchestration.external_skills import (
     SkillNetConnector,
     create_external_skill_integrator,
 )
-from src.orchestration.skill_registry import SkillRegistry, SkillSpec
-
+from src.orchestration.skill_registry import SkillRegistry
 
 # ============================================================
 # ExternalSkillSource and ExternalSkill
 # ============================================================
+
 
 class TestExternalSkillSource:
     def test_values(self):
@@ -79,6 +81,7 @@ class TestExternalSkill:
 # ============================================================
 # SkillNetConnector
 # ============================================================
+
 
 class TestSkillNetConnector:
     def test_init_defaults(self):
@@ -157,6 +160,7 @@ class TestSkillNetConnector:
 # ADKSkillsConnector
 # ============================================================
 
+
 class TestADKSkillsConnector:
     def test_init_defaults(self):
         conn = ADKSkillsConnector()
@@ -204,6 +208,7 @@ class TestADKSkillsConnector:
 # AnthropicSkillsConnector
 # ============================================================
 
+
 class TestAnthropicSkillsConnector:
     def test_init_defaults(self):
         conn = AnthropicSkillsConnector()
@@ -242,10 +247,10 @@ class TestAnthropicSkillsConnector:
 # SkillCreator
 # ============================================================
 
+
 class TestSkillCreator:
     def test_create_basic_skill(self, tmp_path):
         """Test _create_basic_skill creates a SKILL.md file."""
-        from src.memory.unified_memory import UnifiedMemory
 
         mock_mem = MagicMock()
         creator = SkillCreator(mock_mem)
@@ -287,7 +292,9 @@ class TestSkillCreator:
 
         creator = SkillCreator(mock_mem)
         # Patch create_from_trajectory to use tmp_path
-        with patch.object(creator, "create_from_trajectory", return_value=[str(tmp_path / "auto_skill")]):
+        with patch.object(
+            creator, "create_from_trajectory", return_value=[str(tmp_path / "auto_skill")]
+        ):
             result = creator.create_from_episodic_memory("dispatcher", limit=5)
             assert len(result) == 1
 
@@ -295,6 +302,7 @@ class TestSkillCreator:
 # ============================================================
 # ExternalSkillIntegrator
 # ============================================================
+
 
 class TestExternalSkillIntegrator:
     @pytest.fixture
@@ -355,6 +363,7 @@ class TestExternalSkillIntegrator:
 # Factory function
 # ============================================================
 
+
 class TestCreateExternalSkillIntegrator:
     def test_factory(self, tmp_path):
         mock_mem = MagicMock()
@@ -368,6 +377,7 @@ class TestCreateExternalSkillIntegrator:
 # ============================================================
 # Abstract base class
 # ============================================================
+
 
 class TestSkillLibraryConnector:
     def test_cannot_instantiate_abstract(self):

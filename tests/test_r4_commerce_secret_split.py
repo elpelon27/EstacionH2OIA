@@ -10,11 +10,8 @@ Cubre:
 5. Generación de headers con credenciales separadas
 """
 
-import hashlib
-import hmac
 import os
 import sys
-from typing import Any
 
 import pytest
 
@@ -32,7 +29,6 @@ from src.integrations.r4.webhooks import (
     R4WebhookConfig,
     detect_webhook_format,
 )
-
 
 # ============================================================
 # 1. CASO DE PRUEBA OFICIAL DEL BANCO (skip)
@@ -111,9 +107,7 @@ class TestCommerceIdSecretSeparation:
     def test_backward_compat_no_commerce_id(self):
         """Si no se pasa commerce_id, usa commerce_secret como fallback."""
         payload = {"Moneda": "USD", "Fechavalor": "2026-08-18"}
-        headers = build_auth_headers(
-            payload, R4Endpoint.R4BCV, self.COMMERCE_SECRET
-        )
+        headers = build_auth_headers(payload, R4Endpoint.R4BCV, self.COMMERCE_SECRET)
 
         # Sin commerce_id, el header Commerce usa el secret (backward compat)
         assert headers["Commerce"] == self.COMMERCE_SECRET
@@ -210,7 +204,8 @@ class TestWebhookFormatDetection:
         # El formato de respuesta se valida en el endpoint, pero verificamos
         # que process_mbconsulta retorna un resultado convertible a abono
         import asyncio
-        from src.integrations.r4.webhooks import process_mbconsulta, WebhookProcessResult
+
+        from src.integrations.r4.webhooks import WebhookProcessResult, process_mbconsulta
 
         payload = {
             "TelefonoEmisor": "04145555555",
@@ -293,9 +288,7 @@ class TestHmacIntegrity:
             "Monto": "50.00",
             "TelefonoComercio": "04125555555",
         }
-        headers = build_auth_headers(
-            payload, R4Endpoint.R4CONSULTA, self.SECRET, self.COMMERCE_ID
-        )
+        headers = build_auth_headers(payload, R4Endpoint.R4CONSULTA, self.SECRET, self.COMMERCE_ID)
 
         assert "Content-Type" in headers
         assert "Authorization" in headers
@@ -343,9 +336,9 @@ class TestHmacIntegrity:
             )
 
             # Verificar que con otro secret falla
-            assert not verify_hmac_signature(
-                payload, endpoint, signature, "wrong_secret"
-            ), f"HMAC should fail with wrong secret for {endpoint.value}"
+            assert not verify_hmac_signature(payload, endpoint, signature, "wrong_secret"), (
+                f"HMAC should fail with wrong secret for {endpoint.value}"
+            )
 
     def test_sign_string_no_separators(self):
         """El sign string concatena valores SIN separadores."""
@@ -376,9 +369,7 @@ class TestHmacIntegrity:
 
         expected_sign_string = "019250.0004145555555V12345678"
         assert sign_str == expected_sign_string, (
-            f"Sign string mismatch:\n"
-            f"  Expected: {expected_sign_string}\n"
-            f"  Got:      {sign_str}"
+            f"Sign string mismatch:\n  Expected: {expected_sign_string}\n  Got:      {sign_str}"
         )
 
 

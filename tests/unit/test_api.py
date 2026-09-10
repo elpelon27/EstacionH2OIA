@@ -14,17 +14,19 @@ from httpx import ASGITransport, AsyncClient
 @pytest.fixture
 async def client() -> AsyncGenerator[AsyncClient, None]:
     """Fixture: cliente async para FastAPI.
-    
+
     Import api.main here (not at module level) so Prometheus metrics
     are registered AFTER reset_prometheus fixture runs.
     """
     import importlib
     import sys
+
     if "api.main" in sys.modules:
         importlib.reload(sys.modules["api.main"])
     else:
         pass
     from api.main import app
+
     async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as c:
         yield c
 

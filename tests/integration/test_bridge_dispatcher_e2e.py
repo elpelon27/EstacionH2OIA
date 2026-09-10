@@ -32,14 +32,15 @@ from skills.dispatch.consumer import consume_pending_orders
 # These tests use the REAL production database, not a temp database
 # =============================================================================
 
+
 @pytest.fixture(autouse=True)
 def patch_dispatch_db():
     """Override the conftest.py autouse fixture - restore real database for these tests.
-    
+
     These tests use the real production database with real schema.
-    The conftest.py patch_dispatch_db fixture creates a temp database 
+    The conftest.py patch_dispatch_db fixture creates a temp database
     which breaks these integration tests.
-    
+
     This fixture runs AFTER conftest.py's patch_dispatch_db (due to test module order),
     so we restore the real database path in all patched modules.
     """
@@ -55,19 +56,19 @@ def patch_dispatch_db():
     bt_module.DISPATCH_DB = REAL_DB
     bt_module._bottle_tracker_instance = None
 
-    if hasattr(tbot_module, 'DISPATCH_DB'):
+    if hasattr(tbot_module, "DISPATCH_DB"):
         tbot_module.DISPATCH_DB = REAL_DB
-    if hasattr(tbot_module, '_dispatcher_bot_instance'):
+    if hasattr(tbot_module, "_dispatcher_bot_instance"):
         tbot_module._dispatcher_bot_instance = None
 
-    if hasattr(gps_module, 'DISPATCH_DB'):
+    if hasattr(gps_module, "DISPATCH_DB"):
         gps_module.DISPATCH_DB = REAL_DB
-    if hasattr(gps_module, '_gps_tracker_instance'):
+    if hasattr(gps_module, "_gps_tracker_instance"):
         gps_module._gps_tracker_instance = None
 
-    if hasattr(ds_module, 'DISPATCH_DB'):
+    if hasattr(ds_module, "DISPATCH_DB"):
         ds_module.DISPATCH_DB = REAL_DB
-    if hasattr(ds_module, '_dispatcher_skill_instance'):
+    if hasattr(ds_module, "_dispatcher_skill_instance"):
         ds_module._dispatcher_skill_instance = None
 
     # Also fix consumer module
@@ -77,11 +78,11 @@ def patch_dispatch_db():
 
     # Cleanup: reset instances so they don't leak
     bt_module._bottle_tracker_instance = None
-    if hasattr(tbot_module, '_dispatcher_bot_instance'):
+    if hasattr(tbot_module, "_dispatcher_bot_instance"):
         tbot_module._dispatcher_bot_instance = None
-    if hasattr(gps_module, '_gps_tracker_instance'):
+    if hasattr(gps_module, "_gps_tracker_instance"):
         gps_module._gps_tracker_instance = None
-    if hasattr(ds_module, '_dispatcher_skill_instance'):
+    if hasattr(ds_module, "_dispatcher_skill_instance"):
         ds_module._dispatcher_skill_instance = None
 
 
@@ -244,7 +245,7 @@ async def test_multiple_orders_batch():
         ph_hash = f"e2e_batch_{i}_" + "w" * 16
         state = _create_test_state(qty_bot=bot, qty_hielo=hielo, metodo=metodo, total=total)
         from_phone = f"+584****4444{i}"
-        state["contact_name"] = f"E2E-Batch Client {i+1}"
+        state["contact_name"] = f"E2E-Batch Client {i + 1}"
         _send_to_dispatch_queue(ph_hash, state, from_phone)
 
     # Process all

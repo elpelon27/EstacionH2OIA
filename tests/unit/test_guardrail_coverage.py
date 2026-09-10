@@ -62,21 +62,29 @@ class TestInitLlmGuard:
         mock_scanner = MagicMock()
         mock_vault = MagicMock()
 
-        with patch.dict(sys.modules, {
-            "llm_guard": MagicMock(),
-            "llm_guard.input_scanners": MagicMock(),
-            "llm_guard.input_scanners.secrets": MagicMock(),
-            "llm_guard.vault": MagicMock(),
-        }):
+        with patch.dict(
+            sys.modules,
+            {
+                "llm_guard": MagicMock(),
+                "llm_guard.input_scanners": MagicMock(),
+                "llm_guard.input_scanners.secrets": MagicMock(),
+                "llm_guard.vault": MagicMock(),
+            },
+        ):
             # Mockear los imports específicos
             mock_input_secrets = MagicMock()
             mock_input_secrets.Secrets = MagicMock(return_value=mock_scanner)
             mock_vault_class = MagicMock()
 
-            with patch.dict(sys.modules, {
-                "llm_guard.input_scanners.secrets": MagicMock(Secrets=mock_input_secrets.Secrets),
-                "llm_guard.vault": MagicMock(Vault=mock_vault_class),
-            }):
+            with patch.dict(
+                sys.modules,
+                {
+                    "llm_guard.input_scanners.secrets": MagicMock(
+                        Secrets=mock_input_secrets.Secrets
+                    ),
+                    "llm_guard.vault": MagicMock(Vault=mock_vault_class),
+                },
+            ):
                 result = guardrail._init_llm_guard()
 
         # Puede ser True o False dependiendo del entorno, pero debe ser idempotente

@@ -4,8 +4,8 @@ Test E2E — Flujo completo Dispatcher + SWAP
 Estación H2O · Maracaibo, Venezuela
 ============================================================================
 
-Test E2E completo: Pedido WhatsApp → Valentina confirma → Bridge → 
-Dispatch Queue → Route Engine → Bot Chofer → Check-in → GPS → 
+Test E2E completo: Pedido WhatsApp → Valentina confirma → Bridge →
+Dispatch Queue → Route Engine → Bot Chofer → Check-in → GPS →
 Entregado → Botellón loaner tracking → Sheets Sync → Financial Shield
 """
 
@@ -231,15 +231,24 @@ def test_db():
 
     # Datos de prueba
     import time
+
     now = time.time()
 
     # Vehículos
-    conn.execute("INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)")
-    conn.execute("INSERT INTO vehicles (id, name, operator_name, active) VALUES (2, 'Triciclo 2', 'EVERT', 1)")
+    conn.execute(
+        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (1, 'Triciclo 1', 'YORDANIS', 1)"
+    )
+    conn.execute(
+        "INSERT INTO vehicles (id, name, operator_name, active) VALUES (2, 'Triciclo 2', 'EVERT', 1)"
+    )
 
     # Zonas
-    conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)")
-    conn.execute("INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)")
+    conn.execute(
+        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (1, 'Bella Vista', 10.6500, -71.6200, 3.0)"
+    )
+    conn.execute(
+        "INSERT INTO zones (id, name, center_lat, center_lng, radius_km) VALUES (2, 'Las Delicias', 10.6400, -71.6150, 2.5)"
+    )
 
     # Clientes
     conn.execute("""INSERT INTO clients (id, phone, phone_hash, name, address_text, lat, lng, client_type, priority, zone_id) 
@@ -248,15 +257,24 @@ def test_db():
                    VALUES (2, '+584141112233', 'hash2', 'Residencias Los Sauces', 'Urbanización Los Sauces', 10.6520, -71.6180, 'multifamily', 4, 1)""")
 
     # Sesión de despacho
-    conn.execute("INSERT INTO dispatch_sessions (id, vehicle_id, shift, date, status, total_clients, total_bottles_full, total_distance_km, total_duration_minutes, route_algorithm, route_computed_at) VALUES (1, 1, 'morning', '2026-07-29', 'active', 2, 9, 15.5, 60, 'ortools_vrp', 1785365000)")
+    conn.execute(
+        "INSERT INTO dispatch_sessions (id, vehicle_id, shift, date, status, total_clients, total_bottles_full, total_distance_km, total_duration_minutes, route_algorithm, route_computed_at) VALUES (1, 1, 'morning', '2026-07-29', 'active', 2, 9, 15.5, 60, 'ortools_vrp', 1785365000)"
+    )
 
     # Entregas
-    conn.execute("""INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full, estimated_arrival) VALUES (1, 1, 1, 1, 1, 'pending', 6, 1785366000)""")
-    conn.execute("""INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full, estimated_arrival) VALUES (2, 1, 2, 1, 2, 'pending', 3, 1785369000)""")
+    conn.execute(
+        """INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full, estimated_arrival) VALUES (1, 1, 1, 1, 1, 'pending', 6, 1785366000)"""
+    )
+    conn.execute(
+        """INSERT INTO deliveries (id, dispatch_session_id, client_id, vehicle_id, order_sequence, status, bottles_full, estimated_arrival) VALUES (2, 1, 2, 1, 2, 'pending', 3, 1785369000)"""
+    )
 
     # 165 botellones
     for i in range(1, 166):
-        conn.execute("INSERT INTO bottles (id, bottle_code, status) VALUES (?, ?, 'available')", (i, f"H2O-{i:03d}"))
+        conn.execute(
+            "INSERT INTO bottles (id, bottle_code, status) VALUES (?, ?, 'available')",
+            (i, f"H2O-{i:03d}"),
+        )
 
     conn.commit()
     conn.close()
@@ -276,11 +294,17 @@ def patch_db(monkeypatch, test_db):
     import skills.dispatcher as dispatcher_module
     import skills.dispatcher_skill as dispatcher_skill_module
 
-    for mod in [dispatcher_module, telegram_bot_module, gps_tracker_module, bottle_tracker_module, dispatcher_skill_module]:
-        if hasattr(mod, 'DISPATCH_DB'):
-            monkeypatch.setattr(mod, 'DISPATCH_DB', test_db)
-        if hasattr(mod, 'DISPATCH_DB_PATH'):
-            monkeypatch.setattr(mod, 'DISPATCH_DB_PATH', test_db)
+    for mod in [
+        dispatcher_module,
+        telegram_bot_module,
+        gps_tracker_module,
+        bottle_tracker_module,
+        dispatcher_skill_module,
+    ]:
+        if hasattr(mod, "DISPATCH_DB"):
+            monkeypatch.setattr(mod, "DISPATCH_DB", test_db)
+        if hasattr(mod, "DISPATCH_DB_PATH"):
+            monkeypatch.setattr(mod, "DISPATCH_DB_PATH", test_db)
 
     # Reset singletons to pick up new DB path
     import skills.dispatch.bottle_tracker as bt_module
@@ -307,8 +331,22 @@ class TestDispatchFlowE2E:
 
         # 1. Route Engine calcula ruta
         orders = [
-            ClientOrder(client_id=1, name="Restaurante El Portal", lat=10.6500, lng=-71.6200, bottles_full=6, priority=1),
-            ClientOrder(client_id=2, name="Residencias Los Sauces", lat=10.6520, lng=-71.6180, bottles_full=3, priority=4),
+            ClientOrder(
+                client_id=1,
+                name="Restaurante El Portal",
+                lat=10.6500,
+                lng=-71.6200,
+                bottles_full=6,
+                priority=1,
+            ),
+            ClientOrder(
+                client_id=2,
+                name="Residencias Los Sauces",
+                lat=10.6520,
+                lng=-71.6180,
+                bottles_full=3,
+                priority=4,
+            ),
         ]
         route_result = compute_vrp_route(orders, num_vehicles=1)
         assert len(route_result.routes) == 1
@@ -317,12 +355,19 @@ class TestDispatchFlowE2E:
         # 2. Chofer check-in 8am
         gps_tracker = get_gps_tracker()
         checkin_result = await gps_tracker.process_gps_point(
-            GPSPoint(vehicle_id=1, lat=10.6447, lng=-71.6101, source="telegram", track_type="checkin_arrive")
+            GPSPoint(
+                vehicle_id=1,
+                lat=10.6447,
+                lng=-71.6101,
+                source="telegram",
+                track_type="checkin_arrive",
+            )
         )
         assert checkin_result.inside_perimeter is True
 
         # 3. Chofer presiona "Llegué"
         from skills.dispatch.telegram_bot import get_dispatcher_bot
+
         bot = get_dispatcher_bot()
 
         # Simular callback "arr_1"

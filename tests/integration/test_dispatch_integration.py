@@ -39,9 +39,9 @@ class TestDispatcherSkillIntegration:
 
         for trigger in dispatch_triggers:
             route = router.resolve(trigger)
-            assert (
-                route == Route.DISPATCH_SKILL
-            ), f"Trigger '{trigger}' no resuelve a DISPATCH_SKILL"
+            assert route == Route.DISPATCH_SKILL, (
+                f"Trigger '{trigger}' no resuelve a DISPATCH_SKILL"
+            )
 
     def test_dispatcher_skill_singleton(self):
         """DispatcherSkill es singleton."""

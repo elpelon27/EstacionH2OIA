@@ -5,7 +5,6 @@ Cubre SkillSpec, SkillRegistry y ExternalSkillIntegrator.
 
 import os
 import sys
-from pathlib import Path
 
 import pytest
 
@@ -108,7 +107,9 @@ class TestSkillRegistryLoad:
     def test_load_all_skill_md_no_frontmatter(self, tmp_path):
         skill_dir = tmp_path / "plain_skill"
         skill_dir.mkdir()
-        (skill_dir / "SKILL.md").write_text("Plain instructions without frontmatter.\n", encoding="utf-8")
+        (skill_dir / "SKILL.md").write_text(
+            "Plain instructions without frontmatter.\n", encoding="utf-8"
+        )
         reg = SkillRegistry(skills_dir=str(tmp_path))
         reg.load_all()
         assert "plain_skill" in reg.skills
@@ -264,6 +265,7 @@ class TestExternalSkillIntegrator:
     def test_import_from_skillnet(self, empty_registry):
         integrator = ExternalSkillIntegrator(empty_registry)
         from unittest.mock import MagicMock
+
         mock_client = MagicMock()
         result = integrator.import_from_skillnet(mock_client, "test", limit=5)
         assert result == []

@@ -13,6 +13,7 @@ Cobertura:
 
 import os
 import sys
+
 import pytest
 
 # Path setup
@@ -33,6 +34,7 @@ def _ensure_log_salt():
     via sus fixtures. Este fixture lo restaura para los tests de bridge.
     """
     import core.crypto as _crypto
+
     if _crypto._LOG_SALT is None:
         _crypto.set_log_salt(bridge.LOG_SALT)
     yield

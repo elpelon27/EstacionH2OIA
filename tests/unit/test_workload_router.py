@@ -1,4 +1,5 @@
 """Tests para core/workload_router.py."""
+
 import sys
 from unittest.mock import MagicMock
 
@@ -101,6 +102,7 @@ async def test_execute_payment_skill(router):
     """execute() con trigger payment_received debe llamar a PaymentSkill."""
     # Patch the mocked module's PaymentSkill class
     import skills.payment_skill
+
     with patch.object(skills.payment_skill, "PaymentSkill") as mock_skill_class:
         mock_skill_instance = AsyncMock()
         mock_skill_instance.execute = AsyncMock(return_value={"success": True, "amount": 100})
@@ -116,10 +118,13 @@ async def test_execute_payment_skill(router):
 @pytest.mark.asyncio
 async def test_execute_self_improve_skill(router):
     """execute() con trigger self_improve_request debe llamar a SelfImproveSkill."""
-    with patch(
-        "skills.self_improve_skill.SelfImproveSkill.execute",
-        new=AsyncMock(return_value={"improved": True}),
-    ), patch.object(router, "_is_business_hours", return_value=False):
+    with (
+        patch(
+            "skills.self_improve_skill.SelfImproveSkill.execute",
+            new=AsyncMock(return_value={"improved": True}),
+        ),
+        patch.object(router, "_is_business_hours", return_value=False),
+    ):
         result = await router.execute(trigger="self_improve_request")
     assert result["improved"] is True
 
@@ -160,21 +165,25 @@ async def test_execute_qwen_local(router):
 async def test_execute_fusion(mock_get_fusion, mock_get_cost_guard, router):
     """execute() con trigger architect_request debe llamar a Fusion."""
     mock_fusion = MagicMock()
-    mock_fusion.run = AsyncMock(return_value={
-        "winner_response": "Mejor respuesta",
-        "winner_model": "z-ai/glm-4.5",
-        "score": 8.5,
-    })
+    mock_fusion.run = AsyncMock(
+        return_value={
+            "winner_response": "Mejor respuesta",
+            "winner_model": "z-ai/glm-4.5",
+            "score": 8.5,
+        }
+    )
     mock_get_fusion.return_value = mock_fusion
 
     # Mock cost_guard.check() to return "ok" status
     mock_guard = MagicMock()
-    mock_guard.check = AsyncMock(return_value={
-        "status": "ok",
-        "alert_sent": False,
-        "block_active": False,
-        "spent_today": 0.0,
-    })
+    mock_guard.check = AsyncMock(
+        return_value={
+            "status": "ok",
+            "alert_sent": False,
+            "block_active": False,
+            "spent_today": 0.0,
+        }
+    )
     mock_get_cost_guard.return_value = mock_guard
 
     result = await router.execute(
@@ -191,12 +200,14 @@ async def test_execute_fusion(mock_get_fusion, mock_get_cost_guard, router):
 async def test_execute_fusion_blocked_by_cost_guard(mock_get_cost_guard, router):
     """Fusion debe caer a Qwen local si cost_guard bloquea."""
     mock_guard = MagicMock()
-    mock_guard.check = AsyncMock(return_value={
-        "status": "blocked",
-        "alert_sent": True,
-        "block_active": True,
-        "spent_today": 55.0,
-    })
+    mock_guard.check = AsyncMock(
+        return_value={
+            "status": "blocked",
+            "alert_sent": True,
+            "block_active": True,
+            "spent_today": 55.0,
+        }
+    )
     mock_get_cost_guard.return_value = mock_guard
 
     mock_qwen = MagicMock()
@@ -320,17 +331,21 @@ async def test_execute_openrouter_glm_success(mock_get_cb, mock_get_rate, mock_g
     mock_get_rate.return_value = mock_rate
 
     mock_or_client = AsyncMock()
-    mock_or_client.chat = AsyncMock(return_value={
-        "response": "GLM response",
-        "model": "z-ai/glm-4.5",
-        "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
-        "cost_usd": 0.001,
-    })
+    mock_or_client.chat = AsyncMock(
+        return_value={
+            "response": "GLM response",
+            "model": "z-ai/glm-4.5",
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
+            "cost_usd": 0.001,
+        }
+    )
 
     with patch("core.workload_router.get_openrouter", new=AsyncMock(return_value=mock_or_client)):
         mock_cb_registry = MagicMock()
+
         async def mock_call(name, func, *args, **kwargs):
             return await func(*args, **kwargs)
+
         mock_cb_registry.call = AsyncMock(side_effect=mock_call)
         mock_get_cb.return_value = mock_cb_registry
 
@@ -358,17 +373,21 @@ async def test_execute_openrouter_claude_success(mock_get_cb, mock_get_rate, moc
     mock_get_rate.return_value = mock_rate
 
     mock_or_client = AsyncMock()
-    mock_or_client.chat = AsyncMock(return_value={
-        "response": "Claude response",
-        "model": "anthropic/claude-sonnet-4.5",
-        "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
-        "cost_usd": 0.005,
-    })
+    mock_or_client.chat = AsyncMock(
+        return_value={
+            "response": "Claude response",
+            "model": "anthropic/claude-sonnet-4.5",
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
+            "cost_usd": 0.005,
+        }
+    )
 
     with patch("core.workload_router.get_openrouter", new=AsyncMock(return_value=mock_or_client)):
         mock_cb_registry = MagicMock()
+
         async def mock_call(name, func, *args, **kwargs):
             return await func(*args, **kwargs)
+
         mock_cb_registry.call = AsyncMock(side_effect=mock_call)
         mock_get_cb.return_value = mock_cb_registry
 
@@ -397,17 +416,21 @@ async def test_execute_openrouter_deepseek_success(
     mock_get_rate.return_value = mock_rate
 
     mock_or_client = AsyncMock()
-    mock_or_client.chat = AsyncMock(return_value={
-        "response": "DeepSeek response",
-        "model": "deepseek/deepseek-chat-v3.2",
-        "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
-        "cost_usd": 0.0002,
-    })
+    mock_or_client.chat = AsyncMock(
+        return_value={
+            "response": "DeepSeek response",
+            "model": "deepseek/deepseek-chat-v3.2",
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
+            "cost_usd": 0.0002,
+        }
+    )
 
     with patch("core.workload_router.get_openrouter", new=AsyncMock(return_value=mock_or_client)):
         mock_cb_registry = MagicMock()
+
         async def mock_call(name, func, *args, **kwargs):
             return await func(*args, **kwargs)
+
         mock_cb_registry.call = AsyncMock(side_effect=mock_call)
         mock_get_cb.return_value = mock_cb_registry
 
@@ -434,17 +457,21 @@ async def test_execute_openrouter_gemini_success(mock_get_cb, mock_get_rate, moc
     mock_get_rate.return_value = mock_rate
 
     mock_or_client = AsyncMock()
-    mock_or_client.chat = AsyncMock(return_value={
-        "response": "Gemini response",
-        "model": "google/gemini-2.5-flash",
-        "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
-        "cost_usd": 0.0001,
-    })
+    mock_or_client.chat = AsyncMock(
+        return_value={
+            "response": "Gemini response",
+            "model": "google/gemini-2.5-flash",
+            "usage": {"prompt_tokens": 100, "completion_tokens": 50, "total_tokens": 150},
+            "cost_usd": 0.0001,
+        }
+    )
 
     with patch("core.workload_router.get_openrouter", new=AsyncMock(return_value=mock_or_client)):
         mock_cb_registry = MagicMock()
+
         async def mock_call(name, func, *args, **kwargs):
             return await func(*args, **kwargs)
+
         mock_cb_registry.call = AsyncMock(side_effect=mock_call)
         mock_get_cb.return_value = mock_cb_registry
 
