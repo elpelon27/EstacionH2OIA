@@ -699,8 +699,10 @@ def _validate_meta_payload(data: dict[str, Any]) -> bool:
         if not isinstance(change, dict):
             return False
 
-        # Tipo de webhook: distingue mensajes entrantes de status updates
-        field = change.get("field", "")
+        # Tipo de webhook: distingue mensajes entrantes de status updates.
+        # Field AUSENTE → tratar como "messages" (backward compat: los
+        # payloads de mensaje siempre traen field, pero tests legacy no).
+        field = change.get("field", "messages")
         if field not in (
             "messages",
             "message_status",
