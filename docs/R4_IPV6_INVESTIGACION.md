@@ -85,3 +85,14 @@ forzado IPv4). Confirmación del banco es consistente con lo que ya existe. Solo
 queda corregir la documentación engañosa del docstring.
 
 💧
+## FASE 3 — Test end-to-end (2026-09-09, en vivo)
+
+- POST /webhook/r4/consulta con X-Forwarded-For=45.175.213.98 + Authorization UUID:
+  → **200 {"status": false}** (validación IP + auth OK, negocio procesa)
+- POST con IP no-whitelist (8.8.8.8): → **403 "IP no autorizada"** ✅
+- POST sin Authorization con IP del banco: → 401 "Authorization header requerido" ✅
+- Logs `journalctl -u valentina-bridge` confirman cada evento (IP autorizada/rechazada).
+- Nota: `/webhook/r4` raíz no existe (404); las rutas son `/consulta` y `/notifica`.
+- Interferente durante el test: cloudflared se reinició (22:17) causando 502
+  transitorios; tras re-registrar conexiones, el flujo tunnel→bridge dio 200.
+- Conclusión: la cadena webhook R4 opera 100% sobre IPv4. IPv6 no es necesaria.
