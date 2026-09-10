@@ -206,6 +206,9 @@
 |---|---|---|---|---|
 | **DT-12** | Cobertura de tests | `core/`, `agents/`, `api/` | ✅ EN PROGRESO: core/ al 61% (3116 stmts, 1214 miss). 580 passed. Modulos al 100%: meta_client, crypto, logger, qwen_client, judge, circuit_breaker, fusion, config, openrouter_client, rate_limiter, unified_messenger, guardrail, workload_router (99%). Pendiente: api/bridge.py (38%), src/orchestration/ (0%), src/financial/ (25-41%). | ~8-16h → reducido |
 | **DT-27** | Lint legacy en conftest.py | `tests/conftest.py` | ✅ RESUELTO (verificado 2026-08-26: ruff check 0 errores, ruff format --check OK) | ~0h |
+| **DT-28** (orden del Líder: "DT-13") | OpenNotebook: embedding bug | `open-notebook` (docker) | ConfigurationError en embed_note/embed_insight/embed_source/rebuild_embeddings + Serialization error null byte en check_response_for_error. Ollama nomic-embed-text funciona. Fix de config de provider + sanitización null bytes | BLOQUE 2 piloto 2026-09-09 |
+| **DT-29** (orden del Líder: "DT-14") | Webhook Meta público sin HTTPS directo | `api/bridge.py` | ✅ RESUELTO vía Cloudflare tunnel (valentina.estacionh2o.com). Sin acción — webhook verificado funcionando | 0h |
+| **DT-30** (orden del Líder: "DT-15") | Token Meta debug-only bloquea envío de mensajes | Meta Cloud API | Requiere SMS 2FA que no llega — el Líder lo resuelve personalmente (mañana). NO intentar generar token (regla del piloto) | Líder |
 
 ---
 
@@ -324,7 +327,7 @@
 | ID | Deuda | Razón |
 |---|---|---|
 | **D3** | ✅ CERRADA (2026-09-09) — R4 Conecta opera con IPv4 sola | Banco confirma IPv4 sola suficiente (156.255.155.24 en su whitelist), exigencia IPv6 removida de la arquitectura (era un comentario refutado, no código). Webhook end-to-end verificado en vivo: 200 con IP banco + token, 403 IP no autorizada (docs/R4_IPV6_INVESTIGACION.md) |
-| **D14** | Meta: factura pendiente | Requiere gestión administrativa con Meta Cloud API, no es deuda técnica del servidor |
+| **D14** | ✅ CERRADA (2026-09-09) — Meta factura pagada | Líder confirmó el pago. Sin acción pendiente del servidor |
 
 ---
 
