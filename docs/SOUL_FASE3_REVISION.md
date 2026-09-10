@@ -24,10 +24,19 @@ los 6 modelos, Qdrant activo (402 pts), Redis vivo (DBSIZE=0 — D6 se llena aqu
 
 **Hallazgo crítico de la revisión:** hay un desfase entre el diseño del patchset y la
 realidad de los datos:
+
+> **CORRECCIÓN (2026-09-10, post-implementación):** la revisión original afirmaba
+> que los scripts de FASE 3 no existían — INCORRECTO. consolidator.py,
+> decay_social.py, decay_semantic.py y warming.py YA EXISTÍAN en el repo
+> (commits b199e36 y b3d3d33, 2026-08-24). El "script efímero del 08-25" que
+> generó la entrada de consolidation_log ERA consolidator.py. Lo que faltaba
+> era: el wrapper cron_runs (parche 10), el crontab, la dependencia redis-py y
+> el fix de payload keys en decay_semantic (ver SOUL_FASE3_PROGRESO.md).
+
 1. `consolidation_log` ya tiene 1 entrada (2026-08-25: 1 sesión, 50 chunks leídos,
-   0 hechos extraídos) — el Consolidador ya se ejecutó una vez en dry-run/probe,
-   pero NO existe `scripts/consolidator.py` en el repo. Hay que localizar qué lo
-   generó (¿script efímero de FASE 2?) antes de re-implementar.
+   0 hechos extraídos) — ~~el Consolidador ya se ejecutó una vez en dry-run/probe,
+   pero NO existe `scripts/consolidator.py` en el repo~~ **RESUELTO: era
+   consolidator.py (b199e36), ya en el repo.**
 2. `interactions.db` tiene 0 registros: el decay social (0.99/día) es un no-op
    hasta que la capa Social empiece a recibir escrituras — y NADA escribe en ella
    hoy. FASE 3 sin writers sociales = decay sin input.
