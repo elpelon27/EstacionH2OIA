@@ -376,7 +376,9 @@ if __name__ == "__main__":
 
     video = sys.argv[1]
     audio_out = (
-        Path(sys.argv[2]) if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else Path("audio.mp3")
+        Path(sys.argv[2])
+        if len(sys.argv) > 2 and not sys.argv[2].startswith("--")
+        else Path("audio.mp3")
     )
     backend_override = None
     if "--backend" in sys.argv:
