@@ -323,7 +323,7 @@
 
 | ID | Deuda | Razón |
 |---|---|---|
-| **D3** | R4 Conecta: token de producción pendiente | Requiere coordinación con el banco. Webhooks entrantes reescritos (auth UUID directo, no HMAC). Integración funcional en sandbox, pendiente token prod del banco |
+| **D3** | ✅ CERRADA (2026-09-09) — R4 Conecta opera con IPv4 sola | Banco confirma IPv4 sola suficiente (156.255.155.24 en su whitelist), exigencia IPv6 removida de la arquitectura (era un comentario refutado, no código). Webhook end-to-end verificado en vivo: 200 con IP banco + token, 403 IP no autorizada (docs/R4_IPV6_INVESTIGACION.md) |
 | **D14** | Meta: factura pendiente | Requiere gestión administrativa con Meta Cloud API, no es deuda técnica del servidor |
 
 ---
