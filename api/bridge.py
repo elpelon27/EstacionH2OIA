@@ -678,6 +678,12 @@ async def _check_phone_rate_limit(phone: str) -> bool:
 def _validate_meta_payload(data: dict[str, Any]) -> bool:
     """Valida estructura básica del payload de Meta Cloud API.
     Previene procesamiento de payloads malformados o ataques de inyección.
+
+    El tipo de payload se determina por entry[0].changes[0].field:
+    - "messages" → mensaje entrante: exige contacts (identifica al remitente)
+    - "message_status" / "message_template_status_update" → status updates:
+      Meta NO envía contacts en estos; la validación de contacts se OMITE
+    - otro field → warning + aceptar (flexibilidad ante nuevos tipos de Meta)
     """
     # Estructura mínima esperada: entry[0].changes[0].value
     try:
@@ -689,11 +695,36 @@ def _validate_meta_payload(data: dict[str, Any]) -> bool:
         if not changes or not isinstance(changes, list):
             return False
 
-        value = changes[0].get("value", {})
+        change = changes[0]
+        if not isinstance(change, dict):
+            return False
+
+        # Tipo de webhook: distingue mensajes entrantes de status updates
+        field = change.get("field", "")
+        if field not in (
+            "messages",
+            "message_status",
+            "message_template_status_update",
+        ):
+            logger.warning("Webhook Meta con field desconocido: %s — aceptando", field)
+
+        # Status updates (envío/template) NO traen contacts: solo validar que
+        # el value tenga estructura mínima (statuses o metadata).
+        if field in ("message_status", "message_template_status_update"):
+            if "statuses" not in value and "message" not in value:
+                logger.warning("Status update Meta sin statuses/message: %s", field)
+            return True
+
+        # "messages" (o field ausente, por compatibilidad): exigir contacts
+        if field != "messages":
+            # Field desconocido ya logueó warning arriba — aceptar sin contacts
+            return True
+
+        value = change.get("value", {})
         if not value or not isinstance(value, dict):
             return False
 
-        # Debe tener contacts array
+        # Mensaje entrante: debe tener contacts array
         contacts = value.get("contacts", [])
         if not contacts or not isinstance(contacts, list):
             return False
