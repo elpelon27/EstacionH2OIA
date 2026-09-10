@@ -24,7 +24,6 @@ import uuid
 from pathlib import Path
 from urllib.request import Request, urlopen
 
-
 GROQ_ENDPOINT = "https://api.groq.com/openai/v1/audio/transcriptions"
 GROQ_MODEL = "whisper-large-v3"
 
@@ -122,22 +121,28 @@ def _build_multipart(fields: dict[str, str], file_path: Path) -> tuple[bytes, st
     for name, value in fields.items():
         values = value if isinstance(value, (list, tuple)) else [value]
         for v in values:
-            buf.write(f"--{boundary}".encode()); buf.write(eol)
-            buf.write(f'Content-Disposition: form-data; name="{name}"'.encode()); buf.write(eol)
+            buf.write(f"--{boundary}".encode())
             buf.write(eol)
-            buf.write(str(v).encode()); buf.write(eol)
+            buf.write(f'Content-Disposition: form-data; name="{name}"'.encode())
+            buf.write(eol)
+            buf.write(eol)
+            buf.write(str(v).encode())
+            buf.write(eol)
 
     mimetype = mimetypes.guess_type(file_path.name)[0] or "application/octet-stream"
-    buf.write(f"--{boundary}".encode()); buf.write(eol)
+    buf.write(f"--{boundary}".encode())
+    buf.write(eol)
     buf.write(
         f'Content-Disposition: form-data; name="file"; filename="{file_path.name}"'.encode()
     )
     buf.write(eol)
-    buf.write(f"Content-Type: {mimetype}".encode()); buf.write(eol)
+    buf.write(f"Content-Type: {mimetype}".encode())
+    buf.write(eol)
     buf.write(eol)
     buf.write(file_path.read_bytes())
     buf.write(eol)
-    buf.write(f"--{boundary}--".encode()); buf.write(eol)
+    buf.write(f"--{boundary}--".encode())
+    buf.write(eol)
 
     return buf.getvalue(), boundary
 
@@ -188,12 +193,12 @@ def _post_whisper(
 
             # 4xx other than 429 are client errors — no retry will fix them.
             if 400 <= exc.code < 500 and exc.code != 429:
-                raise SystemExit(f"Whisper request failed: {exc}{detail}")
+                raise SystemExit(f"Whisper request failed: {exc}{detail}") from exc
 
             if exc.code == 429:
                 rate_limit_hits += 1
                 if rate_limit_hits >= MAX_429_RETRIES:
-                    raise SystemExit(f"Whisper request failed: {exc}{detail}")
+                    raise SystemExit(f"Whisper request failed: {exc}{detail}") from exc
                 delay = _retry_after(exc) or RETRY_BASE_DELAY * (2 ** attempt) + 1
             else:
                 delay = RETRY_BASE_DELAY * (2 ** attempt)
@@ -221,7 +226,9 @@ def _post_whisper(
         try:
             return json.loads(payload)
         except json.JSONDecodeError as exc:
-            raise SystemExit(f"Whisper returned non-JSON response: {exc}: {payload[:200]}")
+            raise SystemExit(
+                f"Whisper returned non-JSON response: {exc}: {payload[:200]}"
+            ) from exc
 
     raise SystemExit(
         f"Whisper request failed after {MAX_ATTEMPTS} attempts: {last_exc}{last_detail}"
@@ -361,11 +368,16 @@ def transcribe_audio(
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("usage: whisper.py <video-path> [<audio-out.mp3>] [--backend groq|openai]", file=sys.stderr)
+        print(
+            "usage: whisper.py <video-path> [<audio-out.mp3>] [--backend groq|openai]",
+            file=sys.stderr,
+        )
         raise SystemExit(2)
 
     video = sys.argv[1]
-    audio_out = Path(sys.argv[2]) if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else Path("audio.mp3")
+    audio_out = (
+        Path(sys.argv[2]) if len(sys.argv) > 2 and not sys.argv[2].startswith("--") else Path("audio.mp3")
+    )
     backend_override = None
     if "--backend" in sys.argv:
         backend_override = sys.argv[sys.argv.index("--backend") + 1]

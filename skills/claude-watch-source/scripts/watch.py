@@ -11,14 +11,20 @@ import sys
 import tempfile
 from pathlib import Path
 
-
 SCRIPT_DIR = Path(__file__).parent.resolve()
 sys.path.insert(0, str(SCRIPT_DIR))
 
 from download import download, is_url  # noqa: E402
 from frames import (  # noqa: E402
-    MAX_FPS, auto_fps, auto_fps_focus, extract, extract_scene_change,
-    format_time, get_metadata, parse_time, select_hero_frames,
+    MAX_FPS,
+    auto_fps,
+    auto_fps_focus,
+    extract,
+    extract_scene_change,
+    format_time,
+    get_metadata,
+    parse_time,
+    select_hero_frames,
 )
 from hook import analyse_hook  # noqa: E402
 from pacing import compute_pacing  # noqa: E402

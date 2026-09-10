@@ -39,17 +39,17 @@ import argparse
 import hashlib
 import json
 import logging
-import re
+import re  # noqa: E402 (env vars must be set before heavy imports below)
 import shutil
 import subprocess
 import sys
 import time
 import unicodedata
-from datetime import datetime, timezone
-from logging.handlers import RotatingFileHandler
-from pathlib import Path
+from datetime import UTC, datetime  # noqa: E402
+from logging.handlers import RotatingFileHandler  # noqa: E402
+from pathlib import Path  # noqa: E402
 
-import requests
+import requests  # noqa: E402
 
 # ── Configuración ────────────────────────────────────────────────────────────
 WATCH_DIR = Path("/mnt/ssd_trabajo/biblioteca/pdfs/inbox")
@@ -262,7 +262,7 @@ def save_facts(pdf: Path, facts: list[str], meta: dict, out_dir: Path = DOCS_DIR
         f"- **OCR aplicado:** {'sí' if meta.get('ocr') else 'no'}",
         f"- **Paperless doc_id:** {meta.get('doc_id', '—')}",
         f"- **Chunks Qdrant:** {meta.get('chunks', '—')}",
-        f"- **Ingestado:** {datetime.now(timezone.utc).isoformat(timespec='seconds')}",
+        f"- **Ingestado:** {datetime.now(UTC).isoformat(timespec='seconds')}",
         "",
         "## Hechos clave (Qwen local)",
         "",
