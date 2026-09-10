@@ -46,6 +46,9 @@ services:
       - "host.docker.internal:host-gateway"
     volumes:
       - /mnt/ssd_trabajo/biblioteca/open-notebook/notebook_data:/app/data
+      # Patch 2026-09-10: cap de tokens en build_notebook_context (fix "Content too large").
+      # Orig respaldado en patches/context_builder.py.orig (imagen lfnovo/open_notebook:v1-latest).
+      - /mnt/ssd_trabajo/hermes-agent/infra/open-notebook/patches/context_builder.py:/app/open_notebook/utils/context_builder.py:ro
     depends_on:
       - surrealdb
     restart: unless-stopped
