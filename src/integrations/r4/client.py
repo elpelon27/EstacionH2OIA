@@ -188,8 +188,14 @@ class R4Response:
 class _IPv4Transport(httpx.AsyncHTTPTransport):
     """Transporte httpx que fuerza resolucion IPv4 (solo registros A).
 
-    R4 hace whitelist de la IPv4 fija del comercio; si la peticion sale por
-    IPv6 dinamico el banco responde 401 code 108 ("No permitido").
+    Hardening determinista de egress: el banco hace whitelist de la IPv4 fija
+    del comercio (156.255.155.24). El banco confirmo el 2026-09-09 que opera
+    con IPv4 sola y NO exige IPv6; este transporte garantiza que cada request
+    salga por la IPv4 whitelisted sin depender del orden de DNS del sistema.
+    (Nota historica: se introdujo en ff17418 ante la hipotesis de que el
+    401/108 se debia a egress IPv6; la verificacion en vivo del 2026-09-01
+    refuto esa hipotesis — el 108 era credential/endpoint banco-side — y se
+    conservo solo como hardening.)
     httpx 0.28 no acepta local_addr, asi que parcheamos getaddrinfo del
     modulo httpcore._backends.anyio unicamente durante la conexion.
     """
@@ -212,8 +218,8 @@ class _IPv4Transport(httpx.AsyncHTTPTransport):
         ) -> list[Any]:
             _h = host if isinstance(host, str) else ""
             if any(_h == r or _h.endswith("." + r) for r in _r4_hosts):
-                # Solo registros A. Si el banco no publica IPv4, falla la
-                # conexion (no caer a IPv6, que el banco rechaza con 108).
+                # Solo registros A: salida determinista por la IPv4 whitelisted
+                # (el banco opera con IPv4 sola; sin fallback IPv6).
                 return _real_getaddrinfo(host, port, socket.AF_INET, type, proto, flags)
             return _real_getaddrinfo(host, port, family, type, proto, flags)
 
