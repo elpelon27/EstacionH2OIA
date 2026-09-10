@@ -53,19 +53,17 @@ def _signed_headers(body: bytes) -> dict[str, str]:
 
 
 def _payload_status() -> bytes:
+    """Status update REAL de Meta (field=message_status, SIN contacts)."""
     return json.dumps(
         {
             "entry": [
                 {
                     "changes": [
                         {
+                            "field": "message_status",
                             "value": {
-                                # contacts requeridos por _validate_meta_payload
-                                # aunque Meta no los envía en status updates reales
-                                # (véase nota en la clase TestMetaWebhookPost)
-                                "contacts": [{"wa_id": "584145555555"}],
                                 "statuses": [{"status": "delivered", "id": "wamid.X"}],
-                            }
+                            },
                         }
                     ]
                 }
@@ -195,19 +193,24 @@ class TestVerifySignatureUnit:
 
 
 class TestValidateMetaPayloadUnit:
-    """_validate_meta_payload: estructura mínima Meta Cloud API."""
+    """_validate_meta_payload: estructura mínima Meta Cloud API.
 
-    def _valid(self):
+    Lógica por field (fix 2026-09-09): "messages" exige contacts;
+    "message_status"/"message_template_status_update" NO (Meta no los envía);
+    field desconocido → warning + aceptar.
+    """
+
+    def _valid(self, field="messages", value=None):
+        if value is None:
+            value = {
+                "contacts": [{"wa_id": "584145555555"}],
+                "messages": [{"id": "wamid.1", "type": "text"}],
+            }
         return {
             "entry": [
                 {
                     "changes": [
-                        {
-                            "value": {
-                                "contacts": [{"wa_id": "584145555555"}],
-                                "messages": [{"id": "wamid.1", "type": "text"}],
-                            }
-                        }
+                        {"field": field, "value": value}
                     ]
                 }
             ]
@@ -236,3 +239,44 @@ class TestValidateMetaPayloadUnit:
         d = self._valid()
         d["entry"][0]["changes"][0]["value"]["contacts"][0]["wa_id"] = "abc-def"
         assert _validate_meta_payload(d) is False
+
+    # --- Fix contacts-opcional para status updates (2026-09-09) ---
+
+    def test_message_entrante_con_contacts_pasa(self):
+        assert _validate_meta_payload(self._valid(field="messages")) is True
+
+    def test_message_entrante_sin_contacts_400(self):
+        d = self._valid(field="messages", value={"messages": [{"id": "wamid.1", "type": "text"}]})
+        assert _validate_meta_payload(d) is False
+
+    def test_status_update_sin_contacts_pasa(self):
+        d = self._valid(
+            field="message_status",
+            value={"statuses": [{"status": "delivered", "id": "wamid.X"}]},
+        )
+        assert _validate_meta_payload(d) is True
+
+    def test_status_update_con_contacts_tambien_pasa(self):
+        d = self._valid(
+            field="message_status",
+            value={
+                "contacts": [{"wa_id": "584145555555"}],
+                "statuses": [{"status": "delivered", "id": "wamid.X"}],
+            },
+        )
+        assert _validate_meta_payload(d) is True
+
+    def test_template_status_update_sin_contacts_pasa(self):
+        d = self._valid(
+            field="message_template_status_update",
+            value={"message": [{"id": "tpl.1", "status": "REJECTED"}]},
+        )
+        assert _validate_meta_payload(d) is True
+
+    def test_status_update_value_no_dict_falla(self):
+        d = self._valid(field="message_status", value="no-dict")
+        assert _validate_meta_payload(d) is False
+
+    def test_field_desconocido_acepta(self):
+        d = self._valid(field="invoice", value={"algo": 1})
+        assert _validate_meta_payload(d) is True
