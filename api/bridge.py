@@ -708,9 +708,12 @@ def _validate_meta_payload(data: dict[str, Any]) -> bool:
         ):
             logger.warning("Webhook Meta con field desconocido: %s — aceptando", field)
 
-        # Status updates (envío/template) NO traen contacts: solo validar que
-        # el value tenga estructura mínima (statuses o metadata).
+        # Status updates (envío/template) NO traen contacts: aceptar sin la
+        # validación de contacts. Solo verificar estructura mínima del value.
         if field in ("message_status", "message_template_status_update"):
+            value = change.get("value", {})
+            if not value or not isinstance(value, dict):
+                return False
             if "statuses" not in value and "message" not in value:
                 logger.warning("Status update Meta sin statuses/message: %s", field)
             return True
