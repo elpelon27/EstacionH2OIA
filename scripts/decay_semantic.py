@@ -72,9 +72,17 @@ def apply_decay(dry_run: bool) -> dict[str, int]:
 
             for point in points:
                 payload = point.payload or {}
-                ts_str = payload.get("timestamp", "")
+                # Los puntos reales de hermes_memory usan 'created_at' (puntos
+                # del indexador); los del consolidator usan 'timestamp'.
+                # Soportar ambos + 'updated_at' como último recurso.
+                ts_str = (
+                    payload.get("created_at")
+                    or payload.get("timestamp")
+                    or payload.get("updated_at")
+                    or ""
+                )
                 try:
-                    created = datetime.fromisoformat(ts_str.replace("Z", "+00:00"))
+                    created = datetime.fromisoformat(str(ts_str).replace("Z", "+00:00"))
                 except (ValueError, AttributeError):
                     continue
 
