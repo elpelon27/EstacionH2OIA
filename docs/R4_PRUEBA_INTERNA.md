@@ -50,6 +50,19 @@ Log representativo:
 - Sin registros en logs de archivo.
 - Ventana de 10 min cubierta (18:31 → 18:38:58): solo los 4 intentos rechazados arriba.
 
+## 4-bis. SEGUNDA VUELTA (18:44:43) — CICLO COMPLETO RECIBIDO ✅
+
+Al reactivar el monitoreo (18:46) se detectó que a las **18:44:43** llegó el ciclo completo del banco, desde la IP whitelisted `45.175.213.98`:
+
+**R4consulta** (IdCliente=18409679, Monto=300) → respuesta **status=True** (200 OK)
+**R4notifica** (Referencia=125456046214, Monto=300.00 VES, TelefonoEmisor=04122560720, BancoEmisor=105, CodigoRed=00) → respuesta **abono=True** (200 OK)
+
+Logs íntegros en journalctl (18:44:43). Sin rechazos de IP, sin errores de auth.
+
+**DB:** NO hubo INSERT en fs_pagos. Causa: `buscar_pedidos_por_telefono_monto()` no encontró match. Verificado en fs_pedidos: existe UN pedido pendiente para ese teléfono (id 114, "Luis M.", 584122560720) pero con monto **2534.26 VES** — el pago de 300 VES no casa (tolerancia ±1%). Sin pedido casado, el flujo implementado (R4-25) acepta el pago (abono=True) sin registrar INSERT — comportamiento por diseño.
+
+Nota adicional: el banco envía como IdCliente `18409679` (8 dígitos, no es teléfono) — el R4consulta lo loguea como "teléfono no normalizable"; el teléfono real del pagador llega en R4notifica (TelefonoEmisor).
+
 ## 4. Conclusión
 
 | Pregunta | Respuesta |
@@ -58,7 +71,7 @@ Log representativo:
 | ¿Qué respondió el bridge? | **403** (IP no permitida) en los 4 intentos |
 | ¿Errores de red? | NO — la conectividad banco→edge→bridge es correcta (los webhooks llegaron al origin en <1 s del pago) |
 | ¿Se registró el pago en DB? | **NO** (rechazado en capa IP) |
-| ¿Comunicación bidireccional confirmada? | **NO** — el banco SÍ llega hasta el bridge, pero el whitelist de IP bloquea el handshake. Falta confirmar el ciclo completo (R4consulta→status, R4notifica→abono). |
+| ¿Comunicación bidireccional confirmada? | **SÍ (banco→nosotros)** — ciclo completo R4consulta+R4notifica recibido y respondido 200 OK a las 18:44:43. Falta validar el registro del pago en DB, que requiere un pedido pendiente cuyo teléfono+monto casen con el pago enviado. |
 
 ## 5. Recomendación al Líder
 
