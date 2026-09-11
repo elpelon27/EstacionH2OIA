@@ -1,18 +1,22 @@
 #!/usr/bin/env python3
 """
-warming.py — Warming selectivo de memoria semántica en Redis.
+warming.py — Warming predictivo de memoria semántica en Redis.
 
-Lee cron_runs de hermes_memory.db, detecta patrones temporales,
-y pre-fetcha top-10 chunks de Qdrant a Redis con TTL 2h.
-
-Trigger: patrón detectado o sesión iniciada.
+SOUL FASE 3 · PARCHE 7 (v2, decisiones D-7.x aprobadas por el Líder 2026-09-10):
+- D-7.1: activación automática requiere 3 SEMANAS de datos en cron_runs
+  (AUTO_ACTIVATION_AFTER_DAYS = 21). Antes de esa fecha, el warming automático
+  está DESACTIVADO: solo --force manual.
+- D-7.2: top-10 memorias más probables a pre-cargar (TOP_K = 10).
+- D-7.3: TTL 7200s (se mantiene el valor actual).
+- D-7.4: NO hay eventos de agentes hermanos (no existe bus de eventos);
+  esa fuente queda explícitamente excluida hacia FASE 4+.
 
 Uso:
-  python3 scripts/warming.py --dry-run    # solo detectar patrones
-  python3 scripts/warming.py               # ejecutar warming
-  python3 scripts/warming.py --force       forzar warming sin patrón
+  venv/bin/python scripts/warming.py              # auto (inactivo hasta D-7.1)
+  venv/bin/python scripts/warming.py --dry-run    # solo detectar/simular
+  venv/bin/python scripts/warming.py --force      # forzar warming manual (SIEMPRE disponible)
 
-Autor: Prometeo · FASE 3 SOUL v2.1.0 · 2026-08-24
+Autor: Prometeo · FASE 3 SOUL v2.1.0 · Parche 7 v2 · 2026-09-10
 """
 
 import argparse
@@ -21,6 +25,7 @@ import logging
 import os
 import sqlite3
 from collections import Counter
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 logging.basicConfig(
@@ -36,9 +41,30 @@ QDRANT_URL = os.getenv("QDRANT_URL", "http://localhost:6333")
 REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
 REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
 
-WARMING_TTL = 7200  # 2 horas en segundos
+WARMING_TTL = 7200  # D-7.3: 2 horas en segundos (se mantiene)
 PATTERN_THRESHOLD = 3  # ≥3 ejecuciones en mismo día/hora
-TOP_K = 10  # top-10 chunks a precargar
+TOP_K = 10  # D-7.2: top-10 memorias más probables a pre-cargar
+AUTO_ACTIVATION_AFTER_DAYS = 21  # D-7.1: 3 semanas de datos en cron_runs
+# D-7.4: sin bus de eventos de agentes hermanos — fuente explícitamente
+# excluida hasta FASE 4+. Nada de código la consume aquí.
+AUTO_ACTIVATION_START = datetime(2026, 9, 10, tzinfo=UTC)  # fecha de inicio del acumulo (parche 10)
+
+
+def auto_activation_ready() -> tuple[bool, str]:
+    """
+    D-7.1: el warming automático solo puede activarse cuando cron_runs tiene
+    ≥21 días de datos desde el inicio del registro (parche 10, 2026-09-10).
+    """
+    now = datetime.now(UTC)
+    eligible_at = AUTO_ACTIVATION_START + timedelta(days=AUTO_ACTIVATION_AFTER_DAYS)
+    if now >= eligible_at:
+        return True, "auto activable (21+ días de cron_runs)"
+    remaining = eligible_at - now
+    return (
+        False,
+        f"auto DESACTIVADO hasta {eligible_at.date().isoformat()} "
+        f"(faltan {remaining.days} días; usa --force para warming manual)",
+    )
 
 
 def detect_patterns() -> list[dict[str, Any]]:
@@ -53,34 +79,29 @@ def detect_patterns() -> list[dict[str, Any]]:
     if not rows:
         return []
 
-    # Agrupar por día de la semana + hora
     patterns: Counter[str] = Counter()
     for _cron_name, executed_at in rows:
         try:
-            dt = __import__("datetime").datetime.fromisoformat(executed_at.replace("Z", "+00:00"))
+            dt = datetime.fromisoformat(executed_at.replace("Z", "+00:00"))
             key = f"{dt.strftime('%A')}_{dt.hour:02d}h"
             patterns[key] += 1
         except (ValueError, AttributeError):
             continue
 
-    # Filtrar patrones que superan el threshold
     detected = []
     for key, count in patterns.most_common(20):
         if count >= PATTERN_THRESHOLD:
             detected.append({"pattern": key, "count": count})
-
     return detected
 
 
-def prefetch_to_redis(chunks: list[dict[str, Any]], dry_run: bool) -> int:
-    """Pre-carga chunks en Redis con TTL. Retorna count exitoso."""
+def prefetch_to_redis(chunks: list[dict[str, Any]], dry_run: bool, event_type: str) -> int:
+    """Pre-carga chunks en Redis con TTL 7200s (D-7.3). Retorna count exitoso."""
     try:
-        import importlib
-
-        redis = importlib.import_module("redis")
+        import redis
 
         r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
-        r.ping()  # verificar conexión
+        r.ping()
     except Exception as e:
         logger.warning(f"Redis no disponible: {e}")
         return 0
@@ -89,19 +110,17 @@ def prefetch_to_redis(chunks: list[dict[str, Any]], dry_run: bool) -> int:
     for chunk in chunks:
         key = f"hermes:warm:{chunk.get('id', hash(str(chunk)))}"
         value = json.dumps(chunk, default=str)
-
         if not dry_run:
             r.setex(key, WARMING_TTL, value)
         count += 1
 
-    # Log en warming_log
     if not dry_run:
         conn = sqlite3.connect(MEMORY_DB)
         conn.execute(
             "INSERT INTO warming_log "
             "(event_type, chunks_prefetched, cache_hits, cache_misses, miss_rate) "
             "VALUES (?, ?, 0, ?, 1.0)",
-            ("pattern_detected", count, count),
+            (event_type, count, count),
         )
         conn.commit()
         conn.close()
@@ -110,7 +129,7 @@ def prefetch_to_redis(chunks: list[dict[str, Any]], dry_run: bool) -> int:
 
 
 def get_top_chunks_from_qdrant() -> list[dict[str, Any]]:
-    """Obtiene top-10 chunks más recientes de Qdrant."""
+    """D-7.2: obtiene top-10 memorias más probables de Qdrant (más recientes)."""
     try:
         from qdrant_client import QdrantClient
 
@@ -122,26 +141,46 @@ def get_top_chunks_from_qdrant() -> list[dict[str, Any]]:
             with_vectors=False,
         )
         points = results[0] if results else []
-
-        chunks = []
-        for point in points:
-            chunks.append(
-                {
-                    "id": str(point.id),
-                    "payload": point.payload or {},
-                }
-            )
-        return chunks
+        return [
+            {"id": str(point.id), "payload": point.payload or {}}
+            for point in points
+        ]
     except Exception as e:
         logger.warning(f"Qdrant no disponible: {e}")
         return []
 
 
-def run_warming(dry_run: bool, force: bool) -> None:
-    """Ejecuta el warming selectivo."""
-    logger.info(f"Warming iniciado (dry_run={dry_run}, force={force})")
+def run_warming(dry_run: bool, force: bool) -> dict[str, Any]:
+    """
+    Ejecuta el warming predictivo.
 
-    # 1. Detectar patrones
+    Reglas (D-7.x):
+    - --force: warming manual SIEMPRE disponible (independiente de D-7.1).
+    - Sin --force: solo si auto-activación lista (D-7.1) Y hay patrones.
+    """
+    logger.info(f"Warming iniciado (dry_run={dry_run}, force={force})")
+    ready, reason = auto_activation_ready()
+    logger.info(f"Auto-activación: {reason}")
+
+    if force:
+        chunks = get_top_chunks_from_qdrant()
+        if chunks:
+            cached = prefetch_to_redis(chunks, dry_run, "forced_manual")
+            logger.info(
+                f"Warming --force: {cached} chunks cacheados en Redis (TTL={WARMING_TTL}s)"
+            )
+            return {"status": "ok", "trigger": "force", "chunks": cached}
+        logger.info("No hay chunks en Qdrant para warming.")
+        return {"status": "no_chunks", "trigger": "force", "chunks": 0}
+
+    # Camino automático: bloqueado hasta D-7.1 (21 días de cron_runs)
+    if not ready:
+        logger.info(
+            "Warming automático OMITIDO (D-7.1: requiere 21 días de cron_runs; "
+            "usa --force para warming manual)."
+        )
+        return {"status": "auto_disabled", "trigger": "auto", "chunks": 0}
+
     patterns = detect_patterns()
     if patterns:
         logger.info(f"Patrones detectados: {len(patterns)}")
@@ -150,25 +189,35 @@ def run_warming(dry_run: bool, force: bool) -> None:
     else:
         logger.info("No se detectaron patrones temporales.")
 
-    # 2. Si hay patrones o --force, ejecutar warming
-    if patterns or force:
+    if patterns:
         chunks = get_top_chunks_from_qdrant()
         if chunks:
-            cached = prefetch_to_redis(chunks, dry_run)
-            logger.info(f"Warming: {cached} chunks cacheados en Redis " f"(TTL={WARMING_TTL}s)")
-        else:
-            logger.info("No hay chunks en Qdrant para warming.")
-    else:
-        logger.info("Warming omitido: sin patrones detectados (usa --force para forzar).")
+            cached = prefetch_to_redis(chunks, dry_run, "pattern_detected")
+            logger.info(
+                f"Warming: {cached} chunks cacheados en Redis (TTL={WARMING_TTL}s)"
+            )
+            return {"status": "ok", "trigger": "pattern", "chunks": cached}
+        logger.info("No hay chunks en Qdrant para warming.")
+        return {"status": "no_chunks", "trigger": "pattern", "chunks": 0}
+
+    logger.info("Warming omitido: sin patrones detectados.")
+    return {"status": "no_patterns", "trigger": "auto", "chunks": 0}
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Warming selectivo de memoria en Redis")
-    parser.add_argument("--dry-run", action="store_true", help="Solo detectar patrones")
-    parser.add_argument("--force", action="store_true", help="Forzar warming sin patrón")
+    parser = argparse.ArgumentParser(
+        description="Warming predictivo de memoria en Redis (Parche 7 v2)"
+    )
+    parser.add_argument("--dry-run", action="store_true", help="Solo detectar/simular")
+    parser.add_argument(
+        "--force",
+        action="store_true",
+        help="Forzar warming manual (única vía hasta activación auto D-7.1)",
+    )
     args = parser.parse_args()
 
-    run_warming(args.dry_run, args.force)
+    result = run_warming(args.dry_run, args.force)
+    logger.info(f"Resultado: {json.dumps(result)}")
 
 
 if __name__ == "__main__":
