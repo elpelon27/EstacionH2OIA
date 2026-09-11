@@ -24,32 +24,31 @@ import re
 import zipfile
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Optional
 
 # ── Modelos ────────────────────────────────────────────────────────────
 
 @dataclass
 class Message:
-    timestamp: Optional[str]   # ISO 8601 si se pudo parsear
+    timestamp: str | None   # ISO 8601 si se pudo parsear
     sender: str               # nombre visible o teléfono
     direction: str            # 'in' | 'out' | 'unknown'
     text: str
     message_type: str = "text" # 'text' | 'media' | 'system'
-    media_path: Optional[str] = None
+    media_path: str | None = None
     msg_hash: str = ""
 
 
 @dataclass
 class ChatExport:
     contact_name: str                 # carpeta del zip o "unknown"
-    contact_phone: Optional[str]       # normalizado +58...
+    contact_phone: str | None       # normalizado +58...
     messages: list[Message] = field(default_factory=list)
 
 
 @dataclass
 class ParseResult:
     contact_name: str = "unknown"
-    contact_phone: Optional[str] = None
+    contact_phone: str | None = None
     messages: list[Message] = field(default_factory=list)
 
 
@@ -95,7 +94,7 @@ RE_SYSTEM = re.compile(
 
 # ── Helpers ───────────────────────────────────────────────────────────
 
-def normalize_phone(raw: str) -> Optional[str]:
+def normalize_phone(raw: str) -> str | None:
     """Normaliza a +58XXXXXXXXXX estilo import_contacts_vcf. None si no es VE."""
     digits = re.sub(r"[^\d]", "", raw)
     if not digits:
@@ -112,7 +111,7 @@ def normalize_phone(raw: str) -> Optional[str]:
     return None
 
 
-def _iso(date: str, time: str, ampm: Optional[str]) -> Optional[str]:
+def _iso(date: str, time: str, ampm: str | None) -> str | None:
     try:
         d = date.strip()
         if "-" in d:  # yyyy-mm-dd
@@ -196,7 +195,7 @@ def _parse_lines(lines: list[str]) -> list[Message]:
     return msgs
 
 
-def _extract_phone(msgs: list[Message], fallback: Optional[str]) -> Optional[str]:
+def _extract_phone(msgs: list[Message], fallback: str | None) -> str | None:
     for m in msgs:
         if m.sender and re.search(r"\+?\d[\d\s\-()]{6,}", m.sender):
             return normalize_phone(m.sender)
