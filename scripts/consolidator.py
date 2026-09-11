@@ -186,7 +186,7 @@ def extract_facts_with_ollama(text: str, model: str = "qwen2.5:7b") -> list[dict
     )
 
     try:
-        with httpx.Client(timeout=60) as client:
+        with httpx.Client(timeout=180) as client:
             resp = client.post(
                 f"{OLLAMA_URL}/api/generate",
                 json={
