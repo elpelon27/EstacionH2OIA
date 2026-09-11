@@ -59,17 +59,14 @@ check("auth: chat ajeno RECHAZADO", not _is_authorized(FakeUpdate(999999999)))
 check("auth: chat sin objeto RECHAZADO", not _is_authorized(FakeUpdate(0)))
 
 # ── Pre-clean: eliminar imports de corridas previas del test ──────────
-import hashlib as _hl  # noqa: E402
-_h = _hl.sha256(CHAT.encode()).hexdigest() if False else None
-# (CHAT se define abajo; limpiamos por preview 'paste_test')
 with sqlite3.connect(wdb.DB_PATH) as c:
-    rows = c.execute(
-        "SELECT id FROM whatsapp_imports WHERE source_text_preview LIKE '%botellones%' "
-        "OR source_file_hash=?", (_hl.sha256(("x").encode()).hexdigest(),)).fetchall()
-    for r in c.execute(
-            "SELECT id FROM whatsapp_imports WHERE source_text_preview LIKE '%paste_test%'").fetchall():
-        c.execute("DELETE FROM whatsapp_messages WHERE import_id=?", (r[0],))
-        c.execute("DELETE FROM whatsapp_imports WHERE id=?", (r[0],))
+    old_rows = c.execute(
+        "SELECT id FROM whatsapp_imports "
+        "WHERE source_text_preview LIKE '%paste_test%'"
+    ).fetchall()
+    for (oid,) in old_rows:
+        c.execute("DELETE FROM whatsapp_messages WHERE import_id=?", (oid,))
+        c.execute("DELETE FROM whatsapp_imports WHERE id=?", (oid,))
 with sqlite3.connect(wdb.DISPATCH_DB) as c:
     for ph in TEST_PHONES:
         c.execute("DELETE FROM clients WHERE phone=?", (ph,))
