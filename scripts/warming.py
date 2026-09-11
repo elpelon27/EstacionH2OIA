@@ -111,7 +111,7 @@ def prefetch_to_redis(chunks: list[dict[str, Any]], dry_run: bool, event_type: s
         key = f"hermes:warm:{chunk.get('id', hash(str(chunk)))}"
         value = json.dumps(chunk, default=str)
         if not dry_run:
-            r.setex(key, WARMING_TTL, value)
+            r.set(key, value, ex=WARMING_TTL)
         count += 1
 
     if not dry_run:
