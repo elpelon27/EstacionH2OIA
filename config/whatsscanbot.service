@@ -1,0 +1,14 @@
+[Unit]
+Description=Whatsscanbot — Importador de chats WhatsApp via Telegram (Estación H2O)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/scripts/whatsscan
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/mnt/ssd_trabajo/hermes-agent/venv/bin/python bot.py
+Restart=on-failure
+RestartSec=30
+
+[Install]
+WantedBy=multi-user.target
