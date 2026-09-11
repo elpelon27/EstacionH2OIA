@@ -16,8 +16,65 @@ informes pasados, siempre datos reales)
 |---|---|---|---|---|
 | 10 | cron_runs + warming | ✅ IMPLEMENTADO | 0b5170d | cron_runs 2 registros de test OK→limpiados; Redis DBSIZE 0→10; warming_log 1 entrada |
 | 4 | Decay social + semántico | ✅ IMPLEMENTADO | e1cd2f1 (fix en snapshot 113c05e) | dry-runs OK; fix payload created_at: 400/400 puntos parseables |
-| 5 | Consolidador | 🟡 EXISTE (b199e36) — postergado por Líder (decisiones D-5.x) | — | consolidator.py funcional con dry-run/guardarraíl; requiere decisiones del Líder antes de --live |
-| 7 | Warming selectivo | 🟡 EXISTE (b199e36) — postergado por Líder (D-7.x) | — | warming.py funcional; caso --force verificado; patrones requieren 3+ semanas de cron_runs |
+| 5 | Consolidador | ✅ IMPLEMENTADO v2 (D-5.x) | a40dcdf (+snapshot 6317176) | Session DB validada (38 sesiones/25k msgs); watermark funcionando; 8/8 tests; cron 4:30 AM |
+| 7 | Warming predictivo | ✅ IMPLEMENTADO v2 (D-7.x) | 16cb775 (+snapshot ab2224b) | auto DESACTIVADO hasta 2026-10-01; --force verificado end-to-end (10 chunks, TTL 7199s); 8/8 tests |
+
+## PARCHE 5 — Detalle de lo implementado (2026-09-10, decisiones D-5.x aprobadas)
+
+**D-5.2 VALIDADA con datos reales:** Session DB de Hermes = `/home/skynet/.hermes/state.db`
+(NO conversations.db, que era fs_audit_log). Schema real: tablas `sessions` (id, source,
+display_name, started_at unixepoch…) + `messages` (id INTEGER PK, session_id, role,
+content, timestamp REAL, active, compacted). Contenido verificado: 38 sesiones, 25,443
+mensajes, 2,589 con contenido sustancial. Era DISTINTO al schema esperado por el
+consolidator.py v1 (leía fs_audit_log) → se reescribió la lectura (read-only, uri mode=ro).
+
+**D-5.1:** tabla nueva `consolidation_watermark` (id=1 singleton, last_consolidated_id,
+last_run_at, status) creada en hermes_memory.db, inicializada en 0. El consolidador
+procesa solo `messages.id > watermark` y actualiza el watermark DESPUÉS de persistir el
+log — nunca relee lo consolidado (verificado por test).
+
+**D-5.3:** consolidation_log intacto; la entrada del 2026-08-25 (id=2) queda como
+histórico (test explícito lo verifica).
+
+**Otros cambios:**
+- Modo: --dry-run por DEFECTO; --live requiere flag explícito (mutuamente excluyentes).
+- Guardarraíles OOM: --max-sessions 20 y --max-messages 200 por corrida (flags).
+- Extracción por sesión (prompt = conversación concatenada user/assistant, excluye
+  tool/system/compacted), timeout Ollama 180s (v1 timeouteaba a 60s con qwen2.5:7b).
+- Qdrant payload ahora incluye session_id de origen.
+- cron `consolidador_diario` 4:30 AM vía cron_with_memory.sh (después de warming 6:30,
+  staggered del backup 4:00).
+
+**Verificación en vivo:** dry-run real leyó la sesión 20260813_151157 (10 msgs, extracción
+Ollama 200 OK); 8/8 tests (test_consolidator_patch5.py, DBs aisladas en tmpdir).
+
+## PARCHE 7 — Detalle de lo implementado (2026-09-10, decisiones D-7.x aprobadas)
+
+- **D-7.1:** `auto_activation_ready()` — warming automático DESACTIVADO hasta
+  2026-10-01 (AUTO_ACTIVATION_START 2026-09-10 + 21 días). Sin --force, responde
+  `auto_disabled` y NO toca Redis. El cron warming_diario 6:30 AM sigue corriendo
+  como no-op y sigue registrando cron_runs — que es justo la evidencia que D-7.1
+  necesita acumular.
+- **D-7.2:** TOP_K=10 memorias más probables (más recientes de Qdrant) con --force.
+- **D-7.3:** TTL 7200s mantenido; verificado TTL real 7199s en Redis.
+- **D-7.4:** sin eventos de agentes hermanos — el módulo no consume ningún bus de
+  eventos (test D-7.4 verifica por AST que no exista código consumidor); explícitamente
+  pospuesto a FASE 4+.
+- `setex` deprecado → `set(key, value, ex=7200)`.
+- warming_log event_types: `forced_manual` (nuevo) y `pattern_detected`.
+- Cron warming_predictivo_diario NO agendado (espera activación D-7.1); el warming_diario
+  existente queda como registro de cron_runs.
+- **Fecha estimada de activación automática: 2026-10-01.**
+
+**Verificación en vivo (--force):** 10 chunks cacheados, Redis DBSIZE 10, TTL 7199s,
+warming_log id=3 `forced_manual|10`. 8/8 tests (test_warming_patch7.py).
+
+**FIX colateral (infraestructura):** Redis nativo estaba en MISCONF desde el arranque —
+`/etc/redis/redis.conf` minimalista sin `dir` → bgsave intentaba escribir `/dump.rdb`
+→ writes bloqueados. La primera corrida de warming del parche 10 (10 claves) se perdió
+al reiniciar. Fix: `dir /var/lib/redis`, `dbfilename hermes_redis.rdb`, save 900 1 /
+300 10 (backup del conf en /etc/redis/redis.conf.bak.20260910). Verificado:
+`rdb_last_bgsave_status:ok`, writes habilitados, persistencia activa.
 
 ## PARCHE 10 — Detalle de lo implementado (2026-09-10)
 
@@ -76,18 +133,12 @@ negativo). Ahora soporta `created_at | timestamp | updated_at`.
 - D-4.2: el decay usa `created_at` como proxy de último acceso. Instrumentar
   lecturas reales queda para FASE 4 si el Líder lo pide.
 
-## PENDIENTE — Parches 5 y 7 (esperan al Líder)
+## PENDIENTE — Activaciones futuras
 
-- **Parche 5 (Consolidador):** consolidator.py ya está funcional (dry-run
-  default, guardarraíl 3 fallos, extracción con qwen2.5:7b, embeddings reales
-  nomic-embed-text 768d — fix b3d3d33). Antes de --live se necesitan las
-  decisiones D-5.1 (watermark), D-5.2 (fuente de lectura) y la calibración del
-  prompt de extracción. NO se agendó en crontab.
-- **Parche 7 (Warming selectivo):** warming.py ya está funcional y verificado
-  con --force. Los patrones automáticos (caso a) requieren cron_runs con 3+
-  semanas de datos — ya acumulando desde hoy. Los casos (b) y (c) requieren
-  las decisiones D-7.1 y la exclusión del bus de eventos (confirmada en
-  revisión como FASE 4+).
+- **2026-10-01: activación automática del warming (D-7.1).** El código ya está:
+  `auto_activation_ready()` dará positivo y warming_diario 6:30 AM empezará a
+  cachear patrones detectados sin intervención. En esa fecha, revisar que
+  cron_runs tenga 21+ días de datos y que los patrones se detecten.
 
 ## Verificación en vivo (evidencia de esta sesión)
 
@@ -104,9 +155,11 @@ $ ./scripts/cron_with_memory.sh test X → cron_runs correcto, exit preservado
 
 ## Deudas actualizadas
 
-- **D6 (Redis vacío): CERRADA** — warming_diario llena la capa Buffer a diario.
-- **D10 (FASE 3 sin implementar): CERRADA al 50%** — parches 10 y 4 operativos
-  con cron; 5 y 7 existentes pero postergados a decisión del Líder.
+- **D6 (Redis vacío): CERRADA** — warming_diario llena la capa Buffer a diario
+  (y 2026-09-10: Redis MISCONF corregido — persistencia RDB activa en /var/lib/redis).
+- **D10 (FASE 3 sin implementar): CERRADA al 90%** — los 4 parches operativos
+  (10, 4, 5, 7); único pendiente: activación automática del warming el 2026-10-01
+  (D-7.1, ya programada en código; requiere solo esperar los 21 días de cron_runs).
 - **D12 (mem0migrations):** ya documentada (docs/QDRANT_COLLECTIONS.md).
 
 💧

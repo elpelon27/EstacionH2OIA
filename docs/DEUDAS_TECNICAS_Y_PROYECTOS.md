@@ -317,9 +317,9 @@
 
 | ID | Deuda | Razón de postergación |
 |---|---|---|
-| **D6** | Redis DBSIZE=0 (vivo pero vacío) | La capa Buffer se activa con FASE 3 (warming.py). Sin código que escriba, seguirá vacío por diseño |
+| **D6** | ✅ CERRADA (2026-09-10) — Redis operativo y persistente | warming_diario llena la capa Buffer a diario. Además se corrigió MISCONF de Redis nativo (conf sin `dir` → bgsave fallaba y bloqueaba writes; ahora dir=/var/lib/redis, RDB persistente) |
 | **D9** | SOUL §11.2 categorización de crons imprecisa | Mezcla crontab, systemd timers y Hermes platform. Se corrige cuando FASE 3 unifique el scheduling |
-| **D10** | SOUL v2.1.0 FASE 3 sin implementar | Parches 4, 5, 7, 10 (Consolidador, decay, warming, predictivo). Depende de D5 (mem0) — ya resuelto, desbloqueado |
+| **D10** | ✅ CERRADA al 90% (2026-09-10) — Parches 10, 4, 5, 7 IMPLEMENTADOS | Los 4 parches de FASE 3 SOUL v2.1.0 operativos con cron y tests (16/16). Único remanente: activación automática del warming el 2026-10-01 (D-7.1, ya programada en código — requiere 21 días de cron_runs, en acumulación). Detalle: docs/SOUL_FASE3_PROGRESO.md |
 | **D12** | Qdrant: colección `mem0migrations` sin documentar | Se documenta cuando FASE 3 integre mem0 como Consolidador |
 
 ### 🔴 PENDIENTES EXTERNAS (2/15 — fuera del control del servidor)
