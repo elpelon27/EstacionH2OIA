@@ -57,7 +57,11 @@ check("txt: contact_name del filename", res2.contact_name != "")
 Path(tmp).unlink()
 
 # ── Test 3: parse_zip mock ────────────────────────────────────────────
-chat_a = "[01/09/2026, 10:00] +58 424-5556677: Buenos días, necesito 3 garrafas\n[01/09/2026, 10:05] Yo: Claro, va para la tarde\n"
+chat_a = (
+    "[01/09/2026, 10:00] +58 424-5556677: "
+    "Buenos días, necesito 3 garrafas\n"
+    "[01/09/2026, 10:05] Yo: Claro, va para la tarde\n"
+)
 chat_b = "[02/09/2026, 11:00] Ana Perez: Pago hecho por PagoMovil\n"
 with tempfile.NamedTemporaryFile(suffix=".zip", delete=False) as zf:
     with zipfile.ZipFile(zf, "w") as z:
