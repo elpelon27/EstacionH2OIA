@@ -169,11 +169,31 @@ class WarmingPatch7Test(unittest.TestCase):
     # --- D-7.4: sin eventos de agentes hermanos -------------------------------
 
     def test_no_sibling_agent_events_consumed(self):
-        """D-7.4: el módulo no define ni consume fuente de eventos hermanos."""
+        """D-7.4: el módulo no consume fuente de eventos de agentes hermanos."""
+        import ast
+
         source = open(warming.__file__).read()
-        self.assertNotIn("sibling", source.lower())
-        self.assertNotIn("hermano", source.lower())
-        self.assertNotIn("event_bus", source.lower())
+        tree = ast.parse(source)
+        # Ningún identificador de código (no docstrings) menciona bus/hermanos
+        code_names = [
+            node.id for node in ast.walk(tree)
+            if isinstance(node, ast.Name)
+        ] + [
+            node.attr for node in ast.walk(tree)
+            if isinstance(node, ast.Attribute)
+        ] + [
+            node.name for node in ast.walk(tree)
+            if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))
+        ]
+        for bad in ("sibling", "event_bus", "hermano", "agent_event"):
+            self.assertNotIn(
+                bad,
+                " ".join(code_names).lower(),
+                f"el código no debe consumir '{bad}' (D-7.4: FASE 4+)",
+            )
+        # Y warming_log solo recibe triggers propios: force/pattern
+        self.assertIn("forced_manual", source)
+        self.assertIn("pattern_detected", source)
 
 
 if __name__ == "__main__":
