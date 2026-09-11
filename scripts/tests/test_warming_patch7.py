@@ -70,6 +70,16 @@ class WarmingPatch7Test(unittest.TestCase):
     def tearDown(self):
         for p in self._patches:
             p.stop()
+        # Autolimpieza: los tests escriben claves hermes:warm:test_* en Redis real
+        try:
+            import redis
+
+            r = redis.Redis(host=warming.REDIS_HOST, port=warming.REDIS_PORT,
+                            decode_responses=True)
+            for k in r.keys("hermes:warm:test_*"):
+                r.delete(k)
+        except Exception:
+            pass
         import shutil
 
         shutil.rmtree(self.tmp, ignore_errors=True)
