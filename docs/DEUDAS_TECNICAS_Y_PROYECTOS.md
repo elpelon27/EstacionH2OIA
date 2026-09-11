@@ -326,7 +326,7 @@
 
 | ID | Deuda | Razón |
 |---|---|---|
-| **D3** | ✅ CERRADA (2026-09-09) — R4 Conecta opera con IPv4 sola | Banco confirma IPv4 sola suficiente (156.255.155.24 en su whitelist), exigencia IPv6 removida de la arquitectura (era un comentario refutado, no código). Webhook end-to-end verificado en vivo: 200 con IP banco + token, 403 IP no autorizada (docs/R4_IPV6_INVESTIGACION.md) |
+| **D3** | ✅ CERRADA (2026-09-09, re-validada end-to-end 2026-09-11) — R4 Conecta opera con IPv4 sola | Banco confirma IPv4 sola suficiente (156.255.155.24 en su whitelist), exigencia IPv6 removida de la arquitectura. **Re-validación 2026-09-11 con pagos reales del banco:** ciclos completos R4consulta+R4notifica recibidos y respondidos 200 OK (status=True / abono=True) desde 45.175.213.98; whitelist ampliado con la IP antigua 200.74.203.91 (detectada en producción, 8 rechazos 403). Ver docs/R4_CIERRE_TECNICO.md y docs/R4_PRUEBA_INTERNA.md |
 | **D14** | ✅ CERRADA (2026-09-09) — Meta factura pagada | Líder confirmó el pago. Sin acción pendiente del servidor |
 
 ---
