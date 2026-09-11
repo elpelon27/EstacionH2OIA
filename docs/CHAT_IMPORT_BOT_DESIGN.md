@@ -243,4 +243,48 @@ Checkpoint verificable por sección (regla del Líder): parser → importer → 
 
 ---
 
-**Fase 1 (diseño) completa. Sin implementación, conforme a directiva.**
+---
+
+## 10. IMPLEMENTACIÓN COMPLETADA (FASE 2 — 2026-09-10)
+
+Commits (rama feat/odoo-r4-integration, cada parte individual):
+
+| Parte | Commit | Contenido |
+|---|---|---|
+| 2A schema | `be606ed` | init_db.py: data/whatsapp_bot.db 3 tablas aisladas (WAL) |
+| 2B parser | `f5bc1cb`+`cd20c3c`+`c63077f` | parser.py regex (5 formatos de timestamp, multilinea, media, phone VE) + 18 tests OK |
+| 2C db layer | `c279160` | db.py: insert/upsert/search + dedup hash + UPSERT dispatch.db clients (backup previo, 14 tests OK) |
+| 2D indexer | `8bf25e4` | indexer.py: collection whatsapp_conversations (768d Cosine), nomic-embed-text, uuid5 idempotente, 7 tests OK |
+| 2E detector | `b5d7065` | production_detector.py regex pedidos/pagos/entregas/problemas/montos, 17 tests OK (falso positivo "tarde" corregido) |
+| 2F bot+llm | `5665828`(+snapshots) | llm_client.py propio (cadena deepseek-v4-flash→glm-5.3→glm-5.2-free→qwen2.5:7b) + bot.py + 13 tests OK |
+| 2G systemd | este commit | whatsscanbot.service activo/enabled + .env WHATSSCAN_* + E2E |
+
+### Estado verificado en vivo (2026-09-10 23:40)
+
+- ✅ Servicio systemd `whatsscanbot` **active + enabled** (Restart=on-failure, RestartSec=30)
+- ✅ Telegram getMe OK: @whatsscan_bot ("Whatsscanbot"); setMyCommands OK (7 comandos)
+- ✅ DeepSeek V4 Flash respondió como **PRIMARIO real** en smoke test (tier=deepseek/deepseek-v4-flash, ~12s, vía OpenRouter)
+- ✅ Pipeline E2E de import probado sin Telegram (test_bot.py): parse→dedup→SQLite→Qdrant→UPSERT clients→detector→resumen LLM — 13/13 OK
+- ✅ Detección producción en reporte real: pedidos=2 pagos=1 entregas=1, monto 15 EUR
+- ✅ DB y Qdrant limpios de datos de test (0 residuos verificado)
+- ⏳ **E2E inbound con el Líder PENDIENTE**: el bot solo recibe updates de un chat de usuario real. Nota técnica: no se puede simular un mensaje entrante desde la API del bot mismo (sendDocument no genera update). El Líder debe mandar /start y un export (.txt/.zip/paste) a @whatsscan_bot desde su cuenta (1663148211). El bot está en escucha (polling).
+
+### Variables .env nuevas (no commiteadas, .env está en .gitignore)
+
+WHATSSCAN_BOT_TOKEN, WHATSSCAN_AUTHORIZED_CHAT_ID=1663148211,
+WHATSSCAN_LLM_PRIMARY/FALLBACK_1/2/3, WHATSSCAN_RATE_LIMIT_SECONDS=30
+
+### Seguridad implementada
+
+- Solo chat_id 1663148211 (test de rechazo OK para IDs ajenos)
+- Token solo en .env
+- Ollama SOLO como fallback 4 de resumen (nunca parseo — parser es regex puro)
+- Rate limit 30s entre imports
+- Raw de cada archivo guardado en data/whatsapp_exports/raw/ (auditoría)
+
+### Correcciones durante implementación (documentadas)
+
+1. `whatsapp-chat-parser` PyPI no existe → parser propio (ya previsto en diseño)
+2. Falso positivo "Buenas tardes"→problema: regex "tarde" acotado a contexto de queja
+3. Columna summary_json faltaba en schema 2A → ALTER TABLE aditivo en init_db.py
+4. Dedup verificado triple: source_file_hash (import), msg_hash (mensaje), uuid5 (vector)
