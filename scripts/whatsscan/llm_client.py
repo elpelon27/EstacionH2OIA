@@ -102,7 +102,10 @@ def _format_messages(messages: list[dict[str, Any]], max_chars: int = 60000) -> 
     lines = []
     total = 0
     for m in messages:
-        line = f"[{m.get('timestamp', '?')}] {m.get('sender_name', '?')}: {m.get('message_text', '')}"
+        ts = m.get('timestamp', '?')
+        sn = m.get('sender_name', '?')
+        tx = m.get('message_text', '')
+        line = f"[{ts}] {sn}: {tx}"
         if total + len(line) > max_chars:
             lines.append("... (truncado, historial extenso)")
             break

@@ -53,6 +53,9 @@ CREATE TABLE IF NOT EXISTS whatsapp_contacts (
     is_client      INTEGER NOT NULL DEFAULT 0, -- 1 si existe en dispatch.db clients
     client_id      INTEGER                      -- FK lógica a dispatch.db clients.id
 );
+
+-- migración aditiva (2F): resumen LLM por import
+-- guard: si la tabla ya existía sin la columna
 """
 
 
@@ -60,6 +63,9 @@ def main() -> None:
     conn = sqlite3.connect(DB_PATH)
     try:
         conn.executescript(SCHEMA)
+        cols = [r[1] for r in conn.execute("PRAGMA table_info(whatsapp_imports)")]
+        if "summary_json" not in cols:
+            conn.execute("ALTER TABLE whatsapp_imports ADD COLUMN summary_json TEXT")
         conn.commit()
         tables = [
             r[0]

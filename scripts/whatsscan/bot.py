@@ -187,8 +187,8 @@ async def cmd_contact(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(
         f"👤 {c['name'] or 'sin nombre'} ({c['phone']})\n"
         f"Mensajes: {c['total_messages']}\n"
-        f"Primera: {c['first_seen_at'] or '?'}  Última: {c['last_seen_at'] or '?'}\n"
-        f"Cliente dispatch: {'sí (#%s)' % c['client_id'] if c['is_client'] else 'no'}"
+        f"Primera: {c['first_seen_at'] or '?'}  Última: {c['last_seen_at'] or '?'}"
+        "Cliente dispatch: " + (f"sí (#{c['client_id']})" if c['is_client'] else "no"),
     )
 
 
@@ -358,11 +358,14 @@ async def on_pasted_text(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None
     if not _is_authorized(update):
         await _unauthorized(update)
         return
-    text = update.message.text or ""
+    msg = update.message
+    assert msg is not None
+    text = msg.text or ""
     # solo activar si es respuesta al mensaje de /import o contiene formato WA
-    reply_to = update.message.reply_to_message
+    reply_to = msg.reply_to_message
     if not (reply_to and "Modo import activado" in (reply_to.text or "")):
-        has_wa = any(rx.match(text.splitlines()[0]) if text.splitlines() else False
+        first = text.splitlines()[0] if text.splitlines() else ""
+        has_wa = any(rx.match(first)
                      for rx in (wsp.RE_BRACKET, wsp.RE_DASH, wsp.RE_BRACKET_TIME_FIRST))
         if not has_wa:
             return  # texto normal, ignorar silenciosamente
