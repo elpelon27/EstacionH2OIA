@@ -30,6 +30,71 @@ from src.integrations.r4.codigos import get_description
 
 logger = logging.getLogger("r4.webhooks")
 
+
+async def _enviar_whatsapp_directo(phone: str, text: str) -> bool:
+    """Envía WhatsApp por Meta Graph API con un client httpx propio.
+
+    Fallback best-effort cuando el módulo del bridge no está disponible
+    en este contexto (p.ej. el webhook R4 corre en un proceso sin el
+    httpx client compartido inicializado).
+    """
+    import os
+
+    import httpx
+
+    token = os.getenv("META_ACCESS_TOKEN", "")
+    phone_id = os.getenv("META_PHONE_NUMBER_ID", "")
+    if not token or not phone_id:
+        logger.warning("WhatsApp directo: META token/phone_id no configurados")
+        return False
+    url = f"https://graph.facebook.com/{os.getenv('META_API_VERSION', 'v25.0')}/{phone_id}/messages"
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                url,
+                headers={"Authorization": f"Bearer {token}", "Content-Type": "application/json"},
+                json={
+                    "messaging_product": "whatsapp",
+                    "recipient_type": "individual",
+                    "to": phone,
+                    "type": "text",
+                    "text": {"body": text, "preview_url": False},
+                },
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                logger.info("WhatsApp directo enviado a %s****", phone[:6])
+                return True
+            logger.error("WhatsApp directo: Meta API error %d", resp.status_code)
+            return False
+    except Exception as e:
+        logger.warning("WhatsApp directo falló: %s", e)
+        return False
+
+
+def _obtener_enviador_whatsapp() -> Any:
+    """Resuelve la función de envío de WhatsApp del módulo live del bridge.
+
+    El bridge corre como `uvicorn bridge:app` (cwd=api/) → el módulo con el
+    httpx client inicializado es `bridge`. La copia importada como `api.bridge`
+    en este contexto tiene su propio _http_client=None (causaba el bug
+    "http client not initialized"). Se prefiere el módulo con client listo.
+    """
+    import sys
+
+    for mod_name in ("bridge", "api.bridge"):
+        mod = sys.modules.get(mod_name)
+        if mod is None:
+            try:
+                mod = __import__(mod_name)
+            except Exception:
+                continue
+        send = getattr(mod, "_send_whatsapp_message", None)
+        client = getattr(mod, "_http_client", None)
+        if send is not None and client is not None:
+            return send
+    return None
+
 # ============================================================
 # Configuración desde variables de entorno
 # ============================================================
@@ -659,10 +724,12 @@ async def process_r4notifica(
 
         # e) Enviar WhatsApp al cliente
         try:
-            # Importar la función de bridge.py para enviar WhatsApp
-            from api.bridge import _send_whatsapp_message
+            # Resolver el módulo LIVE del bridge (con httpx client inicializado).
+            # `from api.bridge import ...` cargaba una copia fría del módulo
+            # (client=None) → "http client not initialized" (bug 2026-09-12).
+            send_fn = _obtener_enviador_whatsapp()
 
-            # Normalizar teléfono para Meta: debe ser formato internacional sin '+'
+            # Normalizar teléfono para Meta: formato internacional sin '+'
             tel = pedido.cliente_telefono or ""
             tel = tel.lstrip("+")
             if tel.startswith("58") and len(tel) == 12:
@@ -672,13 +739,20 @@ async def process_r4notifica(
             elif len(tel) == 10:
                 tel = "58" + tel
 
-            if tel:
-                msg = "✅ Pago confirmado. Gracias. 💧"
-                sent = await _send_whatsapp_message(tel, msg)
-                logger.info("R4notifica: WhatsApp enviado a %s: %s", tel[:6] + "****", sent)
-            else:
+            if not tel:
                 logger.warning("R4notifica: sin teléfono para enviar WhatsApp")
+            else:
+                msg = "✅ Pago confirmado. Gracias. 💧"
+                if send_fn is not None:
+                    sent = await send_fn(tel, msg)
+                else:
+                    # Sin módulo live disponible: envío directo best-effort
+                    sent = await _enviar_whatsapp_directo(tel, msg)
+                logger.info(
+                    "R4notifica: WhatsApp enviado a %s: %s", tel[:6] + "****", sent
+                )
         except Exception as wa_err:
+            # Best-effort: el pago ya está verificado, no revertir nada
             logger.warning("R4notifica: WhatsApp falló (no bloquea): %s", wa_err)
 
         # f) Respuesta al banco
