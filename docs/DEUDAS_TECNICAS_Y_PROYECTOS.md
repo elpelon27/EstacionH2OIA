@@ -326,7 +326,7 @@
 
 | ID | Deuda | Razón |
 |---|---|---|
-| **D3** | ✅ CERRADA (2026-09-09, re-validada end-to-end 2026-09-11) — R4 Conecta opera con IPv4 sola | Banco confirma IPv4 sola suficiente (156.255.155.24 en su whitelist), exigencia IPv6 removida de la arquitectura. **Re-validación 2026-09-11 con pagos reales del banco:** ciclos completos R4consulta+R4notifica recibidos y respondidos 200 OK (status=True / abono=True) desde 45.175.213.98; whitelist ampliado con la IP antigua 200.74.203.91 (detectada en producción, 8 rechazos 403). Ver docs/R4_CIERRE_TECNICO.md y docs/R4_PRUEBA_INTERNA.md |
+| **D3** | ✅ CERRADA 100% (2026-09-12, pipeline completo verificado con pago real) — R4 Conecta end-to-end operativo. Ciclos R4consulta+R4notifica 200 OK (status=True / abono=True), whitelist OK. **Prueba real 2026-09-12 16:53:** pago real Bs. 2.933,63 (ref=125556473809) → conversión VES→EUR (tasa BCV del día 977.88) → casación ±1% por EUR contra monto_total_eur → match pedido 2109 (score=160) → INSERT fs_pagos id=1858 + UPDATE fs_pedidos estado='pagado' + audit log. Fixes derivados: (1) commit 6fd303d — conversión VES→EUR ANTES de casar (bug crítico: comparaba VES crudo vs EUR); (2) commit 1a1d338 — WhatsApp "✅ Pago confirmado" al cliente en webhook R4 (bug de doble import bridge/api.bridge con httpx client=None); (3) password admin Odoo realineado con .env → OdooClient.connect()=True, sync best-effort operativo. Ver docs/R4_CIERRE_TECNICO.md, docs/R4_PRUEBA_INTERNA.md, docs/MONITOREO_ORQUESTACION.md. **Pendiente (no bloquea D3):** notificación a chofer/dispatch falla (Telegram 400) — requiere coordinación con choferes |
 | **D14** | ✅ CERRADA (2026-09-09) — Meta factura pagada | Líder confirmó el pago. Sin acción pendiente del servidor |
 
 ---
