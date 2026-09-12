@@ -208,7 +208,7 @@
 | **DT-27** | Lint legacy en conftest.py | `tests/conftest.py` | ✅ RESUELTO (verificado 2026-08-26: ruff check 0 errores, ruff format --check OK) | ~0h |
 | **DT-28** (orden del Líder: "DT-13") | OpenNotebook: embedding bug | `open-notebook` (docker) | ConfigurationError en embed_note/embed_insight/embed_source/rebuild_embeddings + Serialization error null byte en check_response_for_error. Ollama nomic-embed-text funciona. Fix de config de provider + sanitización null bytes | BLOQUE 2 piloto 2026-09-09 |
 | **DT-29** (orden del Líder: "DT-14") | Webhook Meta público sin HTTPS directo | `api/bridge.py` | ✅ RESUELTO vía Cloudflare tunnel (valentina.estacionh2o.com). Sin acción — webhook verificado funcionando | 0h |
-| **DT-30** (orden del Líder: "DT-15") | Token Meta debug-only bloquea envío de mensajes | Meta Cloud API | Requiere SMS 2FA que no llega — el Líder lo resuelve personalmente (mañana). NO intentar generar token (regla del piloto) | Líder |
+| **DT-30** (orden del Líder: "DT-15") | Token Meta debug-only bloquea envío de mensajes | Meta Cloud API | ✅ CERRADA (2026-09-11 ~21:10): System User permanente (valentina-bot) cargado en .env. WABA asignada (Estacion H2O Maracaibo + EstacionH20). phone_number_id corregido: 1186108677920030 (sandbox) → **1300557096469075** (producción). Test end-to-end OK: POST /messages → 200 + wa_id del Líder, respuesta automática de Valentina, pipeline bidireccional completo. Ver docs/META_PRODUCCION_FINAL.md | 0h |
 
 ---
 
