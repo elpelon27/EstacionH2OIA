@@ -88,7 +88,7 @@ class TestConvesionVESaEURNotifica:
         with patch(
             "src.financial.database.buscar_pedidos_por_telefono_monto",
             return_value=[pedido],
-        ) as buscar, patch(
+        ), patch(
             "src.financial.database.seleccionar_mejor_match",
             return_value=pedido,
         ), patch(
@@ -185,5 +185,5 @@ class TestConvesionVESaEURNotifica:
             new_callable=AsyncMock,
             return_value=977.88,
         ):
-            result = await process_r4notifica(_payload(monto_ves="2933.63"), mock_config)
+            await process_r4notifica(_payload(monto_ves="2933.63"), mock_config)
         assert float(buscar.call_args.kwargs["monto_str"]) == 3.00
