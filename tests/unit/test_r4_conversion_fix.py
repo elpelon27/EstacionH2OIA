@@ -68,8 +68,8 @@ class TestConvesionVESaEURNotifica:
         ):
             await process_r4notifica(_payload(), mock_config)
             kwargs = m.call_args.kwargs
-            assert kwargs["monto_str"] == "3.0", (
-                f"Debe pasar EUR convertido (3.0), pasó: {kwargs['monto_str']}"
+            assert float(kwargs["monto_str"]) == 3.00, (
+                f"Debe pasar EUR convertido (3.00), pasó: {kwargs['monto_str']}"
             )
 
     @pytest.mark.asyncio
@@ -119,7 +119,7 @@ class TestConvesionVESaEURNotifica:
         assert result.success is True
         assert "NO_ORDER" in result.message
         # Se buscó con el EUR convertido (5.11), no con el VES crudo
-        assert buscar.call_args.kwargs["monto_str"] == "5.11"
+        assert float(buscar.call_args.kwargs["monto_str"]) == 5.11
 
     @pytest.mark.asyncio
     async def test_tasa_pago_distinta_a_tasa_pedido_casa_igual(self, mock_config) -> None:
@@ -155,38 +155,24 @@ class TestConvesionVESaEURNotifica:
         assert "NO_ORDER" not in result.message
 
     @pytest.mark.asyncio
-    async def test_tasa_no_disponible_fallback_monto_pedido(self, mock_config) -> None:
-        # get_eur_ves_rate → None: la casación no debe pasar VES crudo;
-        # usa el monto EUR del propio pedido como fallback.
-        from src.financial.database import PedidoFinanciero
-
-        pedido = PedidoFinanciero(
-            id=2108,
-            pedido_id=2108,
-            cliente_telefono="584122560720",
-            monto_total_eur=3.0,
-            tasa_eur_ves=977.88,
-            estado_pago="pendiente",
-        )
+    async def test_tasa_no_disponible_fail_safe_no_order(self, mock_config) -> None:
+        # get_eur_ves_rate → None: NO se puede convertir VES→EUR de forma
+        # confiable. Fail-safe: no casar contra VES crudo; responder NO_ORDER
+        # (el banco ya recibió abono=True, el pago queda para conciliación
+        # manual) y nunca pasar el monto VES como si fuera EUR.
         with patch(
             "src.financial.database.buscar_pedidos_por_telefono_monto",
-            return_value=[pedido],
+            return_value=[],
         ) as buscar, patch(
             "src.financial.currency.get_eur_ves_rate",
             new_callable=AsyncMock,
             return_value=None,
-        ), patch(
-            "src.financial.database.seleccionar_mejor_match",
-            return_value=pedido,
-        ), patch(
-            "src.financial.verificacion.verificar_pago_manual",
-            new_callable=AsyncMock,
-            return_value={"success": True, "nuevo_estado": "pagado"},
         ):
             result = await process_r4notifica(_payload(), mock_config)
-        # Fallback: se busca con el EUR del pedido (3.0), nunca con 2933.63 VES
-        assert buscar.call_args.kwargs["monto_str"] == "3.0"
-        assert result.success is True
+        # Nunca se busca con el VES crudo (2933.63) como monto EUR
+        assert not buscar.called or float(buscar.call_args.kwargs["monto_str"]) != 2933.63
+        assert result.success is True  # graceful al banco
+        assert "NO_ORDER" in result.message
 
     @pytest.mark.asyncio
     async def test_payload_banco_monto_ves_string_decimales(self, mock_config) -> None:
@@ -200,4 +186,4 @@ class TestConvesionVESaEURNotifica:
             return_value=977.88,
         ):
             result = await process_r4notifica(_payload(monto_ves="2933.63"), mock_config)
-        assert buscar.call_args.kwargs["monto_str"] == "3.0"
+        assert float(buscar.call_args.kwargs["monto_str"]) == 3.00

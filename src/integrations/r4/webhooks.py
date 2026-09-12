@@ -495,18 +495,46 @@ async def process_r4notifica(
         if telefono_emisor.startswith(("V", "E", "v", "e")):
             telefono_emisor = telefono_emisor[1:]
 
-        # El banco envía Monto como string con decimales: "600.00"
-        pedidos = buscar_pedidos_por_telefono_monto(
-            telefono_emisor=telefono_emisor,
-            monto_str=payload.Monto,
-            estados_permitidos=["pendiente", "verificando", "parcial", "vencido"],
-        )
+        # Conversión VES→EUR ANTES de casar (regla de negocio):
+        # el saldo vive en EUR (monto_total_eur fijo); el banco envía Monto
+        # en VES. Se usa la tasa BCV del DÍA DEL PAGO (la tasa_eur_ves del
+        # pedido puede ser distinta y NO debe afectar la casación).
+        # Si no hay tasa disponible, se re-intenta tras encontrar el pedido
+        # usando su propio monto EUR como fallback (ver más abajo).
+        from src.financial.currency import convert_ves_to_eur, get_eur_ves_rate
+
+        monto_ves = float(payload.Monto)
+        tasa_pago = await get_eur_ves_rate()
+        if tasa_pago:
+            monto_busqueda_eur = convert_ves_to_eur(monto_ves, tasa_pago)
+        else:
+            logger.warning(
+                "R4notifica: tasa EUR/VES no disponible, no se puede convertir "
+                "VES→EUR para casar emisor=%s monto=%s VES ref=%s",
+                telefono_emisor,
+                payload.Monto,
+                payload.Referencia,
+            )
+            monto_busqueda_eur = None
+
+        if monto_busqueda_eur is not None:
+            # Casar en EUR contra monto_total_eur (±1% interno)
+            pedidos = buscar_pedidos_por_telefono_monto(
+                telefono_emisor=telefono_emisor,
+                monto_str=f"{monto_busqueda_eur:.2f}",
+                estados_permitidos=["pendiente", "verificando", "parcial", "vencido"],
+            )
+        else:
+            pedidos = []
 
         if not pedidos:
             logger.warning(
-                "R4notifica: no hay pedido pendiente para emisor=%s monto=%s VES ref=%s",
+                "R4notifica: no hay pedido pendiente para emisor=%s monto=%s VES "
+                "(%.2f EUR, tasa=%.2f) ref=%s",
                 telefono_emisor,
                 payload.Monto,
+                monto_busqueda_eur or -1.0,
+                tasa_pago or 0,
                 payload.Referencia,
             )
             # Responder abono=True al banco (el pago llegó aunque no tengamos pedido)
@@ -518,7 +546,13 @@ async def process_r4notifica(
             )
 
         # Seleccionar mejor match (scoring: teléfono exacto + monto exacto + reciente)
-        pedido = seleccionar_mejor_match(pedidos, telefono_emisor, float(payload.Monto))
+        # El scoring compara montos: pasar el EUR convertido, no el VES crudo.
+        if monto_busqueda_eur is not None:
+            pedido = seleccionar_mejor_match(pedidos, telefono_emisor, monto_busqueda_eur)
+        else:
+            # Sin tasa disponible: no hay EUR convertible confiable; si hay un
+            # único candidato por teléfono, tomarlo (el monto ya no discrimina).
+            pedido = pedidos[0] if len(pedidos) == 1 else None
 
         if not pedido:
             logger.warning(
@@ -537,18 +571,19 @@ async def process_r4notifica(
 
         # c) Verificar pago via Financial Shield (método manual = confirmación bancaria)
         # convertir monto VES → EUR para el Financial Shield que trabaja en EUR
-        from src.financial.currency import convert_ves_to_eur, get_eur_ves_rate
-
-        tasa = await get_eur_ves_rate()
-        monto_ves = float(payload.Monto)
-        monto_eur = convert_ves_to_eur(monto_ves, tasa) if tasa else pedido.monto_total_eur
+        # (la tasa y la conversión ya se obtuvieron arriba, antes de la casación)
+        monto_eur = (
+            convert_ves_to_eur(monto_ves, tasa_pago)
+            if tasa_pago
+            else pedido.monto_total_eur
+        )
 
         logger.info(
             "R4notifica: match pedido_id=%d monto_ves=%.2f monto_eur=%.2f (tasa=%.2f)",
             fs_pedido_id,
             monto_ves,
             monto_eur,
-            tasa or 0,
+            tasa_pago or 0,
         )
 
         from src.financial.verificacion import verificar_pago_manual
