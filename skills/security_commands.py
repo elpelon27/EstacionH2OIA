@@ -264,6 +264,11 @@ def cmd_stats(update, context):
 
 def register_security_handlers(app):
     """Registra todos los comandos de seguridad en la app de telegram_bot.py."""
+    # wiring: asegurar esquema DB antes del primer comando
+    rl.init_db()
+    ad.init_db()
+    al.init_db()
+    gf.init_db()
     from telegram.ext import CommandHandler
     cmds = {
         "blacklist_add": cmd_blacklist_add,

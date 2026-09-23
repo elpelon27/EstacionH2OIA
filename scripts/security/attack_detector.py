@@ -68,6 +68,7 @@ def init_db():
 # ---- estado --------------------------------------------------------------
 
 def _state_get(key: str, default=None):
+    init_db()
     c = _conn()
     try:
         row = c.execute("SELECT value FROM security_state WHERE key=?", (key,)).fetchone()
@@ -77,6 +78,7 @@ def _state_get(key: str, default=None):
 
 
 def _state_set(key: str, value):
+    init_db()
     c = _conn()
     try:
         with c:
