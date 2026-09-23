@@ -331,6 +331,14 @@ def main() -> None:
     app.add_handler(CommandHandler("help", cmd_help))
     app.add_handler(CommandHandler("health", cmd_health))
 
+    # FASE 4 seguridad: comandos del operador (guard chat_id TELEGRAM_CHAT_ID)
+    try:
+        import security_commands as _sec
+        n = _sec.register_security_handlers(app)
+        logger.info("Comandos de seguridad registrados: %d", n)
+    except Exception as e:  # nunca romper el bot base
+        logger.error("No se pudieron registrar comandos de seguridad: %s", e)
+
     logger.info(
         "Telegram bot iniciado. Esperando comandos del Líder (chat_id=%s)",
         TELEGRAM_CHAT_ID,
