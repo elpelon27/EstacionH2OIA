@@ -16,6 +16,11 @@ Comandos:
   /lockdown_status
   /lockdown_release         (solo operador — saca del lockdown)
   /stats                    (estadísticas del día)
+
+Geolocalización manual (hasta que Valentina esté en producción):
+  /set_gps <telefono>       (arma espera; el próximo location se asocia al cliente)
+  + mensaje Location        (guarda lat/lng en dispatch.db.clients,
+                             preservando address_text si existía)
 """
 import json
 import sys
