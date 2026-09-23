@@ -236,7 +236,7 @@ def detect_spam_pattern() -> list[str]:
             """SELECT text_hash, count(DISTINCT phone) n
                FROM global_message_log
                WHERE timestamp >= ? AND text_hash IS NOT NULL AND text_hash != ''
-               GROUP BY text_hash HAVING n >= 5""",
+               GROUP BY text_hash HAVING n >= 8""",
             (time.time() - 600,)).fetchall()
         return [r["text_hash"] for r in rows]
     finally:
@@ -270,20 +270,6 @@ def check_global(phone: str, text: str = "", ts: float | None = None) -> dict:
     rec = record_global_message(phone, text, ts)
     notify = None
 
-    # spam programado: mensajes idénticos multi-número
-    spam_hashes = detect_spam_pattern()
-    for h in spam_hashes:
-        nums = spam_numbers_for(h)
-        if len(nums) >= 5:
-            log_attack("spam_programado", {"text_hash": h, "numeros": nums})
-            notify = {"event": "spam_programado", "numeros": nums}
-            # bloqueo automático (import tardío para evitar ciclo)
-            from rate_limiter import add_to_blacklist
-            for n in nums:
-                add_to_blacklist(n, "spam programado (mensaje identico multi-numero)",
-                                 permanent=True)
-            return {"allow": False, "action": "spam_bloqueado", "notify_operator": notify}
-
     if is_lockdown():
         if is_known_number(phone):
             return {"allow": True, "action": "lockdown_conocido", "notify_operator": None}
@@ -308,6 +294,20 @@ def check_global(phone: str, text: str = "", ts: float | None = None) -> dict:
         log_attack("limite_minuto", {"msg_min": m})
         return {"allow": True, "action": "alerta_min",
                 "notify_operator": {"event": "limite_29_min", "valor": m}}
+
+    # spam programado: mensajes idénticos multi-número
+    spam_hashes = detect_spam_pattern()
+    for h in spam_hashes:
+        nums = spam_numbers_for(h)
+        if len(nums) >= 8:
+            log_attack("spam_programado", {"text_hash": h, "numeros": nums})
+            notify = {"event": "spam_programado", "numeros": nums}
+            # bloqueo automático (import tardío para evitar ciclo)
+            from rate_limiter import add_to_blacklist
+            for n in nums:
+                add_to_blacklist(n, "spam programado (mensaje identico multi-numero)",
+                                 permanent=True)
+            return {"allow": False, "action": "spam_bloqueado", "notify_operator": notify}
 
     if numeros_nuevos_en_10min() >= LIMITS["new_numbers_10min"]:
         log_attack("numeros_nuevos_oleada", {"nuevos_10min": numeros_nuevos_en_10min()})
