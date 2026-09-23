@@ -169,6 +169,3 @@ Strix (usestrix/strix, clonado en `external_repos/strix`) es un agente de pentes
 4. **Geocerca inicial:** el polígono real de zona de atención lo pasa el Líder (referencias).
    Se crea con polígono placeholder desactivado (is_active=0) para no rechazar clientes reales
    hasta que lleguen las referencias.
-```
-
-FASE 0 completa. Commiteo:
