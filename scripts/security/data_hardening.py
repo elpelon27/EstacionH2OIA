@@ -105,11 +105,6 @@ def verify_hashed() -> dict:
     return out
 
 
-if __name__ == "__main__":
-    dry = "--dry-run" in sys.argv
-    print("conversations.db:", harden_conversations(dry))
-    print("whatsapp_bot.db:", harden_whatsapp(dry))
-    print("verify:", verify_hashed())
 def _load_env_salt():
     """Carga el PRIMER LOG_SALT de config/.env (estandar vigente) y lo instala
     en core.crypto — mismo formato que clients.phone_hash."""
@@ -138,9 +133,17 @@ def phone_hash(phone: str, salt: str | None = None) -> str:
     d = re.sub(r"\D", "", raw)
     if not d:
         raise ValueError("phone vacio")
-    e164 = raw if raw.startswith("+") else "+" + d
+    e164 = "+" + d
     return hash_phone(e164)
 
 
 def _ensure_salt() -> str:
     return _load_env_salt()
+
+
+
+if __name__ == "__main__":
+    dry = "--dry-run" in sys.argv
+    print("conversations.db:", harden_conversations(dry))
+    print("whatsapp_bot.db:", harden_whatsapp(dry))
+    print("verify:", verify_hashed())
