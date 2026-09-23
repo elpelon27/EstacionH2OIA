@@ -30,8 +30,8 @@ from pathlib import Path
 _REPO = Path("/mnt/ssd_trabajo/hermes-agent")
 sys.path.insert(0, str(_REPO / "scripts" / "security"))
 
-import audit_logger as al  # noqa: E402
 import attack_detector as ad  # noqa: E402
+import audit_logger as al  # noqa: E402
 import geofence as gf  # noqa: E402
 import rate_limiter as rl  # noqa: E402
 
@@ -60,7 +60,6 @@ def _authorized(update) -> bool:
 
 
 import os  # noqa: E402  (usado en _authorized)
-
 
 # ---- helpers --------------------------------------------------------------
 
@@ -265,6 +264,123 @@ async def cmd_stats(update, context):
            f"• Fuera de zona (aparte, no audit): {len(fut)}")
 
 
+# ---- geolocalización manual (Líder desde el vehículo) ----------------------
+
+# memoria temporal: {chat_id: telefono en espera}
+GPS_PENDING: dict[int, str] = {}
+
+DISPATCH_DB = os.getenv("DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db")
+
+
+def _norm_phone(phone: str) -> str:
+    """Dígitos del teléfono (para match tolerante en dispatch.db)."""
+    import re
+    return re.sub(r"\D", "", str(phone or ""))
+
+
+def _find_client(phone: str):
+    """Busca cliente en dispatch.db por phone exacto, dígitos o phone_hash.
+
+    Devuelve (id, address_text_existente) o (None, None).
+    """
+    import sqlite3
+    d = _norm_phone(phone)
+    if not d:
+        return None, None
+    conn = sqlite3.connect(DISPATCH_DB)
+    conn.row_factory = None  # noqa: F841 — filas crudas
+    row = conn.execute("SELECT id, address_text FROM clients WHERE phone = ?",
+                       (phone,)).fetchone()
+    if not row:
+        # match por dígitos exactos (phone puede tener '+' o formato distinto)
+        row = conn.execute(
+            "SELECT id, address_text FROM clients "
+            "WHERE phone = ? OR phone = ? OR phone = ?",
+            (f"+{d}", d, f"0{d}"),
+        ).fetchone()
+    if not row:
+        # último recurso: phone_hash del ecosistema (core.crypto)
+        try:
+            sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+            from core.crypto import hash_phone, set_log_salt  # type: ignore
+
+            salt = os.getenv("LOG_SALT", "")
+            if salt and "change-this" not in salt:
+                set_log_salt(salt)
+                ph = hash_phone(f"+{d}")
+                row = conn.execute(
+                    "SELECT id, address_text FROM clients WHERE phone_hash = ?",
+                    (ph,),
+                ).fetchone()
+        except Exception:  # hash opcional — no romper el flujo
+            row = None
+    conn.close()
+    if row:
+        return row[0], row[1]
+    return None, None
+
+
+def _save_client_gps(client_id: int, lat: float, lng: float) -> None:
+    """Guarda lat/lng en clients SIN tocar address_text (se preserva)."""
+    import sqlite3
+    conn = sqlite3.connect(DISPATCH_DB)
+    conn.execute(
+        "UPDATE clients SET lat = ?, lng = ?, updated_at = strftime('%s','now') "
+        "WHERE id = ?",
+        (lat, lng, client_id),
+    )
+    conn.commit()
+    conn.close()
+
+
+async def cmd_set_gps(update, context):
+    """/set_gps <telefono> — arma la espera del próximo Location."""
+    if not _authorized(update):
+        return
+    phone = _arg(context, 0)
+    if not phone:
+        await _reply(update, context, "Uso: /set_gps <telefono>")
+        return
+    chat_id = update.effective_chat.id
+    GPS_PENDING[chat_id] = phone
+    al.log_event("operador_decision", phone=phone,
+                 details={"cmd": "set_gps", "nota": "esperando location del Líder"},
+                 action_taken="gps_pending", operator_decision="Líder")
+    await _reply(update, context,
+                 f"Listo, mandá tu ubicación actual por Telegram "
+                 f"para asociarla al teléfono {phone}.")
+
+
+async def handle_gps_location(update, context):
+    """Mensaje tipo Location: si hay teléfono en espera, guarda GPS en DB."""
+    chat_id = update.effective_chat.id
+    phone = GPS_PENDING.get(chat_id)
+    if not phone:
+        await _reply(update, context, "Usá /set_gps <telefono> primero.")
+        return
+    loc = getattr(update.message, "location", None) or getattr(update, "location", None)
+    if loc is None:
+        await _reply(update, context, "No pude leer la ubicación. Intentá de nuevo.")
+        return
+    lat, lng = loc.latitude, loc.longitude
+    client_id, _addr = _find_client(phone)
+    if client_id:
+        _save_client_gps(client_id, lat, lng)
+        al.log_event("operador_decision", phone=phone,
+                     details={"cmd": "set_gps", "lat": lat, "lng": lng,
+                              "client_id": client_id},
+                     action_taken="gps_guardado", operator_decision="Líder")
+    else:
+        al.log_event("operador_decision", phone=phone,
+                     details={"cmd": "set_gps", "lat": lat, "lng": lng,
+                              "nota": "cliente no encontrado en dispatch.db — "
+                                       "GPS no persistido"},
+                     action_taken="gps_cliente_no_encontrado",
+                     operator_decision="Líder")
+    GPS_PENDING.pop(chat_id, None)
+    await _reply(update, context, f"✅ Ubicación GPS guardada para {phone}.")
+
+
 # ---- registro ------------------------------------------------------------
 
 def register_security_handlers(app):
@@ -274,7 +390,7 @@ def register_security_handlers(app):
     ad.init_db()
     al.init_db()
     gf.init_db()
-    from telegram.ext import CommandHandler
+    from telegram.ext import CommandHandler, MessageHandler, filters
     cmds = {
         "blacklist_add": cmd_blacklist_add,
         "blacklist_remove": cmd_blacklist_remove,
@@ -287,7 +403,10 @@ def register_security_handlers(app):
         "lockdown_status": cmd_lockdown_status,
         "lockdown_release": cmd_lockdown_release,
         "stats": cmd_stats,
+        "set_gps": cmd_set_gps,
     }
     for name, fn in cmds.items():
         app.add_handler(CommandHandler(name, fn))
+    # geolocalización manual: mensajes tipo Location (después de /set_gps)
+    app.add_handler(MessageHandler(filters.LOCATION, handle_gps_location))
     return len(cmds)

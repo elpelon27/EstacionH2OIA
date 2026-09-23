@@ -257,6 +257,7 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/logs — 📋 Últimos 20 logs\n"
         "/metrics — 📊 Métricas\n"
         "/tasa — 💱 Ver/cambiar tasa (ej: /tasa 825.50)\n"
+        "/set_gps <tel> — 📍 Asociar tu ubicación GPS a un cliente\n"
         "/help — Esta ayuda\n\n"
         "Chat ID: " + str(TELEGRAM_CHAT_ID)
     )
