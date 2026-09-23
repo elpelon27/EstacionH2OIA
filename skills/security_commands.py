@@ -59,8 +59,8 @@ import os  # noqa: E402  (usado en _authorized)
 
 # ---- helpers --------------------------------------------------------------
 
-def _reply(update, context, text: str):
-    context.bot.send_message(chat_id=update.effective_chat.id, text=text[:4000])
+async def _reply(update, context, text: str):
+    await context.bot.send_message(chat_id=update.effective_chat.id, text=text[:4000])
 
 
 def _arg(context, n, default=None):
@@ -72,100 +72,100 @@ def _arg(context, n, default=None):
 
 # ---- comandos -------------------------------------------------------------
 
-def cmd_blacklist_add(update, context):
+async def cmd_blacklist_add(update, context):
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     reason = " ".join(context.args[1:]) if len(context.args) > 1 else "razón no especificada"
     permanent = "permanent" in context.args or "permanente" in context.args
     if not phone:
-        _reply(update, context, "Uso: /blacklist_add <phone> <reason> [permanent]")
+        await _reply(update, context, "Uso: /blacklist_add <phone> <reason> [permanent]")
         return
     rl.add_to_blacklist(phone, reason, permanent=permanent)
     al.log_event("operador_decision", phone=phone,
                  details={"cmd": "blacklist_add", "reason": reason, "permanent": permanent},
                  action_taken="blacklisted", operator_decision="Líder")
-    _reply(update, context, f"🔒 +{phone} agregado a blacklist "
+    await _reply(update, context, f"🔒 +{phone} agregado a blacklist "
             f"({'permanente' if permanent else 'temporal 1h'}).\nRazón: {reason}")
 
 
-def cmd_blacklist_remove(update, context):
+async def cmd_blacklist_remove(update, context):
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     if not phone:
-        _reply(update, context, "Uso: /blacklist_remove <phone>")
+        await _reply(update, context, "Uso: /blacklist_remove <phone>")
         return
     ok = rl.remove_from_blacklist(phone)
     al.log_event("operador_decision", phone=phone,
                  details={"cmd": "blacklist_remove"},
                  action_taken="removed" if ok else "not_found",
                  operator_decision="Líder")
-    _reply(update, context, f"✅ blacklist limpiada para {phone}" if ok
+    await _reply(update, context, f"✅ blacklist limpiada para {phone}" if ok
            else f"⚠️ {phone} no estaba en blacklist")
 
 
-def cmd_block(update, context):
+async def cmd_block(update, context):
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     if not phone:
-        _reply(update, context, "Uso: /block <phone> (bloqueo 1h)")
+        await _reply(update, context, "Uso: /block <phone> (bloqueo 1h)")
         return
     rl.add_to_blacklist(phone, "bloqueo manual operador", permanent=False)
     al.log_event("cliente_bloqueado", phone=phone,
                  details={"cmd": "block", "duracion": "1h"}, action_taken="bloqueo_1h",
                  operator_decision="Líder")
-    _reply(update, context, f"🔇 {phone} silenciado 1h (bloqueo manual).")
+    await _reply(update, context, f"🔇 {phone} silenciado 1h (bloqueo manual).")
 
 
-def cmd_unblock(update, context):
+async def cmd_unblock(update, context):
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     if not phone:
-        _reply(update, context, "Uso: /unblock <phone>")
+        await _reply(update, context, "Uso: /unblock <phone>")
         return
     ok = rl.remove_from_blacklist(phone)
     al.log_event("operador_decision", phone=phone, details={"cmd": "unblock"},
                  action_taken="unblocked" if ok else "not_found", operator_decision="Líder")
-    _reply(update, context, "🔓 desbloqueado." if ok else "⚠️ no estaba bloqueado.")
+    await _reply(update, context, "🔓 desbloqueado." if ok else "⚠️ no estaba bloqueado.")
 
 
-def cmd_observe(update, context):
+async def cmd_observe(update, context):
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     if not phone:
-        _reply(update, context, "Uso: /observe <phone>")
+        await _reply(update, context, "Uso: /observe <phone>")
         return
     al.log_event("cliente_observacion", phone=phone,
                  details={"cmd": "observe"}, action_taken="observado",
                  operator_decision="Líder")
-    _reply(update, context, f"👁 {phone} bajo observación.")
+    await _reply(update, context, f"👁 {phone} bajo observación.")
 
 
-def cmd_credit_client(update, context):
+async def cmd_credit_client(update, context):
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     if not phone:
-        _reply(update, context, "Uso: /credit_client <phone> — marca cliente con crédito")
+        await _reply(update, context, "Uso: /credit_client <phone> — marca cliente con crédito")
         return
     ad.mark_registered(phone)
     al.log_event("operador_decision", phone=phone,
                  details={"cmd": "credit_client", "nota": "cliente con crédito — "
                           "pedido sin pagar NO cuenta como ofensa"},
                  action_taken="marcado_credito", operator_decision="Líder")
-    _reply(update, context, f"💳 {phone} marcado como cliente con crédito (conocido).")
+    await _reply(update, context, f"💳 {phone} marcado como cliente con crédito (conocido).")
 
 
-def cmd_cliente_info(update, context):
+async def cmd_cliente_info(update, context):
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     if not phone:
-        _reply(update, context, "Uso: /cliente_info <phone>")
+        await _reply(update, context, "Uso: /cliente_info <phone>")
         return
     import re
     d = re.sub(r"\D", "", str(phone))
@@ -192,15 +192,15 @@ def cmd_cliente_info(update, context):
     for e in evs:
         lines.append(f"  • {_ts_fmt(e['timestamp'])} {e['event_type']} "
                      f"{e['action_taken'] or ''}")
-    _reply(update, context, "\n".join(lines))
+    await _reply(update, context, "\n".join(lines))
 
 
-def cmd_ataque_detectado(update, context):
+async def cmd_ataque_detectado(update, context):
     if not _authorized(update):
         return
     atks = ad.recent_attacks(15)
     if not atks:
-        _reply(update, context, "Sin ataques registrados 🛡")
+        await _reply(update, context, "Sin ataques registrados 🛡")
         return
     lines = [f"🚨 Ataques recientes ({len(atks)}):"]
     for a in atks:
@@ -211,33 +211,33 @@ def cmd_ataque_detectado(update, context):
         if "valor" in det:
             extra = f" → {det['valor']}"
         lines.append(f"  • {_ts_fmt(a['detected_at'])} {a['attack_type']}{extra}")
-    _reply(update, context, "\n".join(lines))
+    await _reply(update, context, "\n".join(lines))
 
 
-def cmd_lockdown_status(update, context):
+async def cmd_lockdown_status(update, context):
     if not _authorized(update):
         return
     active = ad.is_lockdown()
     reason = ad._state_get("lockdown_reason")
     d, h, m = ad.mensajes_por_dia(), ad.mensajes_por_hora(), ad.mensajes_por_minuto()
-    _reply(update, context,
+    await _reply(update, context,
            f"🔒 Lockdown: {'ACTIVO' if active else 'inactivo'}"
            f"{f' — motivo: {reason}' if active and reason else ''}\n"
            f"📊 Volúmenes: {m}/min · {h}/hora · {d}/día "
            f"(límites 29/100/700)")
 
 
-def cmd_lockdown_release(update, context):
+async def cmd_lockdown_release(update, context):
     if not _authorized(update):
         return
     ad.release_lockdown("operador")
     al.log_event("operador_decision", details={"cmd": "lockdown_release"},
                  action_taken="lockdown_liberado", operator_decision="Líder")
-    _reply(update, context, "🔓 Lockdown liberado por el operador. "
+    await _reply(update, context, "🔓 Lockdown liberado por el operador. "
            "Nota: si el volumen diario sigue ≥700, se re-activará automáticamente.")
 
 
-def cmd_stats(update, context):
+async def cmd_stats(update, context):
     if not _authorized(update):
         return
     day_start = time.time() - 86400
@@ -247,7 +247,7 @@ def cmd_stats(update, context):
     d, h, m = ad.mensajes_por_dia(), ad.mensajes_por_hora(), ad.mensajes_por_minuto()
     nuevos = ad.numeros_nuevos_en_10min()
     fut = gf.future_zone_notify_pending()
-    _reply(update, context,
+    await _reply(update, context,
            "📊 ESTADÍSTICAS (24h)\n"
            f"• Mensajes: {m}/min · {h}/h · {d}/día\n"
            f"• Números nuevos (10min): {nuevos}\n"

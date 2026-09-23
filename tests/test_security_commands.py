@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """Tests FASE 4: comandos de seguridad del operador (offline, fake Updates)."""
+import asyncio
 import sys
 import time
 from pathlib import Path
@@ -38,15 +39,19 @@ class FakeUpdate:
         self.args = args or []
 
 
+class FakeBot:
+    async def send_message(self, chat_id, text):
+        pass
+
+
 class FakeContext:
     def __init__(self, args, chat_id=1663148211):
         self.args = args
-        self.bot = type("B", (), {})()
+        self.bot = FakeBot()
         self._chat_id = chat_id
         self.sent = []
 
-    def send_message(self, chat_id, text):
-        # simula lo que hace _reply
+    async def send_message(self, chat_id, text):
         self.sent.append((chat_id, text))
 
 
@@ -54,11 +59,12 @@ def run(cmd, args, chat_id=1663148211):
     u = FakeUpdate(chat_id)
     ctx = FakeContext(args, chat_id)
     sc._reply_orig = sc._reply
-    # patch _reply to capture
-    sc._reply = lambda update, context, text: context.sent.append(
-        (update.effective_chat.id, text))
+
+    async def _capture(update, context, text):
+        context.sent.append((update.effective_chat.id, text))
+    sc._reply = _capture
     try:
-        cmd(u, ctx)
+        asyncio.run(cmd(u, ctx))
     finally:
         sc._reply = sc._reply_orig
     return ctx.sent
