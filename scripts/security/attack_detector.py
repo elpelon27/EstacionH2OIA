@@ -169,11 +169,17 @@ def is_known_number(phone: str) -> bool:
 
 # ---- métricas ------------------------------------------------------------
 
+_COUNT_TABLES = {"global_message_log": "global_message_log"}  # allowlist fija
+
+
 def _count_since(table: str, seconds: float) -> int:
+    t = _COUNT_TABLES.get(table)  # nunca interpolar input externo
+    if t is None:
+        raise ValueError(f"tabla no permitida: {table}")
     c = _conn()
     try:
         row = c.execute(
-            f"SELECT count() c FROM {table} WHERE timestamp >= ?",
+            "SELECT count() c FROM " + t + " WHERE timestamp >= ?",
             (time.time() - seconds,)).fetchone()
         return row["c"]
     finally:
