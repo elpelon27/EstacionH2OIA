@@ -85,3 +85,9 @@ cierre-dia-14/
 valentina-kit/
 data/.consolidator_failures
 *.consolidator_failures
+
+# Sensible data - never commit
+imports/
+*.sqlite
+*.db.bak
+*.key
