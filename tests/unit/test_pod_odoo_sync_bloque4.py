@@ -10,9 +10,10 @@ os.environ.setdefault("ODOO_URL", "http://localhost:8069")
 os.environ.setdefault("ODOO_DB", "estacion_h2o")
 os.environ.setdefault("ODOO_USERNAME", "admin")
 # password: desde infra/odoo/.env
-for line in open("/mnt/ssd_trabajo/hermes-agent/infra/odoo/.env"):
-    if line.startswith("ODOO_PASSWORD"):
-        os.environ["ODOO_PASSWORD"] = line.split("=", 1)[1].strip()
+with open("/mnt/ssd_trabajo/hermes-agent/infra/odoo/.env") as f:
+    for line in f:
+        if line.startswith("ODOO_PASSWORD"):
+            os.environ["ODOO_PASSWORD"] = line.split("=", 1)[1].strip()
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
@@ -69,7 +70,9 @@ print("CLEANUP_DONE")
 
 conn = sqlite3.connect(DB)
 conn.row_factory = sqlite3.Row
-client = conn.execute("SELECT id, phone FROM clients WHERE phone NOT LIKE '%TEST%' LIMIT 1").fetchone()
+client = conn.execute(
+    "SELECT id, phone FROM clients WHERE phone NOT LIKE '%TEST%' LIMIT 1"
+).fetchone()
 vehicle = conn.execute("SELECT id FROM vehicles LIMIT 1").fetchone()
 
 
@@ -100,10 +103,11 @@ try:
     # --- TEST 1: POD signed → sync crea picking+invoice en Odoo ---
     d1, p1 = make_pod("signed")
     out = subprocess.run(
-        ["venv/bin/python", "scripts/pod_odoo_sync.py"], capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent"
+        ["venv/bin/python", "scripts/pod_odoo_sync.py"],
+        capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent",
     )
     combined = out.stdout + out.stderr
-    assert "POD #%d sincronizado" % p1 in combined, combined
+    assert f"POD #{p1} sincronizado" in combined, combined
     row = conn.execute("SELECT * FROM pod_records WHERE id=?", (p1,)).fetchone()
     assert row["synced_to_odoo"] == 1 and row["odoo_invoice_id"], dict(row)
     assert row["odoo_partner_id"] and row["odoo_picking_id"]
@@ -111,41 +115,55 @@ try:
 
     # --- TEST 2: POD photo_only → también sincroniza ---
     d2, p2 = make_pod("photo_only", caps=3)  # con tapas
-    subprocess.run(["venv/bin/python", "scripts/pod_odoo_sync.py"],
-                   capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent")
-    row = conn.execute("SELECT synced_to_odoo, odoo_invoice_id FROM pod_records WHERE id=?", (p2,)).fetchone()
+    subprocess.run(
+        ["venv/bin/python", "scripts/pod_odoo_sync.py"],
+        capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent",
+    )
+    row = conn.execute(
+        "SELECT synced_to_odoo, odoo_invoice_id FROM pod_records WHERE id=?", (p2,)
+    ).fetchone()
     assert row["synced_to_odoo"] == 1 and row["odoo_invoice_id"], dict(row)
     print("TEST2_OK: photo_only + tapas → sincronizado")
 
     # --- TEST 3: POD refused → NO sincroniza ---
     d3, p3 = make_pod("refused")
-    subprocess.run(["venv/bin/python", "scripts/pod_odoo_sync.py"],
-                   capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent")
-    row = conn.execute("SELECT synced_to_odoo FROM pod_records WHERE id=?", (p3,)).fetchone()
+    subprocess.run(
+        ["venv/bin/python", "scripts/pod_odoo_sync.py"],
+        capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent",
+    )
+    row = conn.execute(
+        "SELECT synced_to_odoo FROM pod_records WHERE id=?", (p3,)
+    ).fetchone()
     assert row["synced_to_odoo"] == 0, "refused no debe sincronizar"
     print("TEST3_OK: refused descartado")
 
     # --- TEST 4: idempotencia — reset synced flags y re-correr = sin duplicar ---
     conn.execute("UPDATE pod_records SET synced_to_odoo=0 WHERE id IN (?,?)", (p1, p2))
     conn.commit()
-    subprocess.run(["venv/bin/python", "scripts/pod_odoo_sync.py"],
-                   capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent")
+    subprocess.run(
+        ["venv/bin/python", "scripts/pod_odoo_sync.py"],
+        capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent",
+    )
     # Buscar en Odoo cuántas invoices con ese origin hay
     n = odoo_shell(f"""
 inv = env['account.move'].search([('invoice_origin','like','POD-{p1}')])
 print('COUNT_INVOICES_P1:', len(inv))
 """)
     assert "COUNT_INVOICES_P1: 1" in n, n  # sigue 1, no duplicó
-    row = conn.execute("SELECT synced_to_odoo, odoo_picking_id FROM pod_records WHERE id=?", (p1,)).fetchone()
+    row = conn.execute(
+        "SELECT synced_to_odoo, odoo_picking_id FROM pod_records WHERE id=?", (p1,)
+    ).fetchone()
     assert row["synced_to_odoo"] == 1
     print("TEST4_OK: idempotente (re-corr ida, 1 invoice)")
 
     # --- TEST 5: fallo Odoo → no marca synced ---
     os.environ["ODOO_URL"] = "http://localhost:9999"  # Odoo caído
     d4, p4 = make_pod("signed")
-    r = subprocess.run(["venv/bin/python", "scripts/pod_odoo_sync.py"],
-                       capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent",
-                       env={**os.environ})
+    r = subprocess.run(
+        ["venv/bin/python", "scripts/pod_odoo_sync.py"],
+        capture_output=True, text=True, cwd="/mnt/ssd_trabajo/hermes-agent",
+        env={**os.environ},
+    )
     row = conn.execute("SELECT synced_to_odoo FROM pod_records WHERE id=?", (p4,)).fetchone()
     assert row["synced_to_odoo"] == 0, "no debe marcar synced con Odoo caído"
     print("TEST5_OK: Odoo caído → queda pendiente, reintenta")
