@@ -521,7 +521,12 @@ class OdooClient:
             pay_lines = self.execute_kw(
                 "account.move.line",
                 "search_read",
-                [[("payment_id", "=", payment_id), ("account_id.account_type", "=", "asset_receivable")]],
+                [
+                    [
+                        ("payment_id", "=", payment_id),
+                        ("account_id.account_type", "=", "asset_receivable"),
+                    ]
+                ],
                 {"fields": ["id"]},
             )
             if inv_lines and pay_lines:
