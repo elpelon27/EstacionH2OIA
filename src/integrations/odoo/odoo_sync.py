@@ -496,10 +496,17 @@ class OdooClient:
             }
 
             payment_id = self.execute_kw("account.payment", "create", [payment_vals])
-            self.execute_kw("account.payment", "action_post", [[payment_id]])
+            # action_post() retorna None -> XML-RPC de Odoo lanza Fault "cannot
+            # marshal None" DESPUÉS de postear. El fault es cosmético: se tolera
+            # y se verifica el resultado leyendo la factura al final.
+            try:
+                self.execute_kw("account.payment", "action_post", [[payment_id]])
+            except Exception as e:
+                if "marshal None" not in str(e):
+                    raise
 
-            # Conciliar con factura vía move lines (reconcile() de account.payment
-            # retorna None y XML-RPC de Odoo no serializa None -> fault).
+            # Conciliar con factura vía move lines. Mismo fault cosmético en
+            # reconcile(): se tolera y se verifica con amount_residual.
             inv_lines = self.execute_kw(
                 "account.move.line",
                 "search_read",
@@ -514,17 +521,27 @@ class OdooClient:
             pay_lines = self.execute_kw(
                 "account.move.line",
                 "search_read",
-                [[("payment_id", "=", payment_id)]],
+                [[("payment_id", "=", payment_id), ("account_id.account_type", "=", "asset_receivable")]],
                 {"fields": ["id"]},
             )
             if inv_lines and pay_lines:
-                self.execute_kw(
-                    "account.move.line",
-                    "reconcile",
-                    [[[inv_lines[0]["id"], pay_lines[0]["id"]]]],
+                try:
+                    self.execute_kw(
+                        "account.move.line",
+                        "reconcile",
+                        [[inv_lines[0]["id"], pay_lines[0]["id"]]],
+                    )
+                except Exception as e:
+                    if "marshal None" not in str(e):
+                        raise
+                # Verificación real: residual de la factura
+                inv_after = self.execute_kw(
+                    "account.move", "read", [[invoice_id]], {"fields": ["amount_residual"]}
                 )
-
-            logger.info(f"Pago registrado: ID={payment_id} para factura {invoice_id}")
+                logger.info(
+                    f"Pago {payment_id} registrado. Factura {invoice_id} residual="
+                    f"{inv_after[0]['amount_residual']}"
+                )
             return cast(int, payment_id)
 
         except Exception as e:
