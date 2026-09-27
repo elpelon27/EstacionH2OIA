@@ -508,6 +508,93 @@ class DispatcherTelegramBot:
 
     # ----------------------------------------------------------------------
 
+    # ----------------------------------------------------------------------
+
+    async def reject_groups(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        """Prohíbe grupos (decisión #2 del Líder): solo chats privados bot↔chofer."""
+        chat = update.effective_chat
+        if chat is None:
+            return
+        logger.warning("Mensaje en grupo %s rechazado (grupos prohibidos)", chat.id)
+        try:
+            await chat.send_message(
+                "🚫 Este bot funciona solo por chat privado. "
+                "Escríbeme 1-a-1: @DespachoH2O_bot"
+            )
+        except Exception as e:  # pragma: no cover
+            logger.error("No se pudo avisar al grupo %s: %s", chat.id, e)
+
+    async def reject_private_text(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        """En privado, texto libre (no comando) → guía hacia comandos (fail-soft)."""
+        message = update.message
+        if message is None:
+            return
+        await message.reply_text(
+            "💡 Usa /plan para recibir tu ruta del día, /siguiente para la "
+            "próxima parada, /status para tu estado, /help para todo."
+        )
+
+    async def cmd_plan(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
+        """Chofer llega a estación y pide su plan (decisión #11 del Líder).
+
+        Materializa orders_auto pendientes del día (reparto por zonas con
+        rotación) y muestra la ruta asignada al chofer.
+        """
+        chat = update.effective_chat
+        message = update.message
+        assert chat is not None and message is not None
+        chat_id = chat.id
+        chofer = get_chofer_by_chat_id(chat_id)
+
+        if not chofer:
+            await message.reply_text("❌ No estás registrado. Envía /start")
+            return
+
+        try:
+            from skills.dispatch.auto_materializer import materialize_day
+
+            result = materialize_day()
+            logger.info("Materialización /plan: %s entregas", result.get("inserted", 0))
+        except Exception as e:
+            logger.error("Error materializando orders_auto: %s", e)
+            await message.reply_text(
+                "⚠️ No pude generar el plan automático. Usa /ruta para ver tus "
+                "entregas ya asignadas."
+            )
+            return
+
+        await self._send_route_list(message, chofer, title="📋 PLAN DE HOY")
+
+    async def _send_route_list(
+        self, message: Any, chofer: dict[str, Any], title: str
+    ) -> None:
+        """Envía la lista de entregas pendientes del chofer (para /plan y /ruta)."""
+        deliveries = get_pending_deliveries_for_chofer(chofer["id"])
+
+        if not deliveries:
+            await message.reply_text(
+                f"{title}\n📭 No tienes entregas pendientes hoy.\n"
+                "Si es muy temprano, el plan puede generarse más tarde. "
+                "Usa /plan más tarde o contacta al administrador."
+            )
+            return
+
+        msg = f"{title} — {chofer['operator_name']}\n"
+        msg += "━━━━━━━━━━━━━━━━\n"
+        msg += f"Total paradas: {len(deliveries)}\n\n"
+
+        for i, d in enumerate(deliveries, 1):
+            status_emoji = "✅" if d["status"] == "delivered" else "⏳"
+            msg += f"{status_emoji} {i}. {d['client_name']}\n"
+            msg += f"   📦 {d['bottles_full']} botellones\n"
+            if d["lat"] and d["lng"]:
+                msg += f"   📍 {format_gps_url(d['lat'], d['lng'])}\n"
+            msg += "\n"
+
+        msg += "━━━━━━━━━━━━━━━━\n"
+        msg += "💧 Estación H2O"
+        await message.reply_text(msg)
+
     async def cmd_health(self, update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         """Health check endpoint."""
         import sqlite3
