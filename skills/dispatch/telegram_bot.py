@@ -184,6 +184,68 @@ def update_delivery_status(delivery_id: int, status: str, notes: str = "") -> No
     logger.info("Entrega #%d → %s", delivery_id, status)
 
 
+# URL pública de la PWA de firma (Bloque 3 la implementará)
+POD_SIGN_URL = os.getenv("POD_SIGN_URL", "http://valentina.estacionh2o.com/pod")
+
+
+def create_pod_record(delivery_id: int, vehicle_id: int | None = None) -> int | None:
+    """Crea pod_record pending para la entrega (Bloque 2 Fase 2.2).
+
+    Idempotente: si la entrega ya tiene POD, devuelve su id sin duplicar.
+    Conecta deliveries.pod_id / pod_status. Retorna pod_id o None si falla.
+    """
+    conn = get_dispatch_db()
+    try:
+        row = conn.execute(
+            """
+            SELECT d.id, d.vehicle_id, c.phone, c.name
+            FROM deliveries d JOIN clients c ON d.client_id = c.id
+            WHERE d.id = ?
+            """,
+            (delivery_id,),
+        ).fetchone()
+        if not row:
+            logger.error("create_pod_record: entrega #%s no existe", delivery_id)
+            return None
+
+        existing = conn.execute(
+            "SELECT id FROM pod_records WHERE delivery_id = ? ORDER BY id DESC LIMIT 1",
+            (delivery_id,),
+        ).fetchone()
+        if existing:
+            pod_id = existing["id"]
+            logger.info("POD #%d ya existe para entrega #%d (idempotente)", pod_id, delivery_id)
+            conn.execute(
+                "UPDATE deliveries SET pod_id = ?, pod_status = 'pending' WHERE id = ?",
+                (pod_id, delivery_id),
+            )
+            conn.commit()
+            return pod_id
+
+        cur = conn.execute(
+            """
+            INSERT INTO pod_records
+                (delivery_id, client_phone, client_name, vehicle_id, pod_status)
+            VALUES (?, ?, ?, ?, 'pending')
+            """,
+            (delivery_id, row["phone"], row["name"], vehicle_id or row["vehicle_id"]),
+        )
+        pod_id = int(cur.lastrowid or 0)
+        conn.execute(
+            "UPDATE deliveries SET pod_id = ?, pod_status = 'pending' WHERE id = ?",
+            (pod_id, delivery_id),
+        )
+        conn.commit()
+        logger.info("POD #%d creado para entrega #%d (pending)", pod_id, delivery_id)
+        return pod_id
+    except Exception:
+        conn.rollback()
+        logger.exception("Error creando pod_record para entrega #%d", delivery_id)
+        return None
+    finally:
+        conn.close()
+
+
 def save_gps_track(
     vehicle_id: int,
     lat: float,
@@ -673,6 +735,16 @@ class DispatcherTelegramBot:
             delivery_id = int(data.replace("del_", ""))
             update_delivery_status(delivery_id, "delivered")
 
+            # POD: crear nota de entrega digital pending + link de firma
+            pod_id = create_pod_record(delivery_id, chofer["id"])
+            pod_link = f"{POD_SIGN_URL}/{delivery_id}"
+            pod_msg = (
+                f"\n\n✍️ NOTA DE ENTREGA DIGITAL:\n"
+                f"Abrí el link de firma en tu celular:\n{pod_link}"
+            )
+            if not pod_id:
+                pod_msg = "\n\n⚠️ No se pudo crear la nota digital (POD)."
+
             # SWAP: Notificar WorkloadRouter para asignar
             # botellón loaner (available -> in_transit_full)
             try:
@@ -702,7 +774,7 @@ class DispatcherTelegramBot:
             if pending:
                 next_d = pending[0]
                 msg = (
-                    f"✅ Entrega completada.\n\n"
+                    f"✅ Entrega completada.{pod_msg}\n\n"
                     f"📍 PRÓXIMA PARADA:\n"
                     f"👤 {next_d['client_name']}\n"
                     f"📱 {next_d['phone']}\n"
@@ -723,7 +795,7 @@ class DispatcherTelegramBot:
                 await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
             else:
                 await query.edit_message_text(
-                    "✅ Entrega completada.\n\n"
+                    f"✅ Entrega completada.{pod_msg}\n\n"
                     "🏁 No tienes más entregas pendientes. ¡Buen trabajo!\n"
                     "💧 Estación H2O"
                 )
@@ -790,6 +862,16 @@ class DispatcherTelegramBot:
             elif action_kind == "del":
                 update_delivery_status(delivery_id, "delivered")
 
+                # POD: crear nota de entrega digital pending + link de firma
+                pod_id = create_pod_record(delivery_id, vehicle_id)
+                pod_link = f"{POD_SIGN_URL}/{delivery_id}"
+                pod_msg = (
+                    f"\n\n✍️ NOTA DE ENTREGA DIGITAL:\n"
+                    f"Abrí el link de firma en tu celular:\n{pod_link}"
+                )
+                if not pod_id:
+                    pod_msg = "\n\n⚠️ No se pudo crear la nota digital (POD)."
+
                 # SWAP: Notificar al WorkloadRouter para tracking
                 # de botellón (available -> in_transit_full -> with_client)
                 try:
@@ -814,7 +896,7 @@ class DispatcherTelegramBot:
                 if pending:
                     next_d = pending[0]
                     msg = (
-                        f"✅ Entrega completada.\n\n"
+                        f"✅ Entrega completada.{pod_msg}\n\n"
                         f"📍 PRÓXIMA PARADA:\n"
                         f"👤 {next_d['client_name']}\n"
                         f"📱 {next_d['phone']}\n"
@@ -839,7 +921,7 @@ class DispatcherTelegramBot:
                     await query.edit_message_text(msg, reply_markup=InlineKeyboardMarkup(keyboard))
                 else:
                     await query.edit_message_text(
-                        "✅ Entrega completada.\n\n"
+                        f"✅ Entrega completada.{pod_msg}\n\n"
                         "🏁 No tienes más entregas pendientes. ¡Buen trabajo!\n"
                         "💧 Estación H2O"
                     )
