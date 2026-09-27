@@ -36,9 +36,11 @@ def parse_kml_rings(kml_path: str) -> list[tuple[str, list[tuple[float, float]]]
     return rings
 
 
-def dedupe_rings(rings: list[tuple[str, list[tuple[float, float]]]]):
+def dedupe_rings(
+    rings: list[tuple[str, list[tuple[float, float]]]],
+) -> list[tuple[str, list[tuple[float, float]]]]:
     """Google Earth duplica el mismo anillo en varios Placemarks; dedupe por primer punto."""
-    seen: set[tuple] = set()
+    seen: set[tuple[tuple[float, float], tuple[float, float], int]] = set()
     out: list[tuple[str, list[tuple[float, float]]]] = []
     for name, ring in rings:
         key = (ring[0], ring[-1], len(ring))
