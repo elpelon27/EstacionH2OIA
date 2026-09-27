@@ -17,9 +17,21 @@ import logging
 import os
 import sqlite3
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+
+# Cargar config/.env (credenciales Odoo etc.) si las vars no están en el entorno
+from dotenv import load_dotenv  # noqa: E402
+
+# Cargar config/.env (general) + infra/odoo/.env (credenciales Odoo).
+# override=True SOLO para ODOO_* de infra (config/.env puede tener valores viejos),
+# pero el entorno explícito del proceso SIEMPRE gana (tests/CLI pueden pasar
+# ODOO_URL/ODOO_PASSWORD propios y load_dotenv no debe pisarlos).
+_env_before = {k: os.environ.get(k) for k in os.environ if k.startswith("ODOO_")}
+load_dotenv("/mnt/ssd_trabajo/hermes-agent/config/.env")
+load_dotenv("/mnt/ssd_trabajo/hermes-agent/infra/odoo/.env", override=True)
+os.environ.update({k: v for k, v in _env_before.items() if v is not None})
 
 from src.integrations.odoo.odoo_sync import OdooClient, OdooConfig  # noqa: E402
 
@@ -156,7 +168,7 @@ def sync_pod(odoo: OdooClient, pod: sqlite3.Row, pmap: dict[str, int],
         log.error("POD #%d sin productos válidos — descartado", pod_id)
         dconn.execute(
             "UPDATE pod_records SET synced_to_odoo=1, synced_at=? WHERE id=?",
-            (datetime.now(timezone.utc).isoformat(), pod_id),
+            (datetime.now(UTC).isoformat(), pod_id),
         )
         dconn.commit()
         return True
@@ -224,7 +236,7 @@ def sync_pod(odoo: OdooClient, pod: sqlite3.Row, pmap: dict[str, int],
     # --- e) Marcar synced ---
     dconn.execute(
         "UPDATE pod_records SET synced_to_odoo=1, synced_at=? WHERE id=?",
-        (datetime.now(timezone.utc).isoformat(), pod_id),
+        (datetime.now(UTC).isoformat(), pod_id),
     )
     dconn.commit()
     log.info("POD #%d sincronizado: partner=%s picking=%s invoice=%s",
