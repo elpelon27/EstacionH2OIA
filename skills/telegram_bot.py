@@ -258,6 +258,14 @@ async def cmd_help(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
         "/metrics — 📊 Métricas\n"
         "/tasa — 💱 Ver/cambiar tasa (ej: /tasa 825.50)\n"
         "/set_gps <tel> — 📍 Asociar tu ubicación GPS a un cliente\n"
+        "/set_peso <tel> <tipo> [notas] — ⚖️ Clasificar cliente "
+        "(restaurante/clinica/escuela = N1 auto; "
+        "gimnasio/hotel/condominios/farmacias/talleres/comercios/empresa = N2; "
+        "residencial = N3)\n"
+        "/unset_peso <tel> — Quitar de prioridad\n"
+        "/list_peso — 📋 Prioritarios por nivel\n"
+        "/list_tipo <tipo> — 📋 Clientes por tipo\n"
+        "/client_info <tel> — 👤 Ficha completa del cliente\n"
         "/help — Esta ayuda\n\n"
         "Chat ID: " + str(TELEGRAM_CHAT_ID)
     )
@@ -339,6 +347,14 @@ def main() -> None:
         logger.info("Comandos de seguridad registrados: %d", n)
     except Exception as e:  # nunca romper el bot base
         logger.error("No se pudieron registrar comandos de seguridad: %s", e)
+
+    # Plan de clientes: /set_peso /unset_peso /list_peso /list_tipo /client_info
+    try:
+        import client_commands as _cli
+        n = _cli.register_client_handlers(app)
+        logger.info("Comandos de clientes registrados: %d", n)
+    except Exception as e:  # nunca romper el bot base
+        logger.error("No se pudieron registrar comandos de clientes: %s", e)
 
     logger.info(
         "Telegram bot iniciado. Esperando comandos del Líder (chat_id=%s)",
