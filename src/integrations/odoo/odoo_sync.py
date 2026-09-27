@@ -537,7 +537,8 @@ class OdooClient:
                         [[inv_lines[0]["id"], pay_lines[0]["id"]]],
                     )
                 except Exception as e:
-                    if "marshal None" not in str(e):
+                    msg = str(e)
+                    if "marshal None" not in msg and "already reconciled" not in msg:
                         raise
                 # Verificación real: residual de la factura
                 inv_after = self.execute_kw(
