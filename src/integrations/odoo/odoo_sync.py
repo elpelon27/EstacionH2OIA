@@ -131,7 +131,7 @@ class OdooClient:
             "country_id": country_id,
             "customer_rank": 1,
             "supplier_rank": 0,
-            "lang": "es_419",  # Spanish (Latin America)
+            "lang": "es_VE",  # Spanish (Venezuela) — debe estar activa en Odoo (res.lang)
         }
         partner_id = self.execute_kw("res.partner", "create", [partner_vals])
         logger.info(f"Partner creado: {name} (ID={partner_id})")
@@ -498,8 +498,31 @@ class OdooClient:
             payment_id = self.execute_kw("account.payment", "create", [payment_vals])
             self.execute_kw("account.payment", "action_post", [[payment_id]])
 
-            # Conciliar con factura
-            self.execute_kw("account.payment", "reconcile", [[payment_id]])
+            # Conciliar con factura vía move lines (reconcile() de account.payment
+            # retorna None y XML-RPC de Odoo no serializa None -> fault).
+            inv_lines = self.execute_kw(
+                "account.move.line",
+                "search_read",
+                [
+                    [
+                        ("move_id", "=", invoice_id),
+                        ("account_id.account_type", "=", "asset_receivable"),
+                    ]
+                ],
+                {"fields": ["id"]},
+            )
+            pay_lines = self.execute_kw(
+                "account.move.line",
+                "search_read",
+                [[("payment_id", "=", payment_id)]],
+                {"fields": ["id"]},
+            )
+            if inv_lines and pay_lines:
+                self.execute_kw(
+                    "account.move.line",
+                    "reconcile",
+                    [[[inv_lines[0]["id"], pay_lines[0]["id"]]]],
+                )
 
             logger.info(f"Pago registrado: ID={payment_id} para factura {invoice_id}")
             return cast(int, payment_id)
