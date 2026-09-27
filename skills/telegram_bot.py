@@ -323,12 +323,40 @@ async def cmd_health(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> None:
     await update.message.reply_text(health_text, parse_mode="HTML")
 
 
+async def _post_init(app) -> None:  # noqa: ANN001
+    """Registra el menú '/' de Telegram (setMyCommands) — no bloquea arranque."""
+    from telegram import BotCommand
+
+    commands = [
+        BotCommand("start", "✅ Desactivar kill switch"),
+        BotCommand("stop", "🛑 Activar kill switch"),
+        BotCommand("status", "Estado del bridge"),
+        BotCommand("orders", "📋 Pedidos de hoy"),
+        BotCommand("logs", "📋 Últimos 20 logs"),
+        BotCommand("metrics", "📊 Métricas"),
+        BotCommand("tasa", "💱 Ver/cambiar tasa BCV"),
+        BotCommand("health", "Health check completo"),
+        BotCommand("help", "Comandos disponibles"),
+        BotCommand("set_gps", "📍 Asociar tu ubicación a un cliente"),
+        BotCommand("set_peso", "⚖️ Clasificar cliente (N1/N2/N3)"),
+        BotCommand("unset_peso", "Quitar cliente de prioridad"),
+        BotCommand("list_peso", "📋 Prioritarios por nivel"),
+        BotCommand("list_tipo", "📋 Clientes por tipo"),
+        BotCommand("client_info", "👤 Ficha completa del cliente"),
+    ]
+    try:
+        await app.bot.set_my_commands(commands)
+        logger.info("set_my_commands OK: %d comandos registrados", len(commands))
+    except Exception:
+        logger.exception("Fallo set_my_commands (no bloquea el arranque)")
+
+
 def main() -> None:
     if not TELEGRAM_BOT_TOKEN:
         logger.error("TELEGRAM_BOT_TOKEN no configurado")
         sys.exit(1)
 
-    app = Application.builder().token(TELEGRAM_BOT_TOKEN).build()
+    app = Application.builder().token(TELEGRAM_BOT_TOKEN).post_init(_post_init).build()
 
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("stop", cmd_stop))
