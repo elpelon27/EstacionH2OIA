@@ -410,6 +410,31 @@ async def serve_pod_form(delivery_id: int, token: str | None = None) -> Any:
     return FileResponse(POD_HTML_PATH, media_type="text/html")
 
 
+DOCS_HTML_DIR = Path("/mnt/ssd_trabajo/hermes-agent/docs")
+
+_DOCS_ALLOWED = {
+    "guia_visual_pod.html",
+    "POD_DIGITAL_MANUAL_COMPLETO.html",
+}
+
+
+@pwa_router.get("/docs/{filename}")
+async def serve_doc_html(filename: str) -> Any:
+    """Sirve guías HTML de docs/ en el celular del operador.
+
+    Whitelist explícita: solo los archivos aprobados (evita exponer
+    documentación interna por la red).
+    """
+    if filename not in _DOCS_ALLOWED:
+        raise HTTPException(status_code=404, detail="Documento no encontrado")
+    path = DOCS_HTML_DIR / filename
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Archivo no existe")
+    from fastapi.responses import FileResponse
+
+    return FileResponse(path, media_type="text/html")
+
+
 class PinCheck(BaseModel):
     pin: str = Field(min_length=4, max_length=4, pattern="^[0-9]{4}$")
 
