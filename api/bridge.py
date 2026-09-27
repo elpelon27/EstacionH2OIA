@@ -1828,6 +1828,69 @@ def _assign_vehicle_for_order(lat: float | None, lng: float | None, bottles_need
         return 1
 
 
+def _geofence_gate(
+    ph_hash: str, from_phone: str, lat: float, lng: float
+) -> dict[str, Any]:
+    """GPS-PRIMERO (rediseño NEXO §3/§4): valida la ubicación contra la geocerca.
+
+    - 'ok' (dentro) → menú principal (state=menu_sent).
+    - 'fuera' → MSG_FUERA_ZONA (check_location ya guarda el número en
+      future_zone_customers) y termina la conversación (state=completed,
+      NO se muestra el menú).
+    - 'sin_geocerca' → fail-open: menú normal (no bloquear sin polígono activo).
+
+    NO modifica geofence.py: solo invoca check_location().
+    """
+    try:
+        from scripts.security.geofence import check_location
+
+        result = check_location(from_phone, lat, lng)
+        status = result.get("status")
+    except Exception as e:
+        logger.error("Geofence check falló (fail-open a menú): %s", e)
+        result, status = {}, "sin_geocerca"
+
+    logger.info(
+        "🛰️ Geocerca phone:%s lat=%.5f lng=%.5f → %s",
+        ph_hash[:8], lat, lng, status,
+    )
+
+    if status == "fuera":
+        _set_state(ph_hash, {"state": "completed"})
+        return {"answer": result.get("message") or
+                "Gracias por escribirnos 💧 Por ahora no atendemos tu zona. "
+                "Guardamos tu número y te avisaremos en cuanto lleguemos."}
+
+    # ok o sin_geocerca → menú principal
+    _set_state(ph_hash, {"state": "menu_sent"})
+    return {
+        "answer": (
+            "¡Perfecto! Estamos en su zona 🎉 ¿En qué puedo servirle hoy?"
+        ),
+        "interactive": _MENU_LIST_INTERACTIVE,
+    }
+
+
+# Menú principal reutilizable (list message) — usado por _geofence_gate
+_MENU_LIST_INTERACTIVE: dict[str, Any] = {
+    "type": "list",
+    "body": "¡Buen día! 👋 Soy Valentina de Estación H2O.\n¿En qué puedo servirle hoy?",
+    "button_text": "📋 Ver opciones",
+    "list_sections": [
+        {
+            "title": "Menú principal",
+            "rows": [
+                {"id": "1", "title": "Recarga de botellones", "description": "Agua €1.00 c/u"},
+                {"id": "2", "title": "Pedido de hielo", "description": "Bolsas €1.20 c/u"},
+                {"id": "3", "title": "Pedido combinado", "description": "Agua + hielo"},
+                {"id": "4", "title": "Consultar estado", "description": "Mi pedido"},
+                {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
+            ],
+        }
+    ],
+}
+
+
 def _handle_deterministic(
     ph_hash: str,
     text_body: str,
@@ -1848,9 +1911,46 @@ def _handle_deterministic(
     msg.get("type") == "interactive" or msg.get("_was_interactive", False)
 
     # ====================================================================
+    # ESTADO: gps_required (GPS-primero — rediseño NEXO §3/§4)
+    # El cliente nuevo debe enviar ubicación ANTES de ver el menú.
+    # ====================================================================
+    if current_state == "gps_required":
+        # ¿Vino ubicación?
+        loc = msg.get("location") or {}
+        lat = loc.get("latitude")
+        lng = loc.get("longitude")
+        if lat is None or lng is None:
+            # Puede venir embebida como texto tras el pre-proceso del webhook
+            coord_match = re.search(
+                r"coordenadas:\s*(-?\d+[.,]?\d*)\s*,\s*(-?\d+[.,]?\d*)",
+                text_body, re.IGNORECASE,
+            )
+            if coord_match:
+                try:
+                    lat = float(coord_match.group(1).replace(",", "."))
+                    lng = float(coord_match.group(2).replace(",", "."))
+                except ValueError:
+                    lat = lng = None
+        if lat is None or lng is None:
+            return {
+                "answer": (
+                    "Aún no recibí su ubicación 📍 Toque el clip 📎 (o +) de WhatsApp, "
+                    "elija 'Ubicación' y luego 'Ubicación actual' para enviárnosla. 💧"
+                )
+            }
+        return _geofence_gate(ph_hash, from_phone, float(lat), float(lng))
+
+    # ====================================================================
     # ESTADO: None (nueva conversación) o completed
     # ====================================================================
     if current_state is None or current_state == "completed":
+        # GPS-PRIMERO: si el primer mensaje ya es una ubicación, validar geocerca
+        loc = msg.get("location") or {}
+        first_lat = loc.get("latitude")
+        first_lng = loc.get("longitude")
+        if first_lat is not None and first_lng is not None:
+            return _geofence_gate(ph_hash, from_phone, float(first_lat), float(first_lng))
+
         # Detectar saludo
         greetings = [
             "hola",
@@ -1940,50 +2040,16 @@ def _handle_deterministic(
                 "nombre del edificio/casa/local y un punto de referencia."
             }
 
-        # Si hay saludo pero no hay pedido, mostrar menú
+        # Si hay saludo pero no hay pedido, pedir ubicación primero (GPS-PRIMERO)
         if has_greeting:
-            _clear_state(ph_hash)
-            _set_state(ph_hash, {"state": "menu_sent"})
+            _set_state(ph_hash, {"state": "gps_required"})
             return {
                 "answer": (
-                    "¡Buen día! 👋 Soy Valentina de Estación H2O. " "¿En qué puedo servirle hoy?"
-                ),
-                "interactive": {
-                    "type": "list",
-                    "body": (
-                        "¡Buen día! 👋 Soy Valentina de Estación H2O.\n"
-                        "¿En qué puedo servirle hoy?"
-                    ),
-                    "button_text": "📋 Ver opciones",
-                    "list_sections": [
-                        {
-                            "title": "Menú principal",
-                            "rows": [
-                                {
-                                    "id": "1",
-                                    "title": "Recarga de botellones",
-                                    "description": "Agua €1.00 c/u",
-                                },
-                                {
-                                    "id": "2",
-                                    "title": "Pedido de hielo",
-                                    "description": "Bolsas €1.20 c/u",
-                                },
-                                {
-                                    "id": "3",
-                                    "title": "Pedido combinado",
-                                    "description": "Agua + hielo",
-                                },
-                                {
-                                    "id": "4",
-                                    "title": "Consultar estado",
-                                    "description": "Mi pedido",
-                                },
-                                {"id": "5", "title": "Otra consulta", "description": "Hablemos"},
-                            ],
-                        }
-                    ],
-                },
+                    "¡Buen día! 👋 Soy Valentina de Estación H2O. "
+                    "Por favor, mándanos tu ubicación por WhatsApp "
+                    "(📍 clip 📎 → Ubicación → Ubicación actual) "
+                    "para verificar si estamos en tu zona. 💧"
+                )
             }
         # NEXO P0: Botones fantasma — si escribe "gracias" tras pedido completado
         _thanks_words = [
