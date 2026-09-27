@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0066cc">
+<title>Estación H2O - Proof of Delivery</title>
+<style>
+:root { --azul:#0066cc; --verde:#28a745; --naranja:#fd7e14; --rojo:#dc3545; --gris:#f2f2f2; }
+* { box-sizing:border-box; margin:0; padding:0; font-family:system-ui,sans-serif; }
+body { background:var(--gris); color:#111; font-size:17px; }
+.wrap { max-width:520px; margin:0 auto; padding:12px; }
+header { background:var(--azul); color:#fff; padding:12px; border-radius:8px; margin-bottom:12px; }
+header h1 { font-size:1.1rem; }
+header .addr { font-size:.85rem; opacity:.9; margin-top:4px; }
+.card { background:#fff; border-radius:8px; padding:12px; margin-bottom:12px; box-shadow:0 1px 3px rgba(0,0,0,.12); }
+.card h2 { font-size:.95rem; color:var(--azul); margin-bottom:8px; text-transform:uppercase; }
+table { width:100%; border-collapse:collapse; font-size:.95rem; }
+td,th { padding:6px 4px; text-align:left; border-bottom:1px solid #eee; }
+td.r,th.r { text-align:right; }
+tr.total td { font-weight:bold; border-top:2px solid #333; border-bottom:none; font-size:1.05rem; }
+.saldo { background:#fff3cd; padding:8px; border-radius:6px; margin-top:8px; font-size:.9rem; }
+label { display:block; font-size:.85rem; font-weight:600; margin:10px 0 4px; }
+input[type=text],input[type=number],input[type=password] {
+  width:100%; padding:12px; font-size:18px; border:2px solid #ccc; border-radius:8px; background:#fff; }
+input:focus { border-color:var(--azul); outline:none; }
+.two { display:flex; gap:10px; }
+.two > div { flex:1; }
+#canvas { width:100%; height:220px; border:2px dashed var(--azul); border-radius:8px; background:#fff; touch-action:none; display:block; }
+.hint { font-size:.75rem; color:#666; margin-top:2px; }
+button { width:100%; padding:14px; font-size:1rem; font-weight:bold; color:#fff; border:none; border-radius:8px; margin-top:10px; cursor:pointer; }
+button:disabled { opacity:.5; }
+.btn-limpiar { background:#6c757d; }
+.btn-foto { background:#17a2b8; }
+.btn-confirmar { background:var(--verde); font-size:1.1rem; }
+.btn-nofirma { background:var(--naranja); }
+.btn-rechaza { background:var(--rojo); }
+#status { position:fixed; bottom:0; left:0; right:0; background:#333; color:#fff; text-align:center; padding:10px; font-size:.9rem; display:none; z-index:99; }
+#status.ok { background:var(--verde); }
+#status.err { background:var(--rojo); }
+#status.warn { background:var(--naranja); }
+.pin-overlay { position:fixed; inset:0; background:rgba(0,0,0,.9); z-index:100; display:flex; align-items:center; justify-content:center; }
+.pin-box { background:#fff; padding:24px; border-radius:12px; width:85%; max-width:340px; text-align:center; }
+.pin-box h2 { color:var(--azul); margin-bottom:8px; }
+#pin-err { color:var(--rojo); font-size:.85rem; min-height:1.2em; margin-top:6px; }
+.denegado { text-align:center; padding:60px 20px; font-size:1.2rem; color:var(--rojo); }
+</style>
+</head>
+<body>
+<div class="wrap" id="app" style="display:none">
+  <header>
+    <h1>💧 Estación H2O — Proof of Delivery</h1>
+    <div id="h-cliente">—</div>
+    <div class="addr" id="h-direccion">—</div>
+  </header>
+
+  <div class="card">
+    <h2>Detalles de la entrega</h2>
+    <table id="t-productos"></table>
+    <div class="saldo" id="d-saldo" style="display:none"></div>
+  </div>
+
+  <div class="card">
+    <h2>Cédula del cliente</h2>
+    <input type="text" id="cedula" inputmode="numeric" placeholder="V-12345678" autocomplete="off">
+    <div class="two">
+      <div>
+        <label>Botellones vacíos recibidos</label>
+        <input type="number" id="vacios" value="0" min="0" inputmode="numeric">
+      </div>
+      <div>
+        <label>Tapas recibidas</label>
+        <input type="number" id="tapas" value="0" min="0" inputmode="numeric">
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>Firma del cliente</h2>
+    <canvas id="canvas"></canvas>
+    <div class="hint">Firme con el dedo en el recuadro</div>
+    <button class="btn-limpiar" id="btn-limpiar">Borrar firma</button>
+  </div>
+
+  <div class="card">
+    <h2>Foto de respaldo</h2>
+    <button class="btn-foto" id="btn-foto">📷 Tomar foto (opcional)</button>
+    <div class="hint" id="foto-hint">Requerida si el cliente no firma o rechaza</div>
+    <input type="file" id="foto-input" accept="image/*" capture="environment" style="display:none">
+    <img id="foto-preview" style="width:100%;margin-top:8px;border-radius:8px;display:none">
+  </div>
+
+  <button class="btn-confirmar" id="btn-confirmar">✅ Confirmar Entrega</button>
+  <button class="btn-nofirma" id="btn-nofirma">📷 Cliente no firma — Tomar foto</button>
+  <button class="btn-rechaza" id="btn-rechaza">❌ Cliente rechaza el pedido</button>
+  <div style="height:60px"></div>
+</div>
+
+<div id="status"></div>
+<div class="pin-overlay" id="pin-overlay">
+  <div class="pin-box">
+    <h2>🔒 PIN del chofer</h2>
+    <p style="font-size:.85rem">Ingrese su PIN de 4 dígitos</p>
+    <input type="password" id="pin" inputmode="numeric" maxlength="4" style="text-align:center;font-size:24px;letter-spacing:8px;margin-top:10px">
+    <button class="btn-confirmar" id="btn-pin">Ingresar</button>
+    <div id="pin-err"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ===== Config =====
+const params = new URLSearchParams(location.search);
+const DELIVERY_ID = parseInt(location.pathname.split('/').pop(), 10);
+const TOKEN = params.get('token') || '';
+const API = {
+  data:    `/api/pod/${DELIVERY_ID}?token=${TOKEN}`,
+  submit:  '/api/pod/submit',
+  status:  `/api/pod/status/${DELIVERY_ID}?token=${TOKEN}`
+};
+
+// ===== Utilidades =====
+const $ = id => document.getElementById(id);
+function mostrar(txt, cls) {
+  const s = $('status'); s.textContent = txt; s.className = cls || ''; s.style.display = 'block';
+  setTimeout(() => { s.style.display = 'none'; }, 5000);
+}
+
+// ===== IndexedDB (offline queue) =====
+let db;
+function abrirDB() {
+  return new Promise((res, rej) => {
+    const rq = indexedDB.open('pod_offline', 1);
+    rq.onupgradeneeded = e => e.target.result.createObjectStore('pendientes', { keyPath: 'delivery_id' });
+    rq.onsuccess = e => { db = e.target.result; res(); };
+    rq.onerror = () => rej(rq.error);
+  });
+}
+function idbPut(rec) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction('pendientes', 'readwrite');
+    tx.objectStore('pendientes').put(rec);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+function idbAll() {
+  return new Promise((res, rej) => {
+    const rq = db.transaction('pendientes').objectStore('pendientes').getAll();
+    rq.onsuccess = () => res(rq.result); rq.onerror = () => rej(rq.error);
+  });
+}
+function idbDel(id) {
+  return new Promise((res, rej) => {
+    const tx = db.transaction('pendientes', 'readwrite');
+    tx.objectStore('pendientes').delete(id);
+    tx.oncomplete = res; tx.onerror = () => rej(tx.error);
+  });
+}
+
+// ===== PIN del chofer =====
+let pinFails = 0;
+function pedirPin() {
+  $('pin-overlay').style.display = 'flex';
+  $('btn-pin').onclick = async () => {
+    const val = $('pin').value;
+    if (val.length !== 4) { $('pin-err').textContent = 'El PIN debe tener 4 dígitos'; return; }
+    try {
+      const r = await fetch(`/api/pod/pin/${DELIVERY_ID}?token=${TOKEN}`, {
+        method: 'POST', headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ pin: val })
+      });
+      if (r.ok) {
+        $('pin-overlay').style.display = 'none';
+        $('app').style.display = 'block';
+        cargarDatos();
+      } else if (r.status === 401) {
+        pinFails++;
+        $('pin-err').textContent = `PIN incorrecto (${pinFails}/3)`;
+        $('pin').value = '';
+        if (pinFails >= 3) {
+          $('pin-err').textContent = '⚠️ Acceso bloqueado. Se notificó al operador.';
+          $('pin').disabled = true; $('btn-pin').disabled = true;
+          // Notificación al operador (best-effort, ya con token)
+          fetch(`/api/pod/pin_failed/${DELIVERY_ID}?token=${TOKEN}`, { method: 'POST' }).catch(() => {});
+        }
+      } else {
+        $('pin-err').textContent = 'Error validando PIN';
+      }
+    } catch (e) {
+      // Offline: PIN cacheado (hash simple local) — permitir con último PIN válido guardado
+      const guardado = localStorage.getItem('pod_pin_ok');
+      if (guardado === val) {
+        $('pin-overlay').style.display = 'none';
+        $('app').style.display = 'block';
+        cargarDatosOffline();
+      } else {
+        pinFails++;
+        $('pin-err').textContent = `Sin conexión. PIN incorrecto (${pinFails}/3)`;
+      }
+    }
+  };
+}
+
+// ===== Carga de datos =====
+let DATOS = null;
+async function cargarDatos() {
+  try {
+    const r = await fetch(API.data);
+    if (r.status === 401 || r.status === 403) { denegado('Acceso denegado: token inválido'); return; }
+    if (r.status === 404) { denegado('Entrega no encontrada'); return; }
+    const d = await r.json();
+    localStorage.setItem('pod_cache_' + DELIVERY_ID, JSON.stringify(d));
+    render(d);
+  } catch (e) {
+    cargarDatosOffline();
+  }
+}
+function cargarDatosOffline() {
+  const cache = localStorage.getItem('pod_cache_' + DELIVERY_ID);
+  if (cache) render(JSON.parse(cache));
+  else { denegado('Sin conexión y sin datos en caché'); }
+}
+function denegado(msg) {
+  document.body.innerHTML = `<div class="denegado">⛔ ${msg}</div>`;
+}
+function render(d) {
+  DATOS = d;
+  $('h-cliente').textContent = '👤 ' + (d.client_name || '—');
+  $('h-direccion').textContent = '📍 ' + (d.address || d.client_phone || '—');
+  let html = '';
+  let total = 0;
+  for (const it of (d.product_details?.items || [])) {
+    const sub = it.qty * it.price; total += sub;
+    html += `<tr><td>${it.code}</td><td class="r">${it.qty} x ${it.price.toFixed(2)}</td><td class="r">€${sub.toFixed(2)}</td></tr>`;
+  }
+  html += `<tr class="total"><td>TOTAL</td><td></td><td class="r">€${total.toFixed(2)}</td></tr>`;
+  $('t-productos').innerHTML = html;
+  if (d.previous_balance_eur !== null && d.previous_balance_eur !== undefined) {
+    $('d-saldo').style.display = 'block';
+    $('d-saldo').textContent = `📒 Saldo anterior (crédito): €${d.previous_balance_eur.toFixed(2)}`;
+  }
+  if (d.vacios_sugeridos !== undefined) $('vacios').value = d.vacios_sugeridos;
+}
+
+// ===== Canvas firma =====
+let firmado = false;
+function initCanvas() {
+  const cv = $('canvas'), ctx = cv.getContext('2d');
+  function ajustar() {
+    const data = firmado ? cv.toDataURL('image/png') : null;
+    const r = cv.getBoundingClientRect();
+    cv.width = r.width * window.devicePixelRatio;
+    cv.height = r.height * window.devicePixelRatio;
+    ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+    ctx.lineWidth = 2.5; ctx.lineCap = 'round'; ctx.strokeStyle = '#111';
+    if (data) { const img = new Image(); img.onload = () => ctx.drawImage(img, 0, 0, r.width, r.height); img.src = data; }
+  }
+  ajustar();
+  window.addEventListener('resize', ajustar);
+  let draw = false;
+  const pos = e => {
+    const r = cv.getBoundingClientRect();
+    const t = e.touches ? e.touches[0] : e;
+    return [t.clientX - r.left, t.clientY - r.top];
+  };
+  cv.addEventListener('pointerdown', e => { draw = true; ctx.beginPath(); ctx.moveTo(...pos(e)); });
+  cv.addEventListener('pointermove', e => { if (!draw) return; e.preventDefault(); ctx.lineTo(...pos(e)); ctx.stroke(); });
+  cv.addEventListener('pointerup', () => { draw = false; firmado = true; });
+  cv.addEventListener('pointerleave', () => { draw = false; });
+  $('btn-limpiar').onclick = () => { ctx.clearRect(0, 0, cv.width, cv.height); firmado = false; };
+}
+
+// ===== Foto =====
+let fotoB64 = null;
+function initFoto() {
+  $('btn-foto').onclick = () => $('foto-input').click();
+  $('foto-input').onchange = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const rd = new FileReader();
+    rd.onload = () => {
+      fotoB64 = rd.result.split(',')[1];
+      $('foto-preview').src = rd.result; $('foto-preview').style.display = 'block';
+      $('btn-foto').textContent = '📷 Foto tomada ✓';
+    };
+    rd.readAsDataURL(f);
+  };
+}
+
+// ===== Envío (online + offline) =====
+function payload(status) {
+  return {
+    delivery_id: DELIVERY_ID,
+    client_cedula: $('cedula').value.trim(),
+    signature_canvas: firmado ? $('canvas').toDataURL('image/png').split(',')[1] : null,
+    photo_proof: fotoB64,
+    empty_bottles_received: parseInt($('vacios').value || '0', 10),
+    caps_received: parseInt($('tapas').value || '0', 10),
+    pod_status: status,
+    offline_created: 0,
+    signed_at: new Date().toISOString()
+  };
+}
+async function enviar(status, btn) {
+  const body = payload(status);
+  if (btn) { btn.disabled = true; btn.textContent = 'Enviando…'; }
+  try {
+    const r = await fetch(API.submit, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-Vehicle-Token': TOKEN },
+      body: JSON.stringify(body)
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const j = await r.json();
+    mostrar('✅ Sincronizado — Nota registrada (POD #' + j.pod_id + ')', 'ok');
+    document.querySelectorAll('button').forEach(b => b.disabled = true);
+  } catch (e) {
+    // Offline: guardar en IndexedDB
+    try {
+      await idbPut(body);
+      mostrar('✅ Guardado local — Pendiente sync', 'warn');
+      if (btn) { btn.disabled = false; btn.textContent = btn.id === 'btn-confirmar' ? '✅ Confirmar Entrega' : ''; }
+      syncPendientes();
+    } catch (e2) {
+      mostrar('❌ Error al guardar: ' + e2.message, 'err');
+      if (btn) btn.disabled = false;
+    }
+  }
+}
+
+async function syncPendientes() {
+  let recs;
+  try { recs = await idbAll(); } catch { return; }
+  if (!recs.length) return;
+  mostrar('📡 Sincronizando ' + recs.length + ' nota(s)…', 'warn');
+  for (const rec of recs) {
+    try {
+      const r = await fetch(API.submit, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Vehicle-Token': TOKEN },
+        body: JSON.stringify(rec)
+      });
+      if (r.ok) { await idbDel(rec.delivery_id); mostrar('✅ Sincronizado', 'ok'); }
+    } catch (e) { break; } // sigue offline
+  }
+}
+
+// ===== Botones =====
+function initBotones() {
+  $('btn-confirmar').onclick = async () => {
+    if (!$('cedula').value.trim()) { mostrar('Ingrese la cédula del cliente', 'err'); return; }
+    if (!firmado) { mostrar('Falta la firma del cliente', 'err'); return; }
+    enviar('signed', $('btn-confirmar'));
+  };
+  $('btn-nofirma').onclick = async () => {
+    if (!fotoB64) { mostrar(' Tome una foto como prueba', 'err'); return; }
+    enviar('photo_only', $('btn-nofirma'));
+  };
+  $('btn-rechaza').onclick = async () => {
+    if (!fotoB64) { mostrar(' Tome una foto como prueba', 'err'); return; }
+    if (!confirm('¿Confirmar que el cliente RECHAZA el pedido?')) return;
+    enviar('refused', $('btn-rechaza'));
+  };
+}
+
+// ===== Init =====
+window.addEventListener('online', syncPendientes);
+window.addEventListener('load', async () => {
+  if (!TOKEN) { denegado('Acceso denegado: token requerido'); return; }
+  try { await abrirDB(); } catch (e) { /* IndexedDB no disponible */ }
+  initCanvas(); initFoto(); initBotones();
+  pedirPin();
+  syncPendientes(); // reintento al abrir
+});
+</script>
+</body>
+</html>
