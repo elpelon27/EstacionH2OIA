@@ -72,10 +72,12 @@ except ModuleNotFoundError:
     sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
     from api.routes.dispatch import router as dispatch_router
 
-# POD (Proof of Delivery) — Bloque 2
+# POD (Proof of Delivery) — Bloque 2 + PWA Bloque 3
 try:
+    from api.pod_router import pwa_router as pod_pwa_router
     from api.pod_router import router as pod_router
 except ModuleNotFoundError:
+    from pod_router import pwa_router as pod_pwa_router
     from pod_router import router as pod_router
 
 # Métricas Prometheus
@@ -3054,6 +3056,9 @@ app.include_router(dispatch_router)
 
 # Include POD routes (Bloque 2)
 app.include_router(pod_router)
+
+# Include PWA de firma (Bloque 3): GET /pod/{delivery_id}
+app.include_router(pod_pwa_router)
 
 
 @app.get("/")

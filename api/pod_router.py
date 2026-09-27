@@ -266,10 +266,11 @@ async def submit_pod(
 @router.get("/status/{delivery_id}")
 async def pod_status(
     delivery_id: int,
+    token: str | None = None,
     x_vehicle_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """Estado del POD: pending/signed/photo_only/refused + sync Odoo."""
-    _verify_token(x_vehicle_token)
+    _verify_token(x_vehicle_token or token)
     conn = _get_conn()
     try:
         row = conn.execute(
@@ -289,3 +290,98 @@ async def pod_status(
         }
     finally:
         conn.close()
+
+
+# ============================================================
+# PWA (Bloque 3) — página de firma + PIN del chofer
+# ============================================================
+
+POD_HTML_PATH = Path(
+    os.getenv("POD_HTML_PATH", "/mnt/ssd_trabajo/hermes-agent/web/pod_form.html")
+)
+
+
+def _verify_token_query(token: str | None) -> None:
+    """Igual que _verify_token pero para token por query string (?token=)."""
+    _verify_token(token)
+
+
+pwa_router = APIRouter(tags=["pod-pwa"])
+
+
+@pwa_router.get("/pod/{delivery_id}")
+async def serve_pod_form(delivery_id: int, token: str | None = None) -> Any:
+    """Sirve la PWA de firma. Token válido requerido (?token=XXX)."""
+    _verify_token_query(token)
+    if not POD_HTML_PATH.exists():
+        raise HTTPException(status_code=500, detail="PWA no encontrada en el servidor")
+    from fastapi.responses import FileResponse
+
+    return FileResponse(POD_HTML_PATH, media_type="text/html")
+
+
+class PinCheck(BaseModel):
+    pin: str = Field(min_length=4, max_length=4, pattern="^[0-9]{4}$")
+
+
+# Intentos de PIN fallidos por delivery (en memoria; reset al validar OK)
+_pin_fails: dict[int, int] = {}
+
+
+@router.post("/pin/{delivery_id}")
+async def check_pin(
+    delivery_id: int, body: PinCheck, token: str | None = None
+) -> dict[str, Any]:
+    """Valida PIN del chofer (4 dígitos). 3 fallos → bloqueado."""
+    _verify_token_query(token)
+    expected = os.getenv("POD_CHOFER_PIN", "")
+    if not expected:
+        # Sin PIN configurado → fail-closed
+        raise HTTPException(status_code=503, detail="PIN del chofer no configurado")
+    if _pin_fails.get(delivery_id, 0) >= 3:
+        raise HTTPException(status_code=423, detail="Bloqueado: 3 intentos fallidos")
+    if body.pin == expected:
+        _pin_fails.pop(delivery_id, None)
+        return {"status": "ok"}
+    _pin_fails[delivery_id] = _pin_fails.get(delivery_id, 0) + 1
+    attempts = _pin_fails[delivery_id]
+    if attempts >= 3:
+        logger_pin_blocked(delivery_id)
+    raise HTTPException(status_code=401, detail=f"PIN incorrecto ({attempts}/3)")
+
+
+@router.post("/pin_failed/{delivery_id}")
+async def pin_failed_alert(delivery_id: int, token: str | None = None) -> dict[str, Any]:
+    """Registra bloqueo por PIN (la PWA lo llama al 3er fallo). Best-effort."""
+    _verify_token_query(token)
+    _pin_fails[delivery_id] = 3
+    logger_pin_blocked(delivery_id)
+    return {"status": "bloqueado"}
+
+
+def logger_pin_blocked(delivery_id: int) -> None:
+    """Registra bloqueo de PIN. La notificación al operador via Telegram
+    usa el botón de alertas existente del bridge (si TELEGRAM_ALERT_CHAT
+    está configurado). No modifica @Skynet_27_bot."""
+    import logging
+
+    logging.getLogger("pod.pwa").error(
+        "PIN bloqueado (3 fallos) para entrega #%d — notificar operador", delivery_id
+    )
+    chat_id = os.getenv("TELEGRAM_ALERT_CHAT", "")
+    bot_token = os.getenv("TELEGRAM_ALERT_TOKEN", "")
+    if chat_id and bot_token:
+        try:
+            import urllib.request
+
+            req = urllib.request.Request(
+                f"https://api.telegram.org/bot{bot_token}/sendMessage",
+                data=(
+                    f"chat_id={chat_id}&text=⚠️ PIN bloqueado en POD: "
+                    f"entrega #{delivery_id} (3 intentos fallidos)"
+                ).encode(),
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+            )
+            urllib.request.urlopen(req, timeout=5)
+        except Exception:
+            pass
