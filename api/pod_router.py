@@ -47,7 +47,8 @@ def _get_conn() -> sqlite3.Connection:
 
 
 def _verify_token(x_vehicle_token: str | None) -> None:
-    """Auth simple: token fijo por env (todos los vehículos) o mapa token:vehicle."""
+    """Auth: token fijo por env (todos) o mapa token:vehicle.
+    Tokens de vehículos revocados (kill-switch Bloque 5) → 403."""
     tokens_map = os.getenv("POD_VEHICLE_TOKENS", "")
     single = os.getenv("POD_VEHICLE_TOKEN", "")
     if not (tokens_map or single):
@@ -55,6 +56,8 @@ def _verify_token(x_vehicle_token: str | None) -> None:
         raise HTTPException(status_code=503, detail="POD auth no configurado")
     if not x_vehicle_token:
         raise HTTPException(status_code=401, detail="Token requerido")
+    if _is_revoked_token(x_vehicle_token):
+        raise HTTPException(status_code=403, detail="Vehículo revocado")
     if single and x_vehicle_token == single:
         return
     if tokens_map:
@@ -62,6 +65,91 @@ def _verify_token(x_vehicle_token: str | None) -> None:
             if pair.strip() and x_vehicle_token == pair.strip().split(":")[0]:
                 return
     raise HTTPException(status_code=401, detail="Token inválido")
+
+
+# ---- Kill-switch revocable (Bloque 5, Fase 5.1) ----
+REVOKED_FILE = Path(
+    os.getenv("POD_REVOKED_FILE", "/mnt/ssd_trabajo/hermes-agent/data/pod_revoked.json")
+)
+
+
+def _load_revoked() -> dict[str, Any]:
+    import json
+
+    if REVOKED_FILE.exists():
+        try:
+            return json.loads(REVOKED_FILE.read_text())  # type: ignore[no-any-return]
+        except Exception:
+            return {}
+    return {}
+
+
+def _save_revoked(data: dict[str, Any]) -> None:
+    import json
+
+    REVOKED_FILE.write_text(json.dumps(data, indent=2))
+
+
+def _is_revoked_token(token: str) -> bool:
+    """El token está revocado si su vehículo figura en pod_revoked.json."""
+    state = _load_revoked()
+    revoked = state.get("revoked", [])
+    if not revoked:
+        return False
+    tokens_map = os.getenv("POD_VEHICLE_TOKENS", "")
+    single = os.getenv("POD_VEHICLE_TOKEN", "")
+    veh = None
+    if tokens_map:
+        for pair in tokens_map.split(","):
+            parts = pair.strip().split(":") if pair.strip() else []
+            if parts and token == parts[0]:
+                veh = parts[1] if len(parts) > 1 else parts[0]
+    if veh is None and single and token == single:
+        veh = "1"
+    return bool(veh and str(veh) in revoked)
+
+
+def revoke_vehicle(vehicle_id: int) -> int:
+    """Revoca el vehículo: token deja de validar + PODs offline sin sync
+    del vehículo pasan a pod_status='compromised'. Retorna PODs afectados."""
+    state = _load_revoked()
+    revoked = set(state.get("revoked", []))
+    revoked.add(str(vehicle_id))
+    state["revoked"] = sorted(revoked)
+    state[f"revoked_at_{vehicle_id}"] = datetime.now(UTC).isoformat()
+    _save_revoked(state)
+    conn = _get_conn()
+    try:
+        cur = conn.execute(
+            """UPDATE pod_records SET pod_status = 'compromised'
+               WHERE vehicle_id = ? AND synced_to_odoo = 0
+                 AND pod_status IN ('pending', 'signed', 'photo_only')""",
+            (vehicle_id,),
+        )
+        n = cur.rowcount or 0
+        conn.commit()
+        return n
+    finally:
+        conn.close()
+
+
+def activate_vehicle(vehicle_id: int) -> bool:
+    """Reactiva el vehículo (el token vuelve a validar). False si no estaba revocado."""
+    state = _load_revoked()
+    revoked = set(state.get("revoked", []))
+    if str(vehicle_id) not in revoked:
+        return False
+    revoked.discard(str(vehicle_id))
+    state["revoked"] = sorted(revoked)
+    state.pop(f"revoked_at_{vehicle_id}", None)
+    _save_revoked(state)
+    return True
+
+
+def reset_pin(vehicle_id: int) -> int:
+    """Resetea intentos fallidos de PIN (desbloquea la PWA del vehículo)."""
+    _pin_fails.clear()
+    return vehicle_id
 
 
 def _previous_balance_eur(client_id: int) -> float | None:

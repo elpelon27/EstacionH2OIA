@@ -335,6 +335,9 @@ def register_client_handlers(app: Any) -> int:
         "list_tipo": cmd_list_tipo,
         "client_info": cmd_client_info,
         "resumen": cmd_resumen,
+        "revoke_vehicle": cmd_revoke_vehicle,
+        "activate_vehicle": cmd_activate_vehicle,
+        "reset_pin": cmd_reset_pin,
     }
     for name, fn in cmds.items():
         app.add_handler(CommandHandler(name, fn))
@@ -368,3 +371,59 @@ async def cmd_resumen(update: Any, context: Any) -> None:
     else:
         hint = f"(preview — usa '/resumen {phone} send' para enviar)\n\n{summary}"
         await _reply(update, context, hint)
+
+
+# ---- Kill-switch revocable PWA (Bloque 5, Fase 5.1) ------------------------
+
+
+async def cmd_revoke_vehicle(update: Any, context: Any) -> None:
+    """/revoke_vehicle <vehicle_id> — revoca el token del vehículo.
+
+    La PWA deja de funcionar para ese vehículo (403) y sus PODs offline
+    sin sincronizar quedan marcados como 'compromised' (validación manual).
+    """
+    if not _authorized(update):
+        return
+    vid = _arg(context, 0)
+    if not vid or not vid.isdigit():
+        await _reply(update, context, "Uso: /revoke_vehicle <vehicle_id>")
+        return
+    from api.pod_router import revoke_vehicle
+
+    n = revoke_vehicle(int(vid))
+    await _reply(
+        update, context,
+        f"⚠️ Vehículo {vid} revocado. PWA desactivada.\n"
+        f"{n} POD(s) offline marcados como comprometidos.",
+    )
+
+
+async def cmd_activate_vehicle(update: Any, context: Any) -> None:
+    """/activate_vehicle <vehicle_id> — reactiva el token del vehículo."""
+    if not _authorized(update):
+        return
+    vid = _arg(context, 0)
+    if not vid or not vid.isdigit():
+        await _reply(update, context, "Uso: /activate_vehicle <vehicle_id>")
+        return
+    from api.pod_router import activate_vehicle
+
+    ok = activate_vehicle(int(vid))
+    if ok:
+        await _reply(update, context, f"✅ Vehículo {vid} reactivado.")
+    else:
+        await _reply(update, context, f"ℹ️ Vehículo {vid} no estaba revocado.")
+
+
+async def cmd_reset_pin(update: Any, context: Any) -> None:
+    """/reset_pin <vehicle_id> — resetea intentos fallidos de PIN y desbloquea."""
+    if not _authorized(update):
+        return
+    vid = _arg(context, 0)
+    if not vid or not vid.isdigit():
+        await _reply(update, context, "Uso: /reset_pin <vehicle_id>")
+        return
+    from api.pod_router import reset_pin
+
+    reset_pin(int(vid))
+    await _reply(update, context, f"🔓 PIN del vehículo {vid} desbloqueado (intentos en 0).")
