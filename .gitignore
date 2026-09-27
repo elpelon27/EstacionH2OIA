@@ -91,3 +91,4 @@ imports/
 *.sqlite
 *.db.bak
 *.key
+data/pod_photos/
