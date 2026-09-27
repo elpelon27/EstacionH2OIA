@@ -173,6 +173,9 @@ function pedirPin() {
         $('pin-overlay').style.display = 'none';
         $('app').style.display = 'block';
         cargarDatos();
+        // FIX Bloque capturas: el canvas se ajustó en 'load' cuando la app
+        // estaba oculta (width=0). Re-disparar el ajuste ahora que es visible.
+        window.dispatchEvent(new Event('resize'));
       } else if (r.status === 401) {
         pinFails++;
         $('pin-err').textContent = `PIN incorrecto (${pinFails}/3)`;

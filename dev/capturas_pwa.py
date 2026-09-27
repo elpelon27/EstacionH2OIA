@@ -40,7 +40,6 @@ with sync_playwright() as pw:
     assert box, "canvas no encontrado"
     # Dibujo con el "dedo" (touch): curva tipo firma
     cx, cy = box["x"] + box["width"] / 2, box["y"] + box["height"] / 2
-    page.touchscreen.tap(cx, cy)
     # Pointer events: simular trazos
     points = [(0.2, 0.7), (0.3, 0.3), (0.4, 0.6), (0.5, 0.25), (0.6, 0.55), (0.75, 0.35), (0.85, 0.6)]
     prev = None
@@ -59,13 +58,19 @@ with sync_playwright() as pw:
         prev = (x, y)
     page.mouse.up()
     page.wait_for_timeout(300)
+    # verificar que la firma efectivamente dibujó algo
+    has_draw = page.evaluate(
+        "() => { const c=document.getElementById('canvas'); const d=c.getContext('2d').getImageData(0,0,c.width,c.height).data; for (let i=3;i<d.length;i+=4) if (d[i]>0) return true; return false; }"
+    )
+    assert has_draw, "el canvas quedo vacio — la firma no se dibujo"
     page.screenshot(path=f"{OUT}/pod_03_firma.png")
-    print("CAPTURE_3_FIRMA_OK")
+    print("CAPTURE_3_FIRMA_OK (con trazo real verificado)")
 
     # d) Llenar cédula y confirmar → pantalla de éxito
     page.fill("#cedula", "V-12345678")
     page.fill("#vacios", "3")
     page.fill("#tapas", "1")
+    page.locator("#btn-confirmar").scroll_into_view_if_needed()
     with page.expect_response(lambda r: "/api/pod/submit" in r.url, timeout=10000) as resp_info:
         page.click("#btn-confirmar")
     assert resp_info.value.ok, "submit falló"
