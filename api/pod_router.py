@@ -20,16 +20,18 @@ import binascii
 import json
 import os
 import sqlite3
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
 
-from api.dispatch_router import DISPATCH_DB_PATH
-
 router = APIRouter(prefix="/api/pod", tags=["pod"])
+
+DISPATCH_DB_PATH = os.getenv(
+    "DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
+)
 
 PHOTO_DIR = Path(os.getenv("POD_PHOTO_DIR", "/mnt/ssd_trabajo/hermes-agent/data/pod_photos"))
 PHOTO_DIR.mkdir(parents=True, exist_ok=True)
@@ -90,7 +92,6 @@ def _previous_balance_eur(client_id: int) -> float | None:
 def _build_product_details(row: sqlite3.Row) -> str:
     """JSON de productos de la entrega con precios de Odoo (AGUA 1.00 / HIELO 1.20)."""
     agua = float(os.getenv("POD_PRECIO_AGUA", "1.00"))
-    hielo = float(os.getenv("POD_PRECIO_HIELO", "1.20"))
     bottles = row["bottles_full"] or 0
     refill = row["bottles_on_site_refill"] or 0
     total = bottles * agua + refill * agua
@@ -159,10 +160,10 @@ def _save_photo(delivery_id: int, photo_b64: str) -> str:
     try:
         raw = base64.b64decode(photo_b64, validate=True)
     except (binascii.Error, ValueError) as e:
-        raise HTTPException(status_code=400, detail=f"Foto base64 inválida: {e}")
+        raise HTTPException(status_code=400, detail=f"Foto base64 inválida: {e}") from e
     if len(raw) > 6_500_000:
         raise HTTPException(status_code=413, detail="Foto demasiado grande")
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
+    stamp = datetime.now(UTC).strftime("%Y%m%d_%H%M%S")
     path = PHOTO_DIR / f"pod_{delivery_id}_{stamp}.jpg"
     path.write_bytes(raw)
     return str(path)
@@ -195,8 +196,12 @@ async def submit_pod(
         if not d:
             raise HTTPException(status_code=404, detail="Entrega no encontrada")
 
-        photo_path = _save_photo(payload.delivery_id, payload.photo_proof) if payload.photo_proof else None
-        now = payload.signed_at or datetime.now(timezone.utc).isoformat()
+        photo_path = (
+            _save_photo(payload.delivery_id, payload.photo_proof)
+            if payload.photo_proof
+            else None
+        )
+        now = payload.signed_at or datetime.now(UTC).isoformat()
 
         existing = conn.execute(
             "SELECT id FROM pod_records WHERE delivery_id = ? ORDER BY id DESC LIMIT 1",
