@@ -334,7 +334,37 @@ def register_client_handlers(app: Any) -> int:
         "list_peso": cmd_list_peso,
         "list_tipo": cmd_list_tipo,
         "client_info": cmd_client_info,
+        "resumen": cmd_resumen,
     }
     for name, fn in cmds.items():
         app.add_handler(CommandHandler(name, fn))
     return len(cmds)
+
+
+async def cmd_resumen(update: Any, context: Any) -> None:
+    """/resumen <telefono> — estado de cuenta del cliente (Bloque 4 Fase 4.3).
+
+    Genera el resumen semanal de crédito al instante (on-demand) y opcionalmente
+    lo envía al cliente por WhatsApp (Valentina, Meta Cloud API) con /resumen <tel> send.
+    """
+    if not _authorized(update):
+        return
+    phone = _arg(context, 0)
+    if not phone:
+        await _reply(update, context, "Uso: /resumen <telefono> [send]")
+        return
+    from scripts.credit_summary import generate_weekly_summary, send_summary_via_valentina
+
+    summary = generate_weekly_summary(phone)
+    if not summary:
+        await _reply(update, context, f"✅ {phone}: sin pedidos pendientes.")
+        return
+    if len(context.args) > 1 and context.args[1] == "send":  # type: ignore[index]
+        ok = send_summary_via_valentina(phone, summary)
+        await _reply(
+            update, context,
+            f"{'✅ Enviado' if ok else '❌ Falló el envío'} a {phone}:\n\n{summary}",
+        )
+    else:
+        hint = f"(preview — usa '/resumen {phone} send' para enviar)\n\n{summary}"
+        await _reply(update, context, hint)
