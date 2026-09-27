@@ -268,6 +268,15 @@ class DispatcherTelegramBot:
             self.app.add_handler(CommandHandler("siguiente", self.cmd_siguiente))
             self.app.add_handler(CommandHandler("status", self.cmd_status))
             self.app.add_handler(CommandHandler("help", self.cmd_help))
+            # Directiva Líder 💧: el chofer llega a la estación y pide su plan
+            self.app.add_handler(CommandHandler("plan", self.cmd_plan))
+            # Directiva Líder 💧: grupos PROHIBIDOS — solo chats privados 1-a-1
+            self.app.add_handler(MessageHandler(filters.ChatType.GROUPS, self.reject_groups))
+            self.app.add_handler(
+                MessageHandler(
+                    filters.ChatType.PRIVATE & ~filters.COMMAND, self.reject_private_text
+                )
+            )
             self.app.add_handler(CallbackQueryHandler(self.callback_registro, pattern="^reg_"))
             self.app.add_handler(
                 CallbackQueryHandler(self.callback_accion, pattern="^(arr_|del_|no_|new_)")
