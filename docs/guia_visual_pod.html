@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Guía Visual — POD Digital · Estación H2O</title>
+<style>
+:root{--verde:#4CAF50;--azul:#2196F3;--naranja:#FF9800;--rojo:#F44336;--fondo:#f5f7fa;--tinta:#1a1a2e;--card:#fff}
+*{box-sizing:border-box;margin:0;padding:0;font-family:system-ui,-apple-system,'Segoe UI',Roboto,sans-serif}
+body{background:var(--fondo);color:var(--tinta);line-height:1.5;padding:12px;max-width:1100px;margin:0 auto}
+h1{font-size:1.5rem;background:linear-gradient(135deg,#0066cc,#2196F3);color:#fff;padding:16px;border-radius:12px;text-align:center}
+h1 small{display:block;font-weight:400;font-size:.8rem;opacity:.85;margin-top:4px}
+h2{font-size:1.15rem;color:#0d47a1;margin:28px 0 12px;padding-bottom:6px;border-bottom:3px solid var(--azul)}
+h3{font-size:.95rem;color:#1565c0;margin:16px 0 8px}
+section{background:var(--card);border-radius:12px;padding:16px;margin-bottom:14px;box-shadow:0 2px 6px rgba(0,0,0,.08)}
+.badge{display:inline-block;padding:3px 10px;border-radius:12px;font-size:.72rem;font-weight:700;color:#fff;vertical-align:middle}
+.b-verde{background:var(--verde)}.b-azul{background:var(--azul)}.b-naranja{background:var(--naranja)}.b-rojo{background:var(--rojo)}
+/* ---- Diagrama de flujo ---- */
+.flow{display:flex;flex-direction:column;gap:8px;align-items:stretch}
+.fstep{display:flex;align-items:center;gap:10px;background:#fff;border-left:6px solid var(--azul);border-radius:10px;padding:10px 12px;box-shadow:0 1px 4px rgba(0,0,0,.1)}
+.fstep.verde{border-left-color:var(--verde)}.fstep.naranja{border-left-color:var(--naranja)}.fstep.rojo{border-left-color:var(--rojo)}
+.fnum{flex-shrink:0;width:30px;height:30px;border-radius:50%;background:var(--azul);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:.85rem}
+.fstep.verde .fnum{background:var(--verde)}.fstep.naranja .fnum{background:var(--naranja)}.fstep.rojo .fnum{background:var(--rojo)}
+.fstep b{font-size:.88rem}.fstep small{display:block;font-size:.75rem;color:#555}
+.farrow{text-align:center;color:#90a4ae;font-size:1.1rem;line-height:.6}
+/* ---- Teléfonos ---- */
+.phones{display:flex;flex-wrap:wrap;gap:14px;justify-content:center;margin-top:10px}
+.phone{width:270px;background:#111;border-radius:26px;padding:10px;box-shadow:0 6px 16px rgba(0,0,0,.25)}
+.screen{background:#eef2f7;border-radius:18px;overflow:hidden;height:100%;min-height:380px;display:flex;flex-direction:column}
+.screen header{background:#0066cc;color:#fff;padding:10px;font-size:.8rem}
+.screen header b{display:block;font-size:.85rem}
+.tg{background:#517da2}.tg header{background:#517da2}
+.tg .msg{margin:8px;padding:8px 10px;border-radius:12px;font-size:.75rem;max-width:92%}
+.tg .in{background:#fff;align-self:flex-start}
+.tg .out{background:#d3f3ff;align-self:flex-end}
+.tg .btnrow{display:flex;gap:6px;padding:4px 8px;flex-wrap:wrap}
+.tg .tgbtn{background:#fff;border:1px solid #ccc;border-radius:16px;padding:6px 10px;font-size:.72rem;font-weight:600}
+.tg .tgbtn.ok{border-color:var(--verde);color:var(--verde)}
+.tg .tgbtn.warn{border-color:var(--naranja);color:#e65100}
+.tg .tgbtn.loc{border-color:var(--azul);color:var(--azul)}
+.pwa-pin{flex:1;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.75)}
+.pwa-pin .box{background:#fff;border-radius:14px;padding:14px;text-align:center;width:85%}
+.pwa-pin input{width:100%;padding:8px;font-size:1.2rem;text-align:center;letter-spacing:6px;border:2px solid #ccc;border-radius:8px;margin:8px 0}
+.pwa-pin button{width:100%;padding:9px;background:var(--verde);color:#fff;border:none;border-radius:8px;font-weight:700;font-size:.85rem}
+.pwa-body{padding:10px;font-size:.72rem;flex:1}
+.pwa-card{background:#fff;border-radius:10px;padding:8px;margin-bottom:8px;box-shadow:0 1px 3px rgba(0,0,0,.1)}
+.pwa-card h4{font-size:.7rem;color:#0066cc;text-transform:uppercase;margin-bottom:5px}
+.pwa-card table{width:100%;border-collapse:collapse;font-size:.68rem}
+.pwa-card td{padding:3px 2px;border-bottom:1px solid #eee}
+.saldo{background:#fff3cd;border-radius:6px;padding:5px;font-size:.65rem;margin-top:5px}
+.canvas-mock{border:2px dashed #0066cc;border-radius:8px;height:70px;display:flex;align-items:center;justify-content:center;color:#0066cc;font-size:.68rem;background:#fff}
+.canvas-mock svg{width:80%;height:50px}
+.pwa-btn{display:block;width:100%;padding:9px;border:none;border-radius:8px;color:#fff;font-weight:700;font-size:.78rem;margin-top:6px;text-align:center}
+.pb-verde{background:var(--verde)}.pb-naranja{background:var(--naranja)}.pb-rojo{background:var(--rojo)}.pb-gris{background:#6c757d}
+.exito{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;color:var(--verde);font-weight:800;text-align:center;padding:16px}
+.exito .ok{font-size:3rem}
+.exito small{color:#555;font-weight:400;font-size:.7rem;margin-top:6px}
+.wa .msg.wa-in{background:#dcf8c6;align-self:flex-start}
+.wa header{background:#075e54}
+.offline-bar{background:var(--naranja);color:#fff;text-align:center;font-size:.65rem;padding:4px}
+.phlabel{text-align:center;color:#fff;font-size:.7rem;margin-top:6px}
+/* ---- Comandos ---- */
+table.cmds{width:100%;border-collapse:collapse;font-size:.8rem}
+table.cmds th{background:#0d47a1;color:#fff;padding:8px;text-align:left;font-size:.75rem}
+table.cmds td{padding:7px 8px;border-bottom:1px solid #e0e0e0}
+table.cmds tr:nth-child(even){background:#f4f8ff}
+code{background:#e3f2fd;color:#0d47a1;padding:1px 6px;border-radius:4px;font-size:.75rem;white-space:nowrap}
+/* ---- Leyenda ---- */
+.leg{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-top:8px}
+.legitem{display:flex;align-items:center;gap:8px;background:#fff;border-radius:8px;padding:8px;font-size:.78rem;box-shadow:0 1px 3px rgba(0,0,0,.08)}
+.dot{width:16px;height:16px;border-radius:50%;flex-shrink:0}
+footer{text-align:center;font-size:.7rem;color:#777;padding:16px 0}
+@media(max-width:640px){.phone{width:100%;max-width:320px;margin:0 auto}}
+</style>
+</head>
+<body>
+
+<h1>💧 Guía Visual — POD Digital
+<small>Estación H2O · Sistema de entrega sin papel · Bloques 1-5 completados 2026-09-27</small></h1>
+
+<!-- ============ FLUJO ============ -->
+<section>
+<h2>1 · Flujo completo — Cliente Prioridad 1 <span class="badge b-verde">Nivel 1</span></h2>
+<div class="flow">
+  <div class="fstep verde"><div class="fnum">1</div><div><b>06:00 — Auto-router genera la ruta</b><small>orders_auto del día → materializador crea <code>deliveries</code> por vehículo con rotación de zonas. Prioridad 1: restaurante/clínica/escuela, reparto diario, lunes duplicado.</small></div></div>
+  <div class="farrow">▼</div>
+  <div class="fstep"><div class="fnum">2</div><div><b>07:45 — El chofer abre @DespachoH2O_bot → /plan</b><small>Recibe la ruta del día: orden de paradas, cliente, botellones, GPS de cada una.</small></div></div>
+  <div class="farrow">▼</div>
+  <div class="fstep"><div class="fnum">3</div><div><b>En cada parada → [📍 Llegué]</b><small>Registra hora de llegada y pide ubicación GPS al chofer.</small></div></div>
+  <div class="farrow">▼</div>
+  <div class="fstep verde"><div class="fnum">4</div><div><b>Entrega → [✅ Entregado]</b><small>Marca <code>delivered</code> + crea la nota digital (<code>pod_record</code> pending) + responde con el link de firma.</small></div></div>
+  <div class="farrow">▼</div>
+  <div class="fstep"><div class="fnum">5</div><div><b>El chofer abre el link en su celular (PWA)</b><small>PIN del chofer → nota con productos y saldos → el cliente firma en el canvas + cédula + foto si hace falta.</small></div></div>
+  <div class="farrow">▼</div>
+  <div class="fstep naranja"><div class="fnum">6</div><div><b>¿Sin señal? Modo offline</b><small>La PWA guarda todo en el celular (IndexedDB): "✅ Guardado local". Al recuperar 4G/WiFi reenvía sola y muestra "✅ Sincronizado".</small></div></div>
+  <div class="farrow">▼</div>
+  <div class="fstep verde"><div class="fnum">7</div><div><b>Worker cada 5 min → Odoo</b><small><code>pod_odoo_sync</code>: partner → nota de entrega (picking) → factura → pago si el R4 confirmó → inventario descontado. El chofer JAMÁS ve saldos ni da crédito.</small></div></div>
+  <div class="farrow">▼</div>
+  <div class="fstep"><div class="fnum">8</div><div><b>Lunes 8:00 — Resumen de crédito por WhatsApp</b><small>Valentina manda el estado de cuenta a cada cliente con saldo. El cliente responde con su comprobante → verificación R4.</small></div></div>
+</div>
+</section>
+
+<!-- ============ MOCKUPS TELEGRAM ============ -->
+<section>
+<h2>2a · Telegram — Bot del chofer <span class="badge b-azul">@DespachoH2O_bot</span></h2>
+<div class="phones">
+<div class="phone tg"><div class="screen">
+  <header><b>💧 Despacho H2O</b>Ruta de hoy · 3 paradas</header>
+  <div class="msg in"><b>📍 Parada 1/3</b><br>👤 Restaurante La Fuente <span class="badge b-verde" style="font-size:.6rem">N1</span><br>📱 0412-2560720<br>📦 4 botellones + 1 hielo<br>🗺️ Ver ubicación</div>
+  <div class="btnrow">
+    <span class="tgbtn loc">📍 Llegué</span>
+    <span class="tgbtn ok">✅ Entregado</span>
+    <span class="tgbtn warn">❌ No responde</span>
+  </div>
+  <div class="msg out">✅ Entrega completada.<br><br>✍️ NOTA DE ENTREGA DIGITAL:<br>Abrí el link de firma en tu celular:<br>http://valentina.estacionh2o.com:8000/pod/1211?token=•••</div>
+  <div class="msg in">📍 Próxima parada: Clínica San Rafael · 2 botellones</div>
+</div><div class="phlabel">Ruta → botones → link de firma PWA</div></div>
+</div>
+</section>
+
+<!-- ============ MOCKUPS PWA ============ -->
+<section>
+<h2>2b · PWA — Pantallas de firma</h2>
+<div class="phones">
+
+<div class="phone"><div class="screen">
+  <div class="pwa-pin"><div class="box">
+    <h3 style="margin:0">🔒 PIN del chofer</h3>
+    <p style="font-size:.68rem;color:#666">Ingrese su PIN de 4 dígitos</p>
+    <input type="password" value="••••" readonly>
+    <button>Ingresar</button>
+    <p style="font-size:.6rem;color:var(--rojo);min-height:1em;margin-top:4px">PIN incorrecto (1/3)</p>
+  </div></div>
+</div><div class="phlabel">1 · PIN (3 intentos → bloqueo + alerta)</div></div>
+
+<div class="phone"><div class="screen">
+  <header style="background:#0066cc"><b>💧 Proof of Delivery</b><span style="font-size:.7rem;display:block">👤 Restaurante La Fuente<br>📍 Av. 5 Bella Vista</span></header>
+  <div class="pwa-body">
+    <div class="pwa-card"><h4>Detalles de la entrega</h4>
+      <table><tr><td>AGUA19L</td><td style="text-align:right">3 × 1.00</td><td style="text-align:right">€3.00</td></tr>
+      <tr><td>HIELO7KG</td><td style="text-align:right">1 × 1.20</td><td style="text-align:right">€1.20</td></tr>
+      <tr><td><b>TOTAL</b></td><td></td><td style="text-align:right"><b>€4.20</b></td></tr></table>
+      <div class="saldo">📒 Saldo anterior (crédito): €12.50</div>
+    </div>
+    <div class="pwa-card"><h4>Cédula del cliente</h4>
+      <div style="border:2px solid #ccc;border-radius:6px;padding:6px;background:#fff">V-12345678</div>
+      <div style="display:flex;gap:6px;margin-top:6px">
+        <div style="flex:1"><small style="font-size:.6rem;color:#555">Vacios recibidos</small><div style="border:2px solid #ccc;border-radius:6px;padding:6px;text-align:center">3</div></div>
+        <div style="flex:1"><small style="font-size:.6rem;color:#555">Tapas recibidas</small><div style="border:2px solid #ccc;border-radius:6px;padding:6px;text-align:center">1</div></div>
+      </div>
+    </div>
+  </div>
+</div><div class="phlabel">2 · Datos (solo lectura) + captura</div></div>
+
+<div class="phone"><div class="screen">
+  <header style="background:#0066cc"><b>💧 Proof of Delivery</b></header>
+  <div class="pwa-body">
+    <div class="pwa-card"><h4>Firma del cliente</h4>
+      <div class="canvas-mock">
+        <svg viewBox="0 0 200 50"><path d="M20,35 C40,10 55,45 75,20 S110,10 130,32 S170,40 185,18" stroke="#111" stroke-width="2.5" fill="none" stroke-linecap="round"/><path d="M30,42 C60,38 120,44 160,40" stroke="#111" stroke-width="2" fill="none" stroke-linecap="round"/></svg>
+      </div>
+      <small style="color:#666;font-size:.6rem">Firme con el dedo en el recuadro</small>
+      <button class="pwa-btn pb-gris" style="margin-top:6px">Borrar firma</button>
+    </div>
+    <button class="pwa-btn pb-verde">✅ Confirmar Entrega</button>
+    <button class="pwa-btn pb-naranja">📷 Cliente no firma — Tomar foto</button>
+    <button class="pwa-btn pb-rojo">❌ Cliente rechaza el pedido</button>
+  </div>
+</div><div class="phlabel">3 · Canvas de firma + acciones</div></div>
+
+<div class="phone"><div class="screen">
+  <div class="exito"><div class="ok">✅</div>Sincronizado<br>Nota registrada<small>POD #13 · ya está en Odoo</small></div>
+</div><div class="phlabel">4 · Éxito</div></div>
+
+</div>
+</section>
+
+<!-- ============ CASOS ESPECIALES ============ -->
+<section>
+<h2>2c · Casos especiales <span class="badge b-naranja">Atención</span></h2>
+<div class="phones">
+
+<div class="phone"><div class="screen">
+  <header style="background:#0066cc"><b>💧 Cliente no firma</b></header>
+  <div class="pwa-body">
+    <div class="pwa-card"><h4>Foto de respaldo</h4>
+      <div style="background:#17a2b8;color:#fff;border-radius:8px;padding:10px;text-align:center;font-weight:700;font-size:.75rem">📷 Foto tomada ✓</div>
+      <div style="background:#e8f5e9;border-radius:6px;margin-top:6px;height:60px;display:flex;align-items:center;justify-content:center;color:#2e7d32;font-size:.68rem">🖼️ Foto del cliente con el pedido</div>
+    </div>
+    <button class="pwa-btn pb-naranja">📷 Cliente no firma — Tomar foto</button>
+    <p style="font-size:.62rem;color:#666;margin-top:6px">El POD queda <code>photo_only</code>: la foto es la prueba. El producto se entrega igual.</p>
+  </div>
+</div><div class="phlabel">No firma → foto obligatoria (photo_only)</div></div>
+
+<div class="phone"><div class="screen">
+  <div class="offline-bar">✅ Guardado local — Pendiente sync</div>
+  <header style="background:#0066cc"><b>💧 Proof of Delivery</b></header>
+  <div class="exito" style="color:var(--naranja)"><div class="ok" style="color:var(--naranja)">📴</div>Guardado en el celular<small>La nota se enviará sola cuando haya señal 4G/WiFi. No hay que hacer nada.</small></div>
+</div><div class="phlabel">Modo offline (IndexedDB → sync automático)</div></div>
+
+<div class="phone wa"><div class="screen">
+  <header><b>💬 Valentina · Estación H2O</b>WhatsApp</header>
+  <div class="msg wa-in">📋 Resumen Semanal — Estación H2O 💧<br><br>Cliente: Restaurante La Fuente<br>Período: 20/09 a 27/09/2026<br><br>Pedidos pendientes: 2<br>Total: 8.40 EUR (336,00 VES a tasa 40)<br><br>Detalle:<br>1. 22/09 — 3 AGUA + 1 HIELO = 4.20 EUR<br>2. 25/09 — 3 AGUA + 1 HIELO = 4.20 EUR<br><br>Total a pagar: 8.40 EUR<br><br>Para pagar, respondé con tu comprobante de transferencia.</div>
+  <div class="msg out" style="background:#d3f3ff">📎IMG-20260927-Transferencia.jpg</div>
+  <div class="msg in" style="background:#dcf8c6">✅ Pago recibido y verificado. ¡Gracias! 💧</div>
+</div><div class="phlabel">Resumen semanal automático (lunes 8 AM)</div></div>
+
+</div>
+</section>
+
+<!-- ============ COMANDOS ============ -->
+<section>
+<h2>3 · Comandos del operador <span class="badge b-azul">@Skynet_27_bot</span> <span class="badge b-rojo">solo Líder</span></h2>
+<table class="cmds">
+<tr><th>Comando</th><th>Qué hace</th></tr>
+<tr><td><code>/resumen &lt;tel&gt;</code></td><td>Preview del estado de cuenta del cliente</td></tr>
+<tr><td><code>/resumen &lt;tel&gt; send</code></td><td>Envía el resumen por WhatsApp al instante</td></tr>
+<tr><td><code>/revoke_vehicle &lt;id&gt;</code></td><td><span class="badge b-rojo">Kill-switch</span> Revoca el token del vehículo: PWA bloqueada + PODs offline marcados comprometidos</td></tr>
+<tr><td><code>/activate_vehicle &lt;id&gt;</code></td><td><span class="badge b-verde">Reactiva</span> el vehículo revocado</td></tr>
+<tr><td><code>/reset_pin &lt;id&gt;</code></td><td><span class="badge b-naranja">Desbloquea</span> el PIN (limpia intentos fallidos)</td></tr>
+<tr><td><code>/set_peso &lt;tel&gt; &lt;tipo&gt;</code></td><td>Clasifica cliente (Nivel 1: restaurante/clínica/escuela)</td></tr>
+<tr><td><code>/unset_peso &lt;tel&gt;</code></td><td>Quita clasificación</td></tr>
+<tr><td><code>/list_peso</code> · <code>/list_tipo &lt;t&gt;</code></td><td>Listados de clientes por peso/tipo</td></tr>
+<tr><td><code>/client_info &lt;tel&gt;</code></td><td>Ficha completa del cliente</td></tr>
+</table>
+<p style="font-size:.72rem;color:#666;margin-top:8px">Bot del chofer (@DespachoH2O_bot): <code>/plan</code> <code>/ruta</code> <code>/siguiente</code> <code>/status</code> + botones 📍 Llegué / ✅ Entregado / ❌ No responde.</p>
+</section>
+
+<!-- ============ LEYENDA ============ -->
+<section>
+<h2>4 · Leyenda de colores</h2>
+<div class="leg">
+  <div class="legitem"><span class="dot" style="background:var(--verde)"></span><b>Verde</b> — Nivel 1 / éxito / confirmar</div>
+  <div class="legitem"><span class="dot" style="background:var(--azul)"></span><b>Azul</b> — información / flujo normal / Telegram</div>
+  <div class="legitem"><span class="dot" style="background:var(--naranja)"></span><b>Naranja</b> — advertencia / offline / no firma</div>
+  <div class="legitem"><span class="dot" style="background:var(--rojo)"></span><b>Rojo</b> — peligro / rechazo / kill-switch</div>
+</div>
+</section>
+
+<footer>Estación H2O 💧 · Proyecto POD Digital — guía generada 2026-09-27 · Manual técnico: docs/POD_DIGITAL_MANUAL_COMPLETO.md</footer>
+</body>
+</html>
