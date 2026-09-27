@@ -4,7 +4,6 @@ import json
 import os
 import sqlite3
 import sys
-import uuid
 from unittest.mock import MagicMock, patch
 
 os.environ["POD_VEHICLE_TOKENS"] = "tok-veh1:1,tok-veh2:2"
@@ -60,7 +59,8 @@ try:
     assert r.status_code == 403
     row = conn.execute("SELECT pod_status FROM pod_records WHERE id=?", (pod_id,)).fetchone()
     assert row["pod_status"] == "compromised", dict(row)
-    state = json.loads(open(pr.REVOKED_FILE).read())
+    with open(pr.REVOKED_FILE) as f:
+        state = json.loads(f.read())
     assert "1" in state["revoked"]
     print("TEST2_OK: revoke → 403 en PWA y API + POD 'compromised'")
 
@@ -100,7 +100,7 @@ try:
         cmds.extend(getattr(call.args[0], "commands", frozenset()))
     for expected in ("revoke_vehicle", "activate_vehicle", "reset_pin", "resumen"):
         assert expected in cmds, f"falta {expected}: {cmds}"
-    print(f"TEST7_OK: 9 comandos registrados (incl. kill-switch)")
+    print("TEST7_OK: 9 comandos registrados (incl. kill-switch)")
 
     import asyncio
 
