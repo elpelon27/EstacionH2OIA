@@ -69,7 +69,7 @@ def sync_pedido_to_odoo(odoo: OdooClient, conn: sqlite3.Connection, pedido_id: i
     if not p:
         log.error("sync_pedido: fs_pedidos #%s no existe", pedido_id)
         return None
-    if "odoo_invoice_id" not in p.keys():
+    if "odoo_invoice_id" not in p:
         _ensure_columns(conn)
 
     ref = f"FS-{p['pedido_id']}"
