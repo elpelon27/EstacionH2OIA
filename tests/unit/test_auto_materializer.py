@@ -43,12 +43,14 @@ def db(tmp_path):
         );
         CREATE UNIQUE INDEX IF NOT EXISTS idx_session_vehicle_date_shift
             ON dispatch_sessions(vehicle_id, date, shift);
-        CREATE TABLE IF NOT EXISTS clients (
+        DROP TABLE IF EXISTS clients;
+        CREATE TABLE clients (
             id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT NOT NULL,
             phone_hash TEXT NOT NULL DEFAULT 'h', name TEXT,
             active INTEGER DEFAULT 1
         );
-        CREATE TABLE IF NOT EXISTS deliveries (
+        DROP TABLE IF EXISTS deliveries;
+        CREATE TABLE deliveries (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             dispatch_session_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
             vehicle_id INTEGER NOT NULL, order_sequence INTEGER NOT NULL,
@@ -104,10 +106,15 @@ def test_rotation_changes_assignment_next_day(db):
     """La rotación diaria debe cambiar qué vehículo recibe la misma zona."""
     _seed_orders(db, "2026-09-28", [(1, 5)])  # lunes → offset 0
     _seed_orders(db, "2026-09-29", [(1, 5)])  # martes → offset 1
+    conn = sqlite3.connect(db)
+    v_ids = sorted(r[0] for r in conn.execute("SELECT id FROM vehicles").fetchall())
+    conn.close()
+    assert len(v_ids) == 2
     r_lun = am.materialize_day("2026-09-28")
     r_mar = am.materialize_day("2026-09-29")
-    assert r_lun["assignment"]["1"] == 1  # primera zona → vehículo 1 (offset lunes 0)
-    assert r_mar["assignment"]["1"] == 2  # offset martes 1 → rota a vehículo 2
+    # lunes (offset 0): zona 1 → primer vehículo; martes (offset 1): rota al segundo
+    assert r_lun["assignment"]["1"] == v_ids[0]
+    assert r_mar["assignment"]["1"] == v_ids[1]
 
 
 def test_no_orders_returns_empty(db):
