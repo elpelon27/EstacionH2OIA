@@ -1,5 +1,29 @@
 # 📋 DEUDAS TÉCNICAS Y PROYECTOS - Estación H2O / Valentina
-**Última actualización:** 2026-08-17 (import circular eliminado + mypy 0 + coverage 61%) | **Estado CI:** ✅ GREEN
+**Última actualización:** 2026-09-27 (PROYECTO POD DIGITAL COMPLETADO Bloques 1-5) | **Estado CI:** ✅ GREEN
+
+## 💧 PROYECTO POD DIGITAL + ODOO — COMPLETADO 2026-09-27 (Bloques 1-5)
+
+> Manual completo: docs/POD_DIGITAL_MANUAL_COMPLETO.md · Testeo: docs/POD_PWA_TESTEO.md
+
+- **POD Digital: COMPLETADO.** PWA offline-first (web/pod_form.html) con firma canvas,
+  cédula, foto, swap vacíos/tapas, PIN chofer (3 intentos + alerta Telegram), cola
+  IndexedDB con sync automático. Endpoints en bridge (api/pod_router.py). Botón
+  ✅ Entregado del bot chofer crea pod_record + link de firma. 7 suites de tests ALL PASSED.
+- **Odoo: configurado.** 17.0, DB estacion_h2o, moneda EUR, 4 productos
+  (AGUA19L 1.00 / HIELO7KG 1.20 / VACIO19L swap / TAPAS19L consu), sin IVA
+  (facturas internas), inventario 0 (orden abierta para stock físico).
+  odoo_sync.py validado E2E (partner→picking→invoice→payment, residual 0).
+- **Sync bidireccional fs_* ↔ Odoo:** scripts/fs_odoo_sync.py (cron */15).
+  Worker POD→Odoo: scripts/pod_odoo_sync.py (cron */5), idempotente.
+- **Crédito:** fs_pedidos PURGADO (0 pedidos, arranque limpio 2026-09-27, backup
+  conversations_backup_pre_purga_fs.db). Resumen semanal automático lunes 8 AM
+  vía Meta Cloud API + /resumen on-demand en @Skynet_27_bot.
+- **Kill-switch revocable:** /revoke_vehicle /activate_vehicle /reset_pin
+  (tokens por vehículo, PODs offline → 'compromised').
+- **Hooks fiscales: DOCUMENTADOS** (docs/HOOKS_FISCALES_FUTUROS.md), pendiente
+  inscripción SENIAT del Líder. Libretas físicas siguen siendo el documento fiscal.
+- **Pendientes del Líder:** tokens/PIN producción, inventario inicial Odoo,
+  RIF empresa, URL pública PWA, prueba en celular real (sección 10 del manual).
 
 ## 🔒 BRECHA DE SEGURIDAD — CERRADA 2026-08-16 (API keys NVIDIA)
 > `scripts/prometeo/hybrid_llm.py` tenía 3 API keys NVIDIA hardcodeadas (nvapi-*), expuestas
