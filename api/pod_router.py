@@ -108,10 +108,11 @@ def _build_product_details(row: sqlite3.Row) -> str:
 @router.get("/{delivery_id}")
 async def get_pod(
     delivery_id: int,
+    token: str | None = None,
     x_vehicle_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """Datos de la entrega para renderizar la nota en la PWA."""
-    _verify_token(x_vehicle_token)
+    _verify_token(x_vehicle_token or token)
     conn = _get_conn()
     try:
         row = conn.execute(
@@ -172,10 +173,11 @@ def _save_photo(delivery_id: int, photo_b64: str) -> str:
 @router.post("/submit")
 async def submit_pod(
     payload: PodSubmit,
+    token: str | None = None,
     x_vehicle_token: str | None = Header(default=None),
 ) -> dict[str, Any]:
     """Recibe la firma/foto de la entrega y actualiza el pod_record."""
-    _verify_token(x_vehicle_token)
+    _verify_token(x_vehicle_token or token)
     if payload.pod_status == "signed" and not payload.signature_canvas:
         raise HTTPException(status_code=400, detail="Firma requerida para status=signed")
     if payload.pod_status in ("photo_only", "refused") and not payload.photo_proof:
