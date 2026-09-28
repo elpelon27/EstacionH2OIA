@@ -16,6 +16,7 @@ manual. Retorna dict {"sent": bool, "reason": str, ...}.
 from __future__ import annotations
 
 import base64
+import contextlib
 import json
 import logging
 import os
@@ -109,11 +110,18 @@ def send_document(phone: str, pdf_path: str, caption: str) -> dict[str, Any]:
     try:
         status, body = _request("POST", "/api/sendFile", payload)
         if status in (200, 201):
+            ok_ret = {"sent": True, "reason": "ok", "status": status}
             logger.info("WAHA PDF enviado a %s (%s)", phone, path.name)
-            return {"sent": True, "reason": "ok", "status": status, "body": body[:500]}
-        return {"sent": False, "reason": f"WAHA HTTP {status}", "status": status, "body": body[:500]}
+            return ok_ret
+        return {
+            "sent": False,
+            "reason": f"WAHA HTTP {status}",
+            "status": status,
+            "body": body[:500],
+        }
     except urllib.error.HTTPError as e:
         # 403/422 típico cuando la sesión no existe o no está WORKING
+        detail = ""
         with contextlib.suppress(Exception):
             detail = e.read().decode(errors="replace")[:500]
         return {
