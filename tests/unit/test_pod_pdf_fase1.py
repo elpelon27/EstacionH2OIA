@@ -87,7 +87,7 @@ try:
         "V-12345678",
         "Botellones vacíos recibidos: 5",
         "Tapas recibidas: 5",
-        "Saldo anterior (crédito): 12,50 EUR",
+        "Saldo anterior (credito): 12,50 EUR",
         "Total a pagar (incluye saldo): 18,50 EUR",
         "Firmado digitalmente el 28/09/2026 10:30 AM",
     ]:

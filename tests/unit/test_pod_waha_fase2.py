@@ -24,9 +24,9 @@ DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
 PDF_DIR = Path("/mnt/ssd_trabajo/hermes-agent/data/pod_pdfs")
 H = {"X-Vehicle-Token": "test-token-fase2"}
 
-from PIL import Image, ImageDraw  # noqa: E402
 from fastapi import FastAPI  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
+from PIL import Image, ImageDraw  # noqa: E402
 
 from api.pod_router import router  # noqa: E402
 from scripts import waha_client  # noqa: E402

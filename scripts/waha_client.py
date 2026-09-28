@@ -66,9 +66,10 @@ def is_session_ready() -> bool:
         s.get("status") in ("WORKING", "logged") for s in sessions if isinstance(s, dict)
     )
     if not ready:
+        estados = [s.get("status") for s in sessions if isinstance(s, dict)]
         logger.info(
             "WAHA sin sesión activa (estados: %s) — sin chip escaneado todavía",
-            [s.get("status") for s in sessions if isinstance(s, dict)] or "vacío",
+            estados or "vacío",
         )
     return ready
 
@@ -113,8 +114,14 @@ def send_document(phone: str, pdf_path: str, caption: str) -> dict[str, Any]:
         return {"sent": False, "reason": f"WAHA HTTP {status}", "status": status, "body": body[:500]}
     except urllib.error.HTTPError as e:
         # 403/422 típico cuando la sesión no existe o no está WORKING
-        detail = e.read().decode(errors="replace")[:500] if e.fp else ""
-        return {"sent": False, "reason": f"WAHA HTTPError {e.code}", "status": e.code, "body": detail}
+        with contextlib.suppress(Exception):
+            detail = e.read().decode(errors="replace")[:500]
+        return {
+            "sent": False,
+            "reason": f"WAHA HTTPError {e.code}",
+            "status": e.code,
+            "body": detail,
+        }
     except Exception as e:  # noqa: BLE001 — fail-open por diseño
         logger.warning("WAHA falló (fail-open): %s", e)
         return {"sent": False, "reason": f"WAHA error: {e}"}
