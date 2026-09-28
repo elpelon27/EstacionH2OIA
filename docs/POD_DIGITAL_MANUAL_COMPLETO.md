@@ -130,6 +130,10 @@ POD_PHOTO_DIR=data/pod_photos
 POD_HTML_PATH=web/pod_form.html
 POD_PRECIO_AGUA=1.00
 POD_PRECIO_HIELO=1.20
+WAHA_BASE_URL=http://127.0.0.1:3000       # contenedor waha (Docker)
+WAHA_API_KEY=...                          # ya en config/.env
+WAHA_SESSION=default                     # "Despachos H2O"
+WAHA_TIMEOUT=10
 ODOO_URL / ODOO_DB / ODOO_USERNAME / ODOO_PASSWORD   # ver infra/odoo/.env
 TELEGRAM_ALERT_CHAT / TELEGRAM_ALERT_TOKEN            # alertas PIN bloqueado
 ```
@@ -154,7 +158,49 @@ venv/bin/python tests/unit/test_credit_summary_bloque4.py  # resumen + /resumen
 venv/bin/python tests/unit/test_killswitch_bloque5.py     # kill-switch
 ```
 
-## 10. Pendientes del Líder (post-proyecto)
+## 10. Envío de copia firmada al cliente (PDF + WAHA)
+
+**Problema resuelto**: Meta Cloud API tiene la regla de 24h — Valentina no
+puede escribirle a un cliente que no le escribió primero. Los clientes
+Nivel 1 (restaurantes, clínicas, escuelas) reciben automático y NUNCA
+escriben → sin WAHA, no había forma de entregarles la copia firmada.
+
+**Flujo**: firma → PDF → WAHA → cliente
+
+1. El cliente firma en la PWA → `POST /api/pod/submit` con `pod_status=signed`.
+2. En un thread aparte (no demora la respuesta al chofer), el bridge:
+   a. Genera el PDF de la nota firmada (`scripts/pod/generate_pdf.py`):
+      header Estación H2O, fecha/hora, datos del cliente, dirección,
+      tabla de productos con precios, botellones vacíos recibidos (swap),
+      tapas recibidas, saldo anterior (si crédito), total a pagar y la
+      firma manuscrita incrustada + línea "Firmado digitalmente el <fecha>".
+      Se guarda en `data/pod_pdfs/pod_<delivery_id>_<timestamp>.pdf`.
+   b. Envía el PDF por WhatsApp con `scripts/waha_client.py` →
+      `POST /api/sendFile` de WAHA, caption
+      "✅ Tu entrega fue confirmada. Adjuntamos tu nota firmada. ¡Gracias! 💧".
+3. El teléfono sale directo de `clients.phone` en dispatch.db (chatId
+   `58XXXXXXXXXX@c.us`) — **no requiere que el cliente haya escrito antes**.
+
+**Notas clave**:
+
+- WAHA usa el número secundario **"Despachos H2O"** (independiente del
+  número oficial de Valentina en Meta Cloud API). No se toca bridge.py
+  ni el webhook de Meta ni el webhook R4.
+- **Nivel 1 reciben el PDF sin necesidad de escribir primero**: WAHA es
+  sesión WhatsApp no-oficial, sin ventana de 24h.
+- **Fail-open**: si WAHA no tiene sesión (todavía no llega el chip), el
+  flujo NO se rompe — se loguea "WAHA no conectado, PDF guardado en
+  data/pod_pdfs/ para envío manual" y la nota queda en disco.
+- **Cuando llegue el chip**: escanear el QR (sección 5) y todo funciona
+  solo — la próxima firma firma ya dispara el envío automático. Cero
+  cambios de código.
+- `photo_only` y `refused` NO generan nota firmada (no hay firma).
+
+**Tests**: `tests/unit/test_pod_pdf_fase1.py` (6) +
+`tests/unit/test_pod_waha_fase2.py` (6, incluye fail-open real contra
+el contenedor WAHA vivo sin sesión → HTTPError 401, no rompe).
+
+## 11. Pendientes del Líder (post-proyecto)
 
 1. Cambiar POD_VEHICLE_TOKEN y POD_CHOFER_PIN de test por producción.
 2. Cargar inventario inicial real en Odoo WH/Stock (hoy 0, orden abierta).
