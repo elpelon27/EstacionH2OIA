@@ -23,11 +23,20 @@ from __future__ import annotations
 import base64
 import json
 import sqlite3
+import unicodedata
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fpdf import FPDF
+
+
+def _latin(text: str) -> str:
+    """Sanitiza a latin-1 (fonts core de fpdf2). Datos reales traen
+    guiones U+2011, etc. Translitera lo posible y reemplaza el resto."""
+    text = unicodedata.normalize("NFKD", text)
+    return text.encode("latin-1", errors="replace").decode("latin-1")
+
 
 PDF_DIR = Path(
     "/mnt/ssd_trabajo/hermes-agent/data/pod_pdfs"
@@ -97,7 +106,7 @@ class _NotaPDF(FPDF):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(120, 120, 120)
-        self.cell(0, 10, f"Estación H2O · Nota de Entrega · Página {self.page_no()}", align="C")
+        self.cell(0, 10, "Estación H2O - Nota de Entrega - Página %d" % self.page_no(), align="C")
 
 
 def generate_pod_pdf(pod_record: sqlite3.Row | dict[str, Any]) -> str:
@@ -147,20 +156,20 @@ def generate_pod_pdf(pod_record: sqlite3.Row | dict[str, Any]) -> str:
     pdf.cell(0, 10, "Estación H2O - Nota de Entrega", new_x="LMARGIN", new_y="NEXT", align="C")
     pdf.set_text_color(0, 0, 0)
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 7, f"Nota #{delivery_id} · Fecha y hora de entrega: {signed_dt}", align="C")
+    pdf.cell(0, 7, f"Nota #{delivery_id} - Fecha y hora de entrega: {signed_dt}", align="C")
     pdf.ln(10)
 
     # ---- Datos del cliente ----
     pdf.set_font("Helvetica", "B", 11)
     pdf.cell(0, 7, "Datos del cliente", new_y="NEXT")
     pdf.set_font("Helvetica", "", 10)
-    pdf.cell(0, 6, f"Nombre: {name}")
+    pdf.cell(0, 6, f"Nombre: {_latin(name)}")
     pdf.ln(6)
-    pdf.cell(0, 6, f"Teléfono: {phone}")
+    pdf.cell(0, 6, f"Teléfono: {_latin(phone)}")
     pdf.ln(6)
-    pdf.cell(0, 6, f"Cédula: {cedula or '—'}")
+    pdf.cell(0, 6, f"Cédula: {_latin(cedula) if cedula else '-'}")
     pdf.ln(6)
-    pdf.cell(0, 6, f"Dirección de entrega: {address or '—'}")
+    pdf.cell(0, 6, f"Dirección de entrega: {_latin(address) if address else '-'}")
     pdf.ln(10)
 
     # ---- Tabla de productos ----
@@ -180,7 +189,7 @@ def generate_pod_pdf(pod_record: sqlite3.Row | dict[str, Any]) -> str:
         for it in items:
             it_qty = float(it.get("qty", 0) or 0)
             price = float(it.get("price", 0) or 0)
-            pdf.cell(col_w[0], 7, f"Agua 19L ({it.get('code', 'AGUA19L')})", border=1)
+            pdf.cell(col_w[0], 7, f"Agua 19L ({_latin(str(it.get('code', 'AGUA19L')))})", border=1)
             pdf.cell(col_w[1], 7, f"{it_qty:g}", border=1, align="C")
             pdf.cell(col_w[2], 7, _fmt_money(price), border=1, align="R")
             pdf.cell(col_w[3], 7, _fmt_money(it_qty * price), border=1, align="R")
@@ -205,7 +214,7 @@ def generate_pod_pdf(pod_record: sqlite3.Row | dict[str, Any]) -> str:
     # ---- Saldo y total ----
     pdf.set_font("Helvetica", "B", 11)
     if saldo_anterior is not None and saldo_anterior > 0:
-        pdf.cell(0, 7, f"Saldo anterior (crédito): {_fmt_money(saldo_anterior)} EUR")
+        pdf.cell(0, 7, f"Saldo anterior (credito): {_fmt_money(saldo_anterior)} EUR")
         pdf.ln(7)
         pdf.cell(0, 7, f"Total a pagar (incluye saldo): {_fmt_money(total + saldo_anterior)} EUR")
     else:

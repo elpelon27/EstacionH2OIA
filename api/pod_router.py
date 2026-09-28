@@ -18,14 +18,18 @@ from __future__ import annotations
 import base64
 import binascii
 import json
+import logging
 import os
 import sqlite3
+import threading
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
 from fastapi import APIRouter, Header, HTTPException
 from pydantic import BaseModel, Field
+
+logger = logging.getLogger("pod.pdf")
 
 router = APIRouter(prefix="/api/pod", tags=["pod"])
 
@@ -348,6 +352,12 @@ async def submit_pod(
             (pod_id, payload.pod_status, payload.delivery_id),
         )
         conn.commit()
+
+        # Copia firmada al cliente: PDF + WAHA (fail-open, thread aparte).
+        # Solo cuando queda 'signed': photo_only/refused no generan nota.
+        if payload.pod_status == "signed":
+            _send_signed_copy_async(payload.delivery_id, pod_id)
+
         return {"status": "ok", "pod_id": pod_id, "pod_status": payload.pod_status}
     finally:
         conn.close()
@@ -433,6 +443,80 @@ async def serve_doc_html(filename: str) -> Any:
     from fastapi.responses import FileResponse
 
     return FileResponse(path, media_type="text/html")
+
+
+# ============================================================
+# Copia firmada al cliente (PDF + WAHA) — fail-open
+# ============================================================
+
+POD_PDF_CAPTION = (
+    "✅ Tu entrega fue confirmada. Adjuntamos tu nota firmada. ¡Gracias! 💧"
+)
+
+
+def _send_signed_copy_async(delivery_id: int, pod_id: int) -> threading.Thread:
+    """Genera el PDF de la nota firmada y lo envía por WAHA al cliente.
+
+    Falla-open TOTAL: nunca lanza, nunca bloquea el flujo POD. Si WAHA no
+    tiene sesión (sin chip escaneado aún) solo loguea — el PDF queda en
+    data/pod_pdfs/ para envío manual. Corre en un thread daemon para no
+    demorar la respuesta de la PWA del chofer.
+    """
+
+    def _run() -> None:
+        try:
+            from scripts.pod.generate_pdf import generate_pod_pdf
+            from scripts.waha_client import is_session_ready, send_document
+
+            conn = _get_conn()
+            try:
+                pod = conn.execute(
+                    """SELECT pr.*, d.bottles_full, d.bottles_on_site_refill,
+                              c.address_text AS client_address
+                       FROM pod_records pr
+                       JOIN deliveries d ON pr.delivery_id = d.id
+                       JOIN clients c ON d.client_id = c.id
+                       WHERE pr.id = ?""",
+                    (pod_id,),
+                ).fetchone()
+            finally:
+                conn.close()
+            if not pod:
+                logger.warning("POD #%s no encontrado para envío de copia", pod_id)
+                return
+
+            pdf_path = generate_pod_pdf(pod)
+            logger.info("POD #%s: PDF generado %s", pod_id, pdf_path)
+
+            if not is_session_ready():
+                logger.info(
+                    "WAHA no conectado, PDF guardado en data/pod_pdfs/ "
+                    "para envío manual: %s",
+                    pdf_path,
+                )
+                return
+
+            result = send_document(pod["client_phone"] or "", pdf_path, POD_PDF_CAPTION)
+            if result["sent"]:
+                logger.info("POD #%s: copia firmada enviada por WAHA", pod_id)
+            else:
+                logger.warning(
+                    "POD #%s: WAHA no envió (fail-open): %s — PDF en %s",
+                    pod_id,
+                    result["reason"],
+                    pdf_path,
+                )
+        except Exception:  # noqa: BLE001 — fail-open por diseño
+            logger.exception(
+                "POD #%s: fallo enviando copia firmada (fail-open, no bloquea)",
+                pod_id,
+            )
+
+    t = threading.Thread(
+        target=_run, name=f"pod-pdf-{delivery_id}", daemon=True
+    )
+    t.start()
+    return t
 
 
 class PinCheck(BaseModel):
