@@ -186,8 +186,20 @@ except Exception: print("")' 2>/dev/null || echo "")
 
     case "$st" in
         WORKING)
-            notify "✅ ${LABEL} vinculado OK — sesión '${SESSION_NAME}' en estado WORKING."
-            echo "==> ✅ [$SESSION_NAME] VINCULADO OK"
+            # Verificación crítica: el número vinculado debe ser el esperado.
+            real=$(curl -sS -m 20 "${WAHA_BASE_URL}/api/sessions/${SESSION_NAME}" \
+                   -H "X-Api-Key: ${WAHA_API_KEY}" | python3 -c 'import sys,json
+try: print((json.load(sys.stdin).get("me") or {}).get("id",""))
+except Exception: print("")' 2>/dev/null || echo "")
+            if [[ -n "$PHONE" && -n "$real" && "$real" != "${PHONE}@c.us" ]]; then
+                notify "🚨 ${LABEL}: sesión WORKING pero con el número EQUIVOCADO.
+Esperado: +${PHONE}  |  Vinculado: ${real}
+Esto rompería la consistencia por entrega. Revisá antes de operar."
+                echo "==> 🚨 [$SESSION_NAME] NÚMERO INCORRECTO: $real"
+                exit 3
+            fi
+            notify "✅ ${LABEL} vinculado OK — sesión '${SESSION_NAME}' en estado WORKING${real:+ (${real})}."
+            echo "==> ✅ [$SESSION_NAME] VINCULADO OK ${real:+<- $real}"
             rm -f "$QR_FILE"
             exit 0
             ;;
