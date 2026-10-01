@@ -1,6 +1,19 @@
 # 📋 DEUDAS TÉCNICAS Y PROYECTOS - Estación H2O / Valentina
 **Última actualización:** 2026-09-27 (PROYECTO POD DIGITAL COMPLETADO Bloques 1-5) | **Estado CI:** ✅ GREEN
 
+> 🔄 **REVALIDADO EN VIVO 2026-10-01.** Este documento estaba desactualizado en
+> varios puntos. El barrido completo con datos reales está en
+> **`docs/ROADMAP_VIVO_ACTUALIZADO.md`** — usá ese archivo como fuente de verdad.
+>
+> Cambios confirmados en la revalidación:
+> - **DT-01 ✅ CERRADA** (2026-10-01): chat_ids reales `8806724603` / `8987840684`.
+> - **D10 ✅ CERRADA** (2026-10-01): `auto_activation_ready() = True` (21+ días).
+> - **D6 ⚠️ REABIERTA**: Redis `DBSIZE = 0` (vacío).
+> - **DT-14 🟡**: túnel existe pero **inestable** (95 caídas/hora) → nueva DT-32.
+> - **DT-31 🟡 PARCIAL**: los 11 handlers existen pero no están en `setMyCommands`.
+> - **Nuevas:** DT-32 (cloudflared crash-loop), DT-33 (5 tests rompen colección),
+>   DT-34 (Redis vacío), DT-35 (clientes sin clasificar).
+
 ## 💧 PROYECTO POD DIGITAL + ODOO — COMPLETADO 2026-09-27 (Bloques 1-5)
 
 > Manual completo: docs/POD_DIGITAL_MANUAL_COMPLETO.md · Testeo: docs/POD_PWA_TESTEO.md
@@ -220,7 +233,7 @@
 
 | ID | Deuda | Descripción | Acción requerida | Prioridad |
 |---|---|---|---|---|
-| **DT-01** | `vehicles.telegram_chat_id` NULL | Choferes Yordanis y Evert no pueden recibir pedidos/alertas | Pedirles que escriban `/start` a `@DespachoH2O_bot` → UPDATE vehicles SET telegram_chat_id = <id> WHERE driver_name IN ('YORDANIS','EVERT') | **CRÍTICA** (desbloquea Sprint 3 E2E Swap) |
+| **DT-01** | `vehicles.telegram_chat_id` NULL | ~~Choferes Yordanis y Evert no pueden recibir pedidos/alertas~~ | ✅ **CERRADA 2026-10-01.** Los choferes hicieron `/start`; chat_ids reales verificados: YORDANIS `8806724603`, EVERT `8987840684`. Desbloquea Sprint 3 E2E Swap. | ✅ CERRADA |
 
 ---
 
@@ -234,6 +247,30 @@
 | **DT-29** (orden del Líder: "DT-14") | Webhook Meta público sin HTTPS directo | `api/bridge.py` | ✅ RESUELTO vía Cloudflare tunnel (valentina.estacionh2o.com). Sin acción — webhook verificado funcionando | 0h |
 | **DT-30** (orden del Líder: "DT-15") | Token Meta debug-only bloquea envío de mensajes | Meta Cloud API | ✅ CERRADA (2026-09-11 ~21:10): System User permanente (valentina-bot) cargado en .env. WABA asignada (Estacion H2O Maracaibo + EstacionH20). phone_number_id corregido: 1186108677920030 (sandbox) → **1300557096469075** (producción). Test end-to-end OK: POST /messages → 200 + wa_id del Líder, respuesta automática de Valentina, pipeline bidireccional completo. Ver docs/META_PRODUCCION_FINAL.md | 0h |
 | **DT-31** | Bot operador @Skynet_27_bot: comandos de seguridad fallaban ("problema en el comando") | `skills/security_commands.py`, `scripts/security/attack_detector.py` | CERRADA (2026-09-23, validada por el Lider en produccion): dos bugs de wiring. (1) `_state_get()/_state_set()` sin `init_db()` -> `no such table: security_state` con DB recien creada (fix 689f1ccc). (2) Los 11 handlers eran `def` sincronos y PTB 21.x los invoca con `await` -> `TypeError: object NoneType can not be used in await expression`; ademas `_reply()` no awaitaba `send_message` (respuestas jamas enviadas). Fix 8d75d716: handlers migrados a `async def`, `_reply()` con await, 19 llamadas actualizadas. Resumen: handlers en security_commands.py migrados a async def (PTB 21.x). Fix de _reply() con await. Bot @Skynet_27_bot operativo con 11 comandos de seguridad. Regresion 94/94 + smoke async 11/11. Ver docs/04-runbooks/RUNBOOK_Seguridad_Telegram.md | 0h |
+
+---
+
+## 🆕 DEUDAS NUEVAS — halladas en la revalidación 2026-10-01
+
+> Fuente: barrido en vivo (solo lectura). Detalle completo en
+> `docs/ROADMAP_VIVO_ACTUALIZADO.md`.
+
+| ID | Deuda | Estado | Evidencia en vivo | Prioridad |
+|---|---|---|---|---|
+| **DT-32** | Cloudflared en crash-loop | ❌ ABIERTA | 95 caídas/hora, `status=2/INVALIDARGUMENT`, panic en `quic_datagram_v2.go:107`. Health público da **502 intermitente** (medido: 502 / 200 / 200). Bridge local OK (200). | 🔴 P0 |
+| **DT-33** | 5 tests rompen la colección de pytest | ❌ ABIERTA | `test_killswitch_bloque5`, `test_pod_endpoints_bloque2`, `test_pod_odoo_sync_bloque4`, `test_pod_waha_fase2`, `test_pwa_bloque3` → `Interrupted: 5 errors during collection`. Sin `--ignore` la suite reporta **0 ejecutados**. Con `--ignore`: 1005 passed / 1 failed / 14 skipped / 3 errors, **60%** cobertura. | 🔴 P0 |
+| **DT-34** | Redis vacío (D6 reabierta) | ❌ ABIERTA | `redis-cli DBSIZE` → **0**. Servicio activo (`PONG`) y persistente, pero sin llaves. El warming no está escribiendo la capa Buffer. | 🟠 P1 |
+| **DT-35** | Clientes sin clasificar | 🟡 PARCIAL | `SELECT client_type, COUNT(*) FROM clients GROUP BY client_type` → `retail: 4` de **363**. Los 11 tipos existen en `skills/client_commands.py` y el auto-routing Nivel 1 está implementado, pero sin datos no opera. | 🟡 P2 |
+
+### Correcciones a deudas ya documentadas
+
+| ID | Doc decía | Realidad verificada |
+|---|---|---|
+| **D6** | ✅ CERRADA 2026-09-10 (Redis operativo y persistente) | ⚠️ Servicio OK pero **DBSIZE=0**. Reabierta como DT-34. |
+| **DT-31** | Bot con 11 comandos de seguridad operativos | 🟡 Los 11 handlers existen (`async def` en `skills/security_commands.py`) pero **no están en `setMyCommands`** → no aparecen en el menú. El bot tiene **15** comandos registrados, no 17. |
+| **DT-14** | ✅ RESUELTO vía Cloudflare tunnel, sin acción | 🟡 El túnel existe y enruta, pero es **inestable** (ver DT-32). |
+| **DT-13** | OpenNotebook embedding bug (BLOQUE 2) | ✅ HTTP 200 en 8502 (`/notebooks`) y API 5055. Ollama + `nomic-embed-text` presentes. |
+| **Métricas** | 580/580 tests, coverage 36% | 🔴 1023 recogidos, 5 abortan colección; con `--ignore`: **1005 passed, 60%** cobertura. |
 
 ---
 
