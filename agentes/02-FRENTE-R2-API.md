@@ -50,17 +50,37 @@ Usa esos fixtures — NO escribas fixtures nuevas sin constatar que faltan.
 ## Tareas de este frente
 
 ### T1 — Verificar columnas nuevas (contrato entre R3 y R2)
-Comprueba contra la BD REAL que existan:
+
+**CORRECCION VERIFICADA 2026-10-01:** la tabla `api_call_log` y sus columnas
+(`action_type`, `backoff_count`, `consecutive_count`, `pending`) **NO EXISTEN**
+ni en `db/dispatch.db` ni en `data/dispatch.db`. Resultado REAL:
 
 ```
-api_call_log.action_type
-api_call_log.backoff_count
-api_call_log.consecutive_count
-api_call_log.pending
+$ PRAGMA table_info(api_call_log)   → []   (tabla inexistente, ambas BD)
+$ grep -rn "api_call_log" --include=*.py
+  → solo ruido en venv/ (openai SDK). Nada en codigo del proyecto.
 ```
 
-Si NO existen: **NO las crees**. Eso es de R3. Repórtalo como BLOQUEADO
-con el texto exacto del error. Coordinas con PROMETEO, no lo resuelvas solo.
+Era un nombre inventado en sesion anterior. SE RETIRA.
+
+Tu verdadera tarea T1: antes de escribir una sola linea contra un esquema,
+ejecuta este inventario y repórtalo textualmente:
+
+```bash
+# que BD hay
+find . -maxdepth 3 -name "*.db" -not -path "./.git/*" -not -path "./venv/*"
+
+# que tablas tiene cada una
+python3 -c "
+import sqlite3,glob
+for db in glob.glob('db/*.db')+glob.glob('data/*.db'):
+    c=sqlite3.connect(db)
+    print(db, [r[0] for r in c.execute(\"SELECT name FROM sqlite_master WHERE type='table'\")])
+"
+```
+
+Si el esquema que necesitas no aparece en esa salida: **NO lo crees**.
+Repórtalo como BLOQUEADO. Coordinas con PROMETEO; no lo resuelvas solo.
 
 ### T2 — Firmar peticiones salientes
 Toda peticion saliente debe llevar firma. Reglas:
