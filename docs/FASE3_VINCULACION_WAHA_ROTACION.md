@@ -83,10 +83,99 @@ Fail-open: nunca lanza; si WAHA no responde, el PDF queda en `data/pod_pdfs/`.
 
 ## Pendiente / deuda técnica
 
-- ⚠️ Los dos números están **SIN vincular** todavía. Falta que cada chofer
-  escanee su QR (`./scripts/waha_link_device.sh chofer_1`, luego `chofer_2`).
 - ⚠️ `tests/unit/test_pod_waha_fase2.py` rompe en **colección**: fixture busca
   tabla `deliveries` en otra DB. **PREEXISTENTE** — verificado: falla idéntico
   en HEAD limpio con `git stash`. Tech debt aparte, fuera del alcance de esta tarea.
 - `waha_client.py` usa defaults `chofer_1`/`chofer_2`; sobreescribibles con
   `WAHA_SESSION_VEHICLE_1` / `WAHA_SESSION_VEHICLE_2` / `WAHA_SESSION_FALLBACK`.
+
+---
+
+# Actualización 2026-10-01 — vinculación REAL completada
+
+## ⚠️ Hallazgo crítico: el QR de WAHA está ROTO en este build
+
+El flujo QR documentado arriba **falla en producción**. Error real en los logs
+del contenedor:
+
+```
+[W] Error Error [TypeError]: window.require(...).Cmd.refreshQR is not a function
+```
+
+Causa: WAHA 2026.9.1 (engine WEBJS) carga WhatsApp Web `2.3000.1048901417`,
+versión donde Meta ya no expone `Cmd.refreshQR`. Sin refresco, el QR expira
+(~40 s) y WhatsApp muestra **"NO SE PUDO VINCULAR DISPOSITIVO"**.
+
+Descartado como causa: desfase de reloj (host y contenedor sincronizados en UTC).
+
+Dos intentos de QR con espera de 5 minutos terminaron en timeout con estado
+`SCAN_QR_CODE` sostenido (nunca llegó a `WORKING`).
+
+## ✅ Solución que SÍ funcionó: código de emparejamiento (pairing code)
+
+Endpoint verificado:
+
+```
+POST /api/{session}/auth/request-code
+{"phoneNumber":"584222560722","codeMethod":"SMS"}
+→ 201 {"code":"86FJ-JWHD"}
+```
+
+**Ventaja clave para la regla crítica del Líder:** el pairing code va ligado al
+número de teléfono enviado en `phoneNumber`. No es un QR genérico que pueda
+escanear cualquiera — si el código se genera para `584222560722`, solo ese
+número puede completar la vinculación. La correspondencia sesión↔chofer queda
+garantizada por construcción, no por confianza.
+
+Proceso en el celular: WhatsApp → Dispositivos vinculados →
+**Vincular con número de teléfono** → ingresar el número → el código de 8
+caracteres aparece para autorizar.
+
+## Estado final VERIFICADO (2026-10-01)
+
+```
+chofer_1  status=WORKING  numero=584222560722@c.us  push=Estacionh20   (Yordanis)
+chofer_2  status=WORKING  numero=584222560723@c.us  push=Estacionh2o   (Evert)
+```
+
+Verificación cruzada contra los números de la directiva: **AMBOS CORRECTOS**.
+Ningún número duplicado entre sesiones.
+
+## Prueba de envío REAL con los chips vinculados
+
+```
+AVISO_CERCA   entrega=9001 vehiculo=1 → sesión=chofer_1 variación 5/5 → sent=True HTTP 201
+AVISO_LLEGADA entrega=9002 vehiculo=2 → sesión=chofer_2 variación 1/5 → sent=True HTTP 201
+```
+
+Cada entrega sale de su propio chip y el texto rota. Fail-open intacto.
+
+## Nuevo script
+
+`scripts/verify_waha_sessions.py` — verifica que cada sesión tenga el número
+correcto del chofer y que no haya números duplicados. Exit 0 = todo correcto.
+
+```
+./venv/bin/python scripts/verify_waha_sessions.py
+```
+
+Útil para correr antes de cada jornada o tras un reinicio del contenedor.
+
+## Recomendación
+
+Considerar migrar a la imagen `devlikeapro/waha:gows-2026.9.1` (engine GOWS,
+disponible en el registry) si el QR vuelve a necesitarse. GOWS no depende del
+DOM de WhatsApp Web y es más resistente a estos cambios. **No se hizo ahora**
+porque el pairing code resolvió la vinculación sin downtime y el contenedor
+`waha` no está en ningún compose ni systemd (fue lanzado manualmente) —
+recrearlo era un riesgo innecesario. Estado del contenedor documentado en este
+archivo por si hay que reconstruirlo:
+
+```
+IMAGE  devlikeapro/waha:latest
+BINDS  /mnt/ssd_trabajo/waha:/sessions
+PORTS  127.0.0.1:3000->3000/tcp
+ENV    WHATSAPP_DEFAULT_ENGINE=WEBJS, WAHA_GOWS_PATH=/app/gows,
+       WAHA_GOWS_SOCKET=/tmp/gows.sock, WHATSAPP_API_KEY (config/.env:95)
+NET    bridge    RESTART  unless-stopped
+```

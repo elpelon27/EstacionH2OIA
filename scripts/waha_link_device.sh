@@ -3,13 +3,26 @@
 # Vinculación de números de WhatsApp de choferes vía WAHA (WhatsApp HTTP API)
 # =============================================================================
 # Endpoints VERIFICADOS contra WAHA 2026.9.1 (engine WEBJS, tier CORE) el
-# 2026-09-30. Difieren del plan original:
-#   - QR real:  GET /api/{session}/auth/qr          -> image/png directa
-#   - (NO existe /api/sessions/{session}/qr  -> 404 verificado)
-#   - Ciclo:    POST /api/sessions -> POST /api/sessions/{n}/start -> QR
-#   - Estado:   GET  /api/sessions/{n}   status=WORKING cuando escanea
+# 2026-09-30 / corregido 2026-10-01 tras vinculación REAL de ambos choferes.
+# Difieren del plan original:
+#   - QR real:  GET /api/{session}/auth/qr  -> image/png
+#     (NO existe /api/sessions/{session}/qr -> 404 verificado)
+#   - Código:   POST /api/{session}/auth/request-code   <<< MÉTODO QUE FUNCIONA
+#               {"phoneNumber":"584222560722","codeMethod":"SMS"}
+#               -> 201 {"code":"86FJ-JWHD"}
+#   - Ciclo:    POST /api/sessions -> POST /api/sessions/{n}/start -> QR/código
+#   - Estado:   GET  /api/sessions/{n}   status=WORKING cuando vincula
 #
-# Uso:  ./scripts/waha_link_device.sh chofer_1
+# ⚠️ 2026-10-01: el QR está ROTO en este build. Los logs del contenedor tiran
+#    "window.require(...).Cmd.refreshQR is not a function" — WhatsApp Web
+#    2.3000.1048901417 ya no expone refreshQR, el QR expira en ~40s y WhatsApp
+#    responde "NO SE PUDO VINCULAR DISPOSITIVO". Por eso el modo por defecto
+#    ahora es CODIGO (pairing code), que además garantiza que la sesión quede
+#    ligada al número correcto del chofer.
+#
+# Uso:
+#   ./scripts/waha_link_device.sh chofer_1 584222560722     # por código (default)
+#   ./scripts/waha_link_device.sh chofer_1 <numero> qr      # forzar QR
 # =============================================================================
 set -euo pipefail
 
@@ -28,8 +41,10 @@ WAHA_API_KEY="${WAHA_API_KEY:?Falta WAHA_API_KEY (config/.env)}"
 TELEGRAM_BOT_TOKEN="${TELEGRAM_BOT_TOKEN:?Falta TELEGRAM_BOT_TOKEN (config/.env)}"
 TELEGRAM_CHAT_ID="${TELEGRAM_CHAT_ID:-1663148211}"
 
-SESSION_NAME="${1:?Uso: $0 <session_name>  (ej. chofer_1)}"
-LABEL="${2:-$SESSION_NAME}"
+SESSION_NAME="${1:?Uso: $0 <session_name> <numero_e164_sin_+> [qr]  (ej. chofer_1 584222560722)}"
+PHONE="${2:-}"
+MODE="${3:-code}"   # code (default, recomendado) | qr (falla en este build)
+LABEL="${LABEL:-$SESSION_NAME}"
 QR_TIMEOUT_S="${QR_TIMEOUT_S:-300}"   # 5 minutos por defecto
 POLL_INTERVAL_S="${POLL_INTERVAL_S:-5}"
 
@@ -94,29 +109,71 @@ code=$(echo "$out" | tail -1)
 echo "    Start -> HTTP $code"
 [[ "$code" != "201" ]] && echo "    (continuando; puede ya estar STARTING)"
 
-# --- 3. Obtener QR (PNG binario directo, no base64 — verificado 2026-09-30) ---
-echo "    Esperando a que el motor genere el QR..."
-qr_code=0
-for attempt in $(seq 1 12); do
-    qr_code=$(curl -sS -m 45 -o "$QR_FILE" \
-        -w '%{http_code}' \
-        "${WAHA_BASE_URL}/api/${SESSION_NAME}/auth/qr" \
-        -H "X-Api-Key: ${WAHA_API_KEY}" || echo 000)
-    [[ "$qr_code" == "200" ]] && break
-    sleep 5
-done
+# --- 3. Obtener credencial de vinculación ---
+if [[ "$MODE" == "code" ]]; then
+    # === MODO CÓDIGO (recomendado, verificado 2026-10-01) ===
+    [[ -z "$PHONE" ]] && { echo "FATAL: modo 'code' requiere el número. Ej: $0 chofer_1 584222560722"; exit 1; }
+    echo "    Pidiendo código de emparejamiento para +${PHONE}..."
+    code_resp=""
+    for attempt in $(seq 1 10); do
+        code_resp=$(curl -sS -m 60 -X POST \
+            "${WAHA_BASE_URL}/api/${SESSION_NAME}/auth/request-code" \
+            -H "X-Api-Key: ${WAHA_API_KEY}" \
+            -H "Content-Type: application/json" \
+            -d "{\"phoneNumber\":\"${PHONE}\",\"codeMethod\":\"SMS\"}" || echo "")
+        [[ "$code_resp" == *'"code"'* ]] && break
+        echo "      reintento $attempt (sesión aún no lista)..."
+        sleep 5
+    done
 
-if [[ "$qr_code" != "200" ]]; then
-    notify "❌ ${LABEL}: WAHA no devolvió QR (HTTP ${qr_code}). Revisá el contenedor 'waha'."
-    exit 1
-fi
+    PAIR_CODE=$(echo "$code_resp" | python3 -c 'import sys,json
+try: print(json.load(sys.stdin).get("code",""))
+except Exception: print("")' 2>/dev/null || echo "")
 
-size=$(stat -c%s "$QR_FILE" 2>/dev/null || echo 0)
-echo "    QR obtenido: ${QR_FILE} (${size} bytes, image/png)"
+    if [[ -z "$PAIR_CODE" ]]; then
+        notify "❌ ${LABEL}: WAHA no devolvió código de emparejamiento. Respuesta: ${code_resp:0:200}"
+        echo "FATAL: sin código. Respuesta: $code_resp"
+        exit 1
+    fi
+    echo "    Código obtenido: ${PAIR_CODE}"
 
-# --- 4. Enviar QR al Líder (@Skynet_27_bot, chat 1663148211 verificado) ---
-send_qr "📱 Escaneá este QR con el WhatsApp del ${LABEL}: WhatsApp → Dispositivos vinculados → Escanear QR
+    notify "🔑 CÓDIGO DE VINCULACIÓN — ${LABEL} (+${PHONE})
+
+Código: ${PAIR_CODE}
+
+En el WhatsApp del chofer:
+WhatsApp → (⋮ o ⚙️) → Dispositivos vinculados → \"Vincular con número de teléfono\"
+→ ingresá +${PHONE}
+→ cuando pida el código, poné ${PAIR_CODE}
+
+⚠️ Vale ~2-3 minutos. Si expira pedime otro.
+🎯 Este código SOLO sirve para el +${PHONE} (garantiza que no se vincule otro número)."
+
+else
+    # === MODO QR (ROTO en WAHA 2026.9.1 — ver doc) ===
+    echo "    AVISO: modo QR. En este build expira por refreshQR inexistente."
+    echo "    Esperando a que el motor genere el QR..."
+    qr_code=0
+    for attempt in $(seq 1 12); do
+        qr_code=$(curl -sS -m 45 -o "$QR_FILE" \
+            -w '%{http_code}' \
+            "${WAHA_BASE_URL}/api/${SESSION_NAME}/auth/qr" \
+            -H "X-Api-Key: ${WAHA_API_KEY}" || echo 000)
+        [[ "$qr_code" == "200" ]] && break
+        sleep 5
+    done
+
+    if [[ "$qr_code" != "200" ]]; then
+        notify "❌ ${LABEL}: WAHA no devolvió QR (HTTP ${qr_code}). Revisá el contenedor 'waha'."
+        exit 1
+    fi
+
+    size=$(stat -c%s "$QR_FILE" 2>/dev/null || echo 0)
+    echo "    QR obtenido: ${QR_FILE} (${size} bytes, image/png)"
+
+    send_qr "📱 Escaneá este QR con el WhatsApp de ${LABEL}: WhatsApp → Dispositivos vinculados → Escanear QR
 🕐 Tengo ${QR_TIMEOUT_S}s de espera."
+fi
 
 # --- 5. Polling hasta WORKING ---
 echo "    Polling cada ${POLL_INTERVAL_S}s por hasta ${QR_TIMEOUT_S}s..."
