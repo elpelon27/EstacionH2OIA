@@ -1,16 +1,26 @@
 # Chequeo de Seguridad + Configuración Empresarial — Celulares de Choferes
 
-**Estado:** ✅ **EQUIPO 1 (YORDANIS) ENDURECIDO** el 2026-10-01.
-⏸️ Equipo 2 (EVERT) pendiente de conectar.
+**Estado:** ✅ **AMBOS EQUIPOS ENDURECIDOS** el 2026-10-01.
 
-| vehicle_id | Chofer   | Equipo                       | Android | Estado        |
+| vehicle_id | Chofer   | Equipo                       | Android | Estado                    |
 |---|---|---|---|---|
-| 1 | YORDANIS | SP_6300 · SP6300000000016611 | 15      | ✅ endurecido  |
-| 2 | EVERT    | —                            | —       | ⏸️ pendiente   |
+| 1 | YORDANIS | SP_6300 · SP6300000000016611 | 15      | ✅ endurecido              |
+| 2 | EVERT    | SP_6300 · SP6300000000016712 | 15      | ✅ endurecido              |
+
+Mismo modelo (SP_6300) en ambos, pero **serials distintos**
+(`...16611` vs `...16712`). El script toma el serial explícitamente, así que
+no hay riesgo de endurecer el equipo equivocado.
+
+**Nota de hardware:** solo hay un puerto USB en uso a la vez. Cuando se
+endureció el equipo 2, el equipo 1 ya no estaba conectado
+(`adb devices` listaba únicamente `...16712`). La configuración del equipo 1
+quedó aplicada y persistente; si se quiere reverificar, hay que reconectarlo.
 
 ---
 
-## Resultado del endurecimiento del Equipo 1 (verificado releyendo del equipo)
+## Resultado del endurecimiento (verificado releyendo del equipo)
+
+Ambos equipos, mismos valores:
 
 ```
 GPS:            location_mode = 3        (alta precisión)
@@ -22,16 +32,29 @@ Chrome:         ACTIVA
 Facebook/Instagram/TikTok: NO INSTALADAS (celular limpio de fábrica)
 ```
 
-Dato positivo: el equipo ya traía deshabilitados de fábrica
+Dato positivo: ambos equipos ya traían deshabilitados de fábrica
 `com.google.android.gms.supervision`, `com.sprd.powersavemodelauncher`,
 `com.android.nfc` y `com.android.devicelockcontroller` — típico de celulares
 de flota, ideal para el caso de uso.
 
-### Pendiente para el Equipo 2 (EVERT)
+### Correspondencia final (regla crítica del Líder)
 
-Conectar el celular, verificar `adb devices` y correr:
+| Equipo | Chofer   | Sesión WAHA | WhatsApp       |
+|---|---|---|---|
+| SP_6300 `...16611` | YORDANIS | `chofer_1`  | +584222560722  |
+| SP_6300 `...16712` | EVERT    | `chofer_2`  | +584222560723  |
+
+Ambas sesiones WAHA en `WORKING` al momento del endurecimiento.
+
+---
+
+## Cómo reverificar un equipo
+
+Conectar el celular y:
 ```bash
-./scripts/harden_phone.sh <serial> 2
+adb devices -l                      # debe decir "device", no "unauthorized"
+./scripts/harden_phone.sh <serial> 1   # Yordanis
+./scripts/harden_phone.sh <serial> 2   # Evert
 ```
 
 ---
