@@ -22,7 +22,12 @@ Type=simple
 User=skynet
 Group=skynet
 WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/external_repos/mobile-mcp
-ExecStart=/usr/bin/node /mnt/ssd_trabajo/hermes-agent/external_repos/mobile-mcp/lib/index.js --listen 127.0.0.1:3010
+# node vive en /home/skynet/.local/bin (no en /usr/bin) — verificado con `which node`
+ExecStart=/home/skynet/.local/bin/node /mnt/ssd_trabajo/hermes-agent/external_repos/mobile-mcp/lib/index.js --listen 127.0.0.1:3010
+Environment=PATH=/home/skynet/.local/bin:/usr/local/bin:/usr/bin:/bin
+# Sin esto el server avisa que acepta conexiones sin autenticar. Aplica igual
+# si se exponiera fuera de localhost.
+Environment=MOBILEMCP_AUTH=
 Restart=always
 RestartSec=5
 
