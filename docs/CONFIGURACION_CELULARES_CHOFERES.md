@@ -1,12 +1,12 @@
 # Configuración de Celulares de Choferes (ADB + mobile-mcp)
 
-**Estado al 2026-10-01:** ⏸️ **PENDIENTE** — ningún celular conectado.
-Verificado con `adb devices -l` → `List of devices attached` (vacío) y
-`lsusb` → solo wifi (Realtek), dongle inalámbrico (YICHIP) y disco Samsung M3.
-No hay ningún dispositivo Android en USB.
+**Estado al 2026-10-01:** ⏸️ **PENDIENTE** — hay un celular conectado por USB
+(Unisoc, serial `SP6300000000016611`) pero está en **modo PTP**, así que ADB
+no lo ve. Falta activar Depuración USB y cambiar a MTP.
+Detalle completo en `docs/ENDURECIMIENTO_CELULARES.md`.
 
 mobile-mcp quedó **instalado y operativo** (33 herramientas, servicio systemd
-activo en `127.0.0.1:3010`). Solo falta el hardware.
+activo en `127.0.0.1:3010`). Solo falta el ajuste del teléfono.
 
 ---
 
