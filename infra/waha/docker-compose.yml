@@ -1,0 +1,59 @@
+# =============================================================================
+# WAHA (WhatsApp HTTP API) — Estación H2O
+# =============================================================================
+# Creado 2026-10-01 para blindar el servicio: antes el contenedor se lanzó a
+# mano (docker run) y no sobrevivía a un reinicio ni estaba en ningún compose.
+#
+# ⚠️ PERSISTENCIA — verificado empíricamente:
+# WAHA guarda las credenciales en /app/.sessions/webjs/{sesion} DENTRO del
+# contenedor, NO en /sessions. El mount original (/mnt/ssd_trabajo/waha:/sessions)
+# quedaba vacío. Por eso acá se monta:
+#     /mnt/ssd_trabajo/waha/.sessions -> /app/.sessions
+# Ese es el único punto que preserva la vinculación de los choferes.
+# Si se borra, hay que re-vincular con pairing code (scripts/waha_link_device.sh).
+#
+# Uso:
+#   cd infra/waha && docker compose up -d
+#   docker compose logs -f
+# =============================================================================
+services:
+  waha:
+    image: devlikeapro/waha:latest
+    container_name: waha
+    restart: always
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    volumes:
+      # Persistencia REAL de sesiones (credenciales de los choferes)
+      - /mnt/ssd_trabajo/waha/.sessions:/app/.sessions
+      # Compatibilidad: mount histórico hacia /sessions
+      - /mnt/ssd_trabajo/waha:/sessions
+
+    environment:
+      WHATSAPP_DEFAULT_ENGINE: WEBJS
+      WHATSAPP_API_KEY: ${WAHA_API_KEY}
+      # QR en consola desactivado (ensucia los logs)
+      WAHA_PRINT_QR: "false"
+      # Reconexión automática de sesiones al arrancar el contenedor
+      WHATSAPP_RESTART_ALL_SESSIONS: "true"
+      WAHA_GOWS_PATH: /app/gows
+      WAHA_GOWS_SOCKET: /tmp/gows.sock
+      WAHA_ZIPPER: ZIPUNZIP
+      NODE_OPTIONS: --max-old-space-size=16384
+      CHOKIDAR_USEPOLLING: "1"
+      CHOKIDAR_INTERVAL: "5000"
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1:3000/api/version || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
