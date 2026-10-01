@@ -38,18 +38,14 @@ agentes/  → solo lectura, salvo tu propio reporte
 
 Si necesitas algo de esas rutas: DETENTE e informalo como BLOQUEADO.
 
-## Hallazgo critico descubierto al crear este frente
+## Fixtures disponibles (VERIFICADO en disco)
 
-`setUpTearDown`: NO existe `tests/conftest.py` a nivel raiz como fixture
-compartida visible en la raiz de tests/. Antes de inventar fixtures,
-verifica si `tests/conftest.py` existe:
+Existe `tests/conftest.py` (raiz de tests/), ademas de:
+`tests/unit/conftest.py`, `tests/unit/financial/conftest.py`,
+`tests/unit/orchestration/conftest.py`, `tests/smoke/conftest.py`,
+y `conftest.py` en la raiz del repositorio.
 
-```bash
-test -f tests/conftest.py && echo EXISTE || echo NO_EXISTE
-```
-
-Si NO existe, tu primer gate fallara y deberas crearlo con las fixtures
-que necesites — eso SI es trabajo tuyo y esta permitido.
+Usa esos fixtures — NO escribas fixtures nuevas sin constatar que faltan.
 
 ## Tareas de este frente
 
@@ -75,6 +71,19 @@ Toda peticion saliente debe llevar firma. Reglas:
 ### T3 — Guardarrail
 Toda salida pasa por `guardrail.py`. Probar los tres casos del
 guardarrail (permitir / bloquear / escalar) y dejar evidencia.
+
+## Entorno correcto (VERIFICADO — no fallar aqui)
+
+Usa SIEMPRE el interprete del proyecto, no el del sistema:
+
+```bash
+/mnt/ssd_trabajo/hermes-agent/venv/bin/python3
+```
+
+ERROR REAL detectado: con `../../hermes-unified/venv` el modulo `structlog`
+NO esta instalado y todo falla con `ModuleNotFoundError`.
+Con el venv del repo todos los import funcionan. En `logger.py`
+usa `structlog`, confirmado importando `core.logger`.
 
 ## Gates de validacion (ejecutar y pegar la salida REAL)
 
