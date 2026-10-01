@@ -60,9 +60,18 @@ Por tanto:
 docker cp waha:/app/.sessions/webjs <destino>
 ```
 
-Esta regla esta en `~/.hermes/skills/devops/waha-vinculacion-y-rotacion/`
-y es de cumplimiento obligatorio. Si tu tarea toca WAHA, citar el respaldo
-en tu reporte.
+CORRECCION VERIFICADA 2026-10-01: la ruta `~/.hermes/skills/devops/
+waha-vinculacion-y-rotacion/` NO EXISTE en disco. Fue un error de la sesion
+anterior citarla como si existiera. La regla esta documentada de verdad en:
+
+```
+/mnt/ssd_trabajo/hermes-agent/docs/03-sesiones/CIERRE_JORNADA_2026-10-01.md
+  linea 43: "Las credenciales vivian en /app/.sessions/webjs/ dentro
+             del contenedor."
+```
+
+Fuente operativa verificada en disco: `scripts/verify_waha_sessions.py`.
+Si tu tarea toca WAHA: ejecuta el respaldo y cita la salida real en tu reporte.
 
 ## Inventario REAL de infra/ verificado en disco
 
