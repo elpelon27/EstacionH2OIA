@@ -1,0 +1,37 @@
+# =============================================================================
+# mobile-mcp — servidor MCP para control de celulares Android vía ADB
+# =============================================================================
+# Creado 2026-10-01. Escucha Streamable HTTP en 127.0.0.1:3010/mcp
+#
+# ⚠️ Puerto: se usa 3010 en vez del 3001 sugerido porque 3001 ya lo ocupa
+#    hermes_grafana (127.0.0.1:3001->3000). Verificado con `ss -ltnp`.
+# ⚠️ Transporte: mobile-mcp por defecto es STDIO. El modo HTTP requiere
+#    el flag --listen [host:]port (verificado en lib/index.js).
+#
+# Instalar:
+#   sudo cp config/mobile-mcp.service /etc/systemd/system/
+#   sudo systemctl daemon-reload && sudo systemctl enable --now mobile-mcp
+# =============================================================================
+[Unit]
+Description=mobile-mcp — Mobile automation MCP server (ADB)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=skynet
+Group=skynet
+WorkingDirectory=/mnt/ssd_trabajo/hermes-agent/external_repos/mobile-mcp
+ExecStart=/usr/bin/node /mnt/ssd_trabajo/hermes-agent/external_repos/mobile-mcp/lib/index.js --listen 127.0.0.1:3010
+Restart=always
+RestartSec=5
+
+MemoryMax=512M
+CPUQuota=50%
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=mobile-mcp
+
+[Install]
+WantedBy=multi-user.target
