@@ -92,3 +92,6 @@ imports/
 *.db.bak
 *.key
 data/pod_photos/
+
+# WAHA compose env (se genera con scripts/generate_waha_env.sh)
+infra/waha/.env
