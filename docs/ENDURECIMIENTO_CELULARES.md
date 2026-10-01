@@ -1,11 +1,42 @@
 # Chequeo de Seguridad + Configuración Empresarial — Celulares de Choferes
 
-**Estado al 2026-10-01:** ⚠️ **BLOQUEADO por configuración del celular** —
-hay un equipo conectado por USB pero **ADB no lo ve**.
+**Estado:** ✅ **EQUIPO 1 (YORDANIS) ENDURECIDO** el 2026-10-01.
+⏸️ Equipo 2 (EVERT) pendiente de conectar.
+
+| vehicle_id | Chofer   | Equipo                       | Android | Estado        |
+|---|---|---|---|---|
+| 1 | YORDANIS | SP_6300 · SP6300000000016611 | 15      | ✅ endurecido  |
+| 2 | EVERT    | —                            | —       | ⏸️ pendiente   |
 
 ---
 
-## Diagnóstico (verificado, no supuesto)
+## Resultado del endurecimiento del Equipo 1 (verificado releyendo del equipo)
+
+```
+GPS:            location_mode = 3        (alta precisión)
+Brillo:         255                      (máximo)
+Apagado:        600000 ms                (10 min)
+WhatsApp:       ACTIVA
+Telegram:       ACTIVA
+Chrome:         ACTIVA
+Facebook/Instagram/TikTok: NO INSTALADAS (celular limpio de fábrica)
+```
+
+Dato positivo: el equipo ya traía deshabilitados de fábrica
+`com.google.android.gms.supervision`, `com.sprd.powersavemodelauncher`,
+`com.android.nfc` y `com.android.devicelockcontroller` — típico de celulares
+de flota, ideal para el caso de uso.
+
+### Pendiente para el Equipo 2 (EVERT)
+
+Conectar el celular, verificar `adb devices` y correr:
+```bash
+./scripts/harden_phone.sh <serial> 2
+```
+
+---
+
+## Diagnóstico previo (verificado, no supuesto)
 
 `lsusb` detecta el teléfono:
 
