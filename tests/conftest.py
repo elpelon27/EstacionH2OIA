@@ -9,8 +9,11 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-# Add project root to path
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+# Project root resolved from THIS conftest location — worktree-safe.
+# Fixes: hardcoded "/mnt/ssd_trabajo/hermes-agent" broke every git worktree
+# (tests resolved to the trunk => "import file mismatch" collection errors).
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, _PROJECT_ROOT)
 
 # Mock ONLY the module that doesn't exist as a package:
 # - skills.dispatcher (file is skills/dispatcher.py, not skills/dispatcher/)
@@ -19,8 +22,8 @@ sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 # - skills.dispatcher_skill (real file at skills/dispatcher_skill.py)
 
 mock_dispatcher = AsyncMock()
-mock_dispatcher.DISPATCH_DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
-mock_dispatcher.CONV_DB = "/mnt/ssd_trabajo/hermes-agent/data/conversations.db"
+mock_dispatcher.DISPATCH_DB = os.path.join(_PROJECT_ROOT, "data", "dispatch.db")
+mock_dispatcher.CONV_DB = os.path.join(_PROJECT_ROOT, "data", "conversations.db")
 sys.modules["skills.dispatcher"] = mock_dispatcher
 
 # Import the REAL skills module and add the mocked modules to it
@@ -36,7 +39,7 @@ skills.dispatcher = mock_dispatcher
 # Disable test_dispatch_telegram_bot.py's fixtures at import time
 spec2 = importlib.util.spec_from_file_location(
     "tests.unit.test_dispatch_telegram_bot",
-    "/mnt/ssd_trabajo/hermes-agent/tests/unit/test_dispatch_telegram_bot.py",
+    os.path.join(_PROJECT_ROOT, "tests", "unit", "test_dispatch_telegram_bot.py"),
 )
 tbot_module = importlib.util.module_from_spec(spec2)
 sys.modules["tests.unit.test_dispatch_telegram_bot"] = tbot_module
@@ -47,7 +50,8 @@ spec2.loader.exec_module(tbot_module)
 
 # Disable test_gps_tracker.py's fixtures at import time
 spec3 = importlib.util.spec_from_file_location(
-    "tests.unit.test_gps_tracker", "/mnt/ssd_trabajo/hermes-agent/tests/unit/test_gps_tracker.py"
+    "tests.unit.test_gps_tracker",
+    os.path.join(_PROJECT_ROOT, "tests", "unit", "test_gps_tracker.py"),
 )
 gps_module_test = importlib.util.module_from_spec(spec3)
 sys.modules["tests.unit.test_gps_tracker"] = gps_module_test
