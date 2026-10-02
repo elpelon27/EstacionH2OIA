@@ -102,7 +102,10 @@ CREATE TABLE IF NOT EXISTS fs_pedidos (
     escalo_humano           BOOLEAN DEFAULT 0,
     entrega_confirmada_at   TEXT,  -- ISO8601 UTC
     creado_at               TEXT NOT NULL,  -- ISO8601 UTC
-    actualizado_at          TEXT NOT NULL  -- ISO8601 UTC
+    actualizado_at          TEXT NOT NULL,  -- ISO8601 UTC
+    -- data_hardening.py (PII) + sync Odoo: columnas de la BD real
+    cliente_telefono_hash   TEXT,
+    odoo_invoice_id        INTEGER
 );
 
 CREATE INDEX IF NOT EXISTS idx_fs_pedidos_cliente ON fs_pedidos(cliente_telefono);
@@ -115,6 +118,7 @@ CREATE INDEX IF NOT EXISTS idx_fs_pedidos_estado_entrega ON fs_pedidos(estado_en
 CREATE TABLE IF NOT EXISTS fs_pagos (
     id                  INTEGER PRIMARY KEY AUTOINCREMENT,
     fs_pedido_id        INTEGER,
+    cuenta_cobrar_id    INTEGER,
     cliente_telefono    TEXT NOT NULL,
     cliente_nombre      TEXT,
     monto_eur           REAL NOT NULL,
@@ -129,6 +133,9 @@ CREATE TABLE IF NOT EXISTS fs_pagos (
     verificado_por      TEXT,
     comprobante_url     TEXT,
     creado_at           TEXT NOT NULL,                       -- ISO8601 UTC
+    -- columnas de la BD real (data_hardening.py PII + sync Odoo)
+    cliente_telefono_hash TEXT,
+    odoo_payment_id     INTEGER,
     FOREIGN KEY (fs_pedido_id) REFERENCES fs_pedidos(id)
 );
 

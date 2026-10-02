@@ -64,6 +64,11 @@ class PedidoFinanciero:
     # v3.0 campos nuevos
     monto_pagado_eur: float = 0.0
     tasa_eur_ves_deuda: float = 0.0
+    # campos anadidos por scripts/security/data_hardening.py (hash de
+    # telefono por PII hardening) y sync Odoo — presentes en la BD real
+    # (verificado con PRAGMA table_info en data/conversations.db)
+    cliente_telefono_hash: str | None = None
+    odoo_invoice_id: int | None = None
 
 
 @dataclass
@@ -89,6 +94,10 @@ class Pago:
     # v3.0 campos nuevos
     tasa_eur_ves_pago: float = 0.0  # Tasa al segundo del pago (renombra tasa_eur_ves)
     comprobante_phash: str | None = None  # Perceptual hash anti-fraude
+    # columnas de la BD real (data_hardening.py + sync Odoo; verificadas
+    # con PRAGMA table_info en data/conversations.db)
+    cliente_telefono_hash: str | None = None
+    odoo_payment_id: int | None = None
 
 
 @dataclass

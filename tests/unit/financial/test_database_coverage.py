@@ -240,11 +240,14 @@ class TestPagos:
         assert estado == "parcial"
 
     def test_create_pago_legacy(self, tmp_db):
-        """create_pago references a legacy column not in v3 schema — expect OperationalError."""
+        """create_pago con cuenta_cobrar_id ahora EXISTE en el esquema (columna
+        presente en la BD real, verificada con PRAGMA table_info en
+        data/conversations.db). El test anterior congelaba su ausencia
+        como comportamiento esperado (change-detector del defecto)."""
         pid = db.create_pedido_financiero(_make_pedido())
         pago = Pago(
             fs_pedido_id=pid,
-            cliente_telefono="+584121234567",
+            cliente_telefono="+584****4567",
             cliente_nombre="Juan",
             monto_eur=5.0,
             monto_ves=500.0,
@@ -256,9 +259,10 @@ class TestPagos:
             verificado_at=datetime.now(UTC).isoformat(),
             verificado_por="test",
         )
-        # create_pago uses legacy 'cuenta_cobrar_id' column which doesn't exist in v3 schema
-        with pytest.raises(sqlite3.OperationalError):
-            db.create_pago(pago)
+        # cuenta_cobrar_id existe en el esquema desde el fix 2026-10-01:
+        # create_pago debe funcionar sin OperationalError.
+        pago_id = db.create_pago(pago)
+        assert pago_id > 0
 
     def test_verificar_pago_manual_db(self, tmp_db):
         """Test db.verificar_pago_manual marks a pago as verified."""
