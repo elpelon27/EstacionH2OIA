@@ -98,3 +98,22 @@ EVIDENCIA REAL:
 - NRestarts=4→0, watchdog kill: 0 en 6 min
 - Túnel: https://valentina.estacionh2o.com/health → 200
 - Monitoreo 331s continuo: active, 0 restarts (antes moría a los 72s)
+
+## FIX TOP4 #3 — DT-34 Redis vacío / warming (22:01–22:02)
+
+DIAGNÓSTICO REAL (no era "script roto"):
+- Qdrant OK (6 colecciones), Redis host OK (PONG), warming.py OK
+- El warming SÍ cachea (manual --force: 10 chunks; patrón: 10 chunks)
+- El cron SÍ se ejecutaba (10:30 diario, success=1 registrado)
+- CAUSA RAÍZ del "Redis vacío": TTL=7200s (2h) — corre a las 10:30,
+  expira a las 12:30, y el resto del día Redis queda en 0. Runs
+  previos de 43-98ms (vs 1018-1749ms hoy) indican 0 chunks cacheados.
+
+FIX: crontab warming_diario de "30 6 * * *" → "0 */2 * * *"
+(cada 2 horas: refresca TTL antes de expirar, Redis siempre cálido).
+Backup previo: /home/skynet/crontab_backup_20261001.txt
+
+EVIDENCIA:
+- Wrapper ejecutado manualmente: success=1, 1018ms registrado en
+  hermes_memory.db::cron_runs
+- redis-cli DBSIZE: 10 keys activas
