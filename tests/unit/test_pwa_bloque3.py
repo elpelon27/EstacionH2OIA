@@ -2,18 +2,20 @@
 """Tests Bloque 3: PWA servida + PIN + flujo E2E del navegador (simulado)."""
 import base64
 import os
-import sqlite3
 import sys
 
-os.environ["POD_VEHICLE_TOKEN"] = "test-token-bloque3"
-os.environ["POD_CHOFER_PIN"] = "4321"
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
+os.environ["POD_VEHICLE_TOKEN"] = "test-token-bloque3"
+os.environ["POD_CHOFER_PIN"] = "4321"  # este test usa PIN propio
+
+from tests.unit.pod_test_helper import setup_pod_test  # noqa: E402
+
+ctx = setup_pod_test("test-token-bloque3")
+conn = ctx.conn
+DB = ctx.db
 
 # Fixture
-conn = sqlite3.connect(DB)
-conn.row_factory = sqlite3.Row
 client = conn.execute("SELECT id FROM clients LIMIT 1").fetchone()
 vehicle = conn.execute("SELECT id FROM vehicles LIMIT 1").fetchone()
 did = conn.execute(
@@ -108,6 +110,5 @@ try:
 finally:
     conn.execute("DELETE FROM pod_records WHERE delivery_id=?", (did,))
     conn.execute("DELETE FROM deliveries WHERE id=?", (did,))
-    conn.commit()
-    conn.close()
+    ctx.teardown()
     print("CLEANUP_OK")

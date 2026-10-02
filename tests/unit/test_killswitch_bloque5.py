@@ -2,22 +2,23 @@
 """Tests Bloque 5 Fase 5.1: kill-switch revocable + /revoke + /activate + /reset_pin."""
 import json
 import os
-import sqlite3
 import sys
 from unittest.mock import MagicMock, patch
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
+
 os.environ["POD_VEHICLE_TOKENS"] = "tok-veh1:1,tok-veh2:2"
 os.environ["POD_CHOFER_PIN"] = "1379"
-os.environ["POD_REVOKED_FILE"] = "/tmp/pod_revoked_test.json"
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 
-DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
+from tests.unit.pod_test_helper import setup_pod_test  # noqa: E402
+
+ctx = setup_pod_test("tok-veh1")
+conn = ctx.conn
+DB = ctx.db
 
 import api.pod_router as pr  # noqa: E402
 
 # Fixture: delivery + pod offline del vehículo 1
-conn = sqlite3.connect(DB)
-conn.row_factory = sqlite3.Row
 client = conn.execute("SELECT id FROM clients LIMIT 1").fetchone()
 did = conn.execute(
     """INSERT INTO deliveries
@@ -120,8 +121,7 @@ try:
 finally:
     conn.execute("DELETE FROM pod_records WHERE id=?", (pod_id,))
     conn.execute("DELETE FROM deliveries WHERE id=?", (did,))
-    conn.commit()
-    conn.close()
+    ctx.teardown()
     if os.path.exists(pr.REVOKED_FILE):
         os.remove(pr.REVOKED_FILE)
     print("CLEANUP_OK")

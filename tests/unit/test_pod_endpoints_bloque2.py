@@ -7,95 +7,18 @@ import sys
 import tempfile
 
 os.environ["POD_VEHICLE_TOKEN"] = "test-token-bloque2"
-# Worktree-safe y autonomo: root derivado de la ubicacion de ESTE archivo.
-_ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-sys.path.insert(0, _ROOT)
+# Worktree-safe y autonomo: usar el helper comun (BD temporal + parcheo del
+# router si ya fue importado). Detalle del porque en tests/unit/pod_test_helper.py.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-# BD temporal propia del test (patron de test_bottle_tracker.py).
-# Antes apuntaba a data/dispatch.db del repo => 'no such table' en worktrees
-# y su fixture ensuciaba la BD compartida. pod_router.py respeta
-# DISPATCH_DB_PATH (env), verificada en su fuente lineas 36-40.
-_TEST_DB = os.path.join(tempfile.mkdtemp(prefix="pod_bloque2_"), "dispatch.db")
-os.environ["DISPATCH_DB_PATH"] = _TEST_DB
-os.environ["POD_PHOTO_DIR"] = os.path.dirname(_TEST_DB)
-os.environ["POD_REVOKED_FILE"] = os.path.join(os.path.dirname(_TEST_DB), "pod_revoked.json")
-DB = _TEST_DB
+from tests.unit.pod_test_helper import setup_pod_test  # noqa: E402
+
+ctx = setup_pod_test("test-token-bloque2")
+conn = ctx.conn
+DB = ctx.db
 H = {"X-Vehicle-Token": "test-token-bloque2"}
 
-# Si api.pod_router ya fue importado por otro test (conftest importa
-# test_gps_tracker que fija DISPATCH_DB_PATH=/tmp/test_gps_tracker.db),
-# el env ya no sirve: la constante quedo fijada en el modulo.
-# Parchear tambien la constante del modulo si este ya vive en sys.modules.
-def _redirect_pod_router_db():
-    mod = sys.modules.get("api.pod_router")
-    if mod is not None:
-        if not hasattr(mod, "_ORIGINAL_DISPATCH_DB_PATH"):
-            mod._ORIGINAL_DISPATCH_DB_PATH = mod.DISPATCH_DB_PATH
-        mod.DISPATCH_DB_PATH = _TEST_DB
-
-_redirect_pod_router_db()
-
-
-def _restore_pod_router_db():
-    """Restaurar la BD del router para no contaminar tests posteriores."""
-    mod = sys.modules.get("api.pod_router")
-    if mod is not None and hasattr(mod, "_ORIGINAL_DISPATCH_DB_PATH"):
-        mod.DISPATCH_DB_PATH = mod._ORIGINAL_DISPATCH_DB_PATH
-        del mod._ORIGINAL_DISPATCH_DB_PATH
-
-# Esquema: copia FIEL del esquema real de data/dispatch.db (tronco) para las
-# tablas que este test toca: clients, vehicles, deliveries + pod_records
-# canonico (db/pod_schema.sql). Verificado con PRAGMA table_info 2026-10-01.
-_SCHEMA_FILES = [
-    os.path.join(_ROOT, "db", "pod_schema.sql"),
-]
-_BASE_SCHEMA = """
-CREATE TABLE IF NOT EXISTS clients (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, phone TEXT, phone_hash TEXT,
-    name TEXT, address_text TEXT, lat REAL, lng REAL, client_type TEXT,
-    avg_bottles_per_visit INTEGER, visit_frequency TEXT, visit_days TEXT,
-    priority INTEGER, zone_id INTEGER, bottle_exchange_model INTEGER,
-    bottle_return_hours INTEGER, active INTEGER, notes TEXT,
-    created_at REAL, updated_at REAL, is_priority INTEGER,
-    is_automatic INTEGER, priority_notes TEXT
-);
-CREATE TABLE IF NOT EXISTS vehicles (
-    id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL,
-    operator_name TEXT, telegram_chat_id INTEGER,
-    max_full_bottles INTEGER DEFAULT 30, max_empty_bottles INTEGER DEFAULT 70,
-    current_full_load INTEGER DEFAULT 0, current_empty_load INTEGER DEFAULT 0,
-    shift TEXT, active INTEGER DEFAULT 1,
-    created_at REAL NOT NULL DEFAULT (strftime('%s','now'))
-);
-CREATE TABLE IF NOT EXISTS deliveries (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    dispatch_session_id INTEGER NOT NULL, client_id INTEGER NOT NULL,
-    vehicle_id INTEGER NOT NULL, order_sequence INTEGER NOT NULL,
-    status TEXT NOT NULL DEFAULT 'pending', bottles_full INTEGER DEFAULT 0,
-    bottles_empty_pickup INTEGER DEFAULT 0, bottles_on_site_refill INTEGER DEFAULT 0,
-    estimated_arrival REAL, actual_arrival REAL, actual_departure REAL,
-    duration_seconds INTEGER, operator_notes TEXT, feedback_score INTEGER,
-    created_at REAL NOT NULL DEFAULT (strftime('%s','now')),
-    updated_at REAL NOT NULL DEFAULT (strftime('%s','now')),
-    pod_id INTEGER, pod_status TEXT,
-    FOREIGN KEY (client_id) REFERENCES clients(id),
-    FOREIGN KEY (vehicle_id) REFERENCES vehicles(id)
-);
-"""
-
-# Fixture
-conn = sqlite3.connect(DB)
-conn.row_factory = sqlite3.Row
-# Crear esquema: canonico (pod_records) + tablas base
-for sf in _SCHEMA_FILES:
-    if os.path.exists(sf):
-        conn.executescript(open(sf).read())
-conn.executescript(_BASE_SCHEMA)
-# Semilla: al menos un client y un vehicle para la delivery de prueba
-if conn.execute("SELECT COUNT(*) c FROM clients").fetchone()["c"] == 0:
-    conn.execute("INSERT INTO clients (name) VALUES ('Cliente Bloque2')")
-if conn.execute("SELECT COUNT(*) c FROM vehicles").fetchone()["c"] == 0:
-    conn.execute("INSERT INTO vehicles (name, operator_name) VALUES ('Vehiculo Bloque2', 'TEST')")
+# Fixture: delivery de prueba sobre la BD temporal del helper
 client = conn.execute("SELECT id FROM clients LIMIT 1").fetchone()
 vehicle = conn.execute("SELECT id FROM vehicles LIMIT 1").fetchone()
 cur = conn.execute(
@@ -217,7 +140,5 @@ finally:
     else:
         conn.execute("DELETE FROM pod_records WHERE delivery_id = ?", (did,))
         conn.execute("DELETE FROM deliveries WHERE id = ?", (did,))
-    conn.commit()
-    conn.close()
-    _restore_pod_router_db()
+    ctx.teardown()
     print("CLEANUP_OK")
