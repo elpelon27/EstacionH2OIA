@@ -12,7 +12,7 @@ import pytest
 # Project root resolved from THIS conftest location — worktree-safe.
 # Fixes: hardcoded "/mnt/ssd_trabajo/hermes-agent" broke every git worktree
 # (tests resolved to the trunk => "import file mismatch" collection errors).
-_PROJECT_ROOT = os.path.path.dirname(os.path.path.abspath(__file__)) if False else os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+_PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, _PROJECT_ROOT)
 
 # Mock ONLY the module that doesn't exist as a package:
