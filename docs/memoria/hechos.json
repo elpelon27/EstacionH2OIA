@@ -61,5 +61,40 @@
     "hecho": "Clave de OpenRouter para kimi-k3 almacenada en ~/.claude/settings.json (clave del usuario, verificada con acceso a cuenta de pago).",
     "confianza": "certain",
     "fecha": "2026-08-17"
+  },
+  {
+    "id": 10,
+    "tema": "arquitectura-prometeo",
+    "hecho": "2026-10-01: Sistema multi-agente PROMETEO desplegado: perfil cerebro coordinador + 3 frentes de trabajo en worktrees git aislados (10-r1-infra, 10-r2-api, 10-r3-integracion) con contratos firmados en agentes/ (BASE-OPERATIVA + uno por frente con lista blanca, gates verificables y protocolo de detencion). Merge del frente R3 integrado al tronco en commit 846114ad.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 11,
+    "tema": "fix-cloudflared",
+    "hecho": "2026-10-01 DT-32: causa raiz del crash-loop de cloudflared era WatchdogSec=60 en la unidad systemd (binario 2026.6.1 no emite sd_notify watchdog => systemd lo mataba cada 60s); los panics QUIC eran sintoma de conexiones huerfanas. Fix: watchdog removido de /etc/systemd/system/cloudflared.service. Verificado 331s estable, tunel 200.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 12,
+    "tema": "fix-redis-warming",
+    "hecho": "2026-10-01 DT-34: Redis 'vacio' no era script roto: warming corria 10:30 diario con exito pero TTL=7200s lo vaciaba 22h/dia. Fix: crontab warming_diario a 0 */2 * * * (cada 2h). Backup crontab en /home/skynet/crontab_backup_20261001.txt",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 13,
+    "tema": "fix-tests-pod",
+    "hecho": "2026-10-01: tests POD eran worktree-unsafe: conftest.py y 7 tests hardcodeaban rutas absolutas al tronco; ademas api/pod_router.py fija DISPATCH_DB_PATH/PHOTO_DIR/REVOKED_FILE al importar (lineas 36/40/75) por lo que env vars no bastan si el modulo ya fue cargado. Helper reutilizable: tests/unit/pod_test_helper.py (BD temporal + parcheo de constantes con restauracion). Suite completa 1009 passed / 0 failed.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 14,
+    "tema": "schema-drift-financial",
+    "hecho": "2026-10-01: schema drift en financial: data_hardening.py y sync Odoo anadianon columnas a la BD real (fs_pedidos: cliente_telefono_hash, odoo_invoice_id; fs_pagos: cuenta_cobrar_id, cliente_telefono_hash, odoo_payment_id) que el modelo PedidoFinanciero/Pago no conocia. Modelo + CREATE TABLE sincronizados con PRAGMA table_info real.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
   }
 ]
