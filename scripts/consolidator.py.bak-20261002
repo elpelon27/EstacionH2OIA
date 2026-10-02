@@ -45,14 +45,9 @@ VAULT_DIR = os.path.join(BASE_DIR, "docs", "03-sesiones")
 
 # D-5.2: Session DB de Hermes (validada en vivo: 38 sesiones, 25k mensajes).
 # No es conversations.db (esa era fs_audit_log y no es la fuente correcta).
-# FIX 2026-10-02 (revinculación del alma): el default apuntaba a la instalación
-# antigua ~/.hermes/state.db, congelada el 2026-08-13 — el consolidador corría
-# "verde" consolidando NADA. Default re-alineado a la instalación viva
-# hermes-unified (76 sesiones, mensajes hasta hoy). Watermark reseteado a 0 en
-# la misma fecha para re-consolidar la historia desde la BD viva.
 SESSION_DB = os.getenv(
     "HERMES_SESSION_DB",
-    "/home/skynet/hermes-unified/state.db",
+    "/home/skynet/.hermes/state.db",
 )
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434")
