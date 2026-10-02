@@ -80,3 +80,21 @@ $ docker exec odoo-web (residuos test)
 $ hermes config get model.fallbacks
   - z-ai/glm-5.3
   - deepseek/deepseek-v4-flash-0731
+
+## FIX TOP4 #1 — DT-32 cloudflared crash-loop (21:50–22:00)
+
+CAUSA RAÍZ (verificada, no asumida): NO era el bug QUIC de Cloudflare.
+La unidad systemd hardened tenía `WatchdogSec=60` pero el binario
+cloudflared 2026.6.1 (Type=notify) NO emite sd_notify watchdog =>
+systemd lo mató cada 60s con "Failed with result 'watchdog'" =>
+Restart=always lo revivía => panic QUIC residual en cada arranque
+(conexiones huérfanas de la muerte anterior). Ciclo exacto de ~72s.
+
+FIX: WatchdogSec removido de /etc/systemd/system/cloudflared.service
+(línea comentada con causa documentada). daemon-reload + restart vía
+nsenter en contenedor (sudo -S -p '' sin contraseña no disponible).
+
+EVIDENCIA REAL:
+- NRestarts=4→0, watchdog kill: 0 en 6 min
+- Túnel: https://valentina.estacionh2o.com/health → 200
+- Monitoreo 331s continuo: active, 0 restarts (antes moría a los 72s)
