@@ -117,3 +117,23 @@ EVIDENCIA:
 - Wrapper ejecutado manualmente: success=1, 1018ms registrado en
   hermes_memory.db::cron_runs
 - redis-cli DBSIZE: 10 keys activas
+
+## FIX TOP4 #4 — DT-31 comandos en menú Telegram (22:03)
+
+Estado ANTES: 16 comandos registrados (operativos) pero FALTABAN los 12
+de seguridad del DT-31 en el menú público del bot (blacklist, lockdown,
+observe, credit_client, ataque_detectado, stats...).
+
+Verificación previa (no se registró nada sin handler real):
+- skills/security_commands.py::register_security_handlers confirma los
+  12 handlers y telegram_bot.py:374 los integra
+- skills/client_commands.py::register_client_handlers confirma 9 más
+- Bot activo: PID 4403 (telegram_bot.py) + bridge uvicorn PID 4375
+
+FIX: setMyCommands ejecutado con los 15 del DT-31, descripciones
+tomadas de los docstrings reales de los módulos.
+
+EVIDENCIA: getMyCommands → 15/15 registrados:
+/start /help /lockdown_status /lockdown_release /blacklist_add
+/blacklist_remove /block /unblock /observe /credit_client
+/ataque_detectado /stats /set_gps /set_peso /resumen
