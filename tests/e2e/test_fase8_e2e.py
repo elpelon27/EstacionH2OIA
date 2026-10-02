@@ -37,7 +37,22 @@ CARACAS_TZ = timezone(timedelta(hours=-4))
 ODOO_URL = "http://localhost:8069"
 ODOO_DB = "estacion_h2o"
 ODOO_USER = "admin"
-ODOO_PASS = "admin"
+# Password real desde infra/odoo/.env (igual que test_pod_odoo_sync_bloque4).
+# Antes hardcodeaba "admin" => "No se pudo autenticar en Odoo" (DT-33 e2e).
+import os as _os
+ODOO_PASS = _os.environ.get("ODOO_PASSWORD", "")
+if not ODOO_PASS:
+    for _env_path in (
+        _os.path.join(PROJECT_ROOT, "infra", "odoo", ".env"),
+    ):
+        if _os.path.exists(_env_path):
+            with open(_env_path) as _f:
+                for _line in _f:
+                    if _line.startswith("ODOO_PASSWORD"):
+                        ODOO_PASS = _line.split("=", 1)[1].strip()
+            break
+if not ODOO_PASS:
+    raise RuntimeError("ODOO_PASSWORD no encontrada: falta infra/odoo/.env")
 
 # Test phone numbers
 TEST_PHONE = "+584120000001"
