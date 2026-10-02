@@ -137,3 +137,19 @@ EVIDENCIA: getMyCommands → 15/15 registrados:
 /start /help /lockdown_status /lockdown_release /blacklist_add
 /blacklist_remove /block /unblock /observe /credit_client
 /ataque_detectado /stats /set_gps /set_peso /resumen
+
+## FIX TOP4 #2 — DT-33 tests que abortan suite (22:00–22:10)
+
+Los 5 tests del DT-33 (killswitch_bloque5, pod_endpoints_bloque2,
+pod_waha_fase2, pwa_bloque3, pod_odoo_sync_bloque4) YA estaban
+reparados por el frente R3 de esta jornada (commits 7da3df44,
+8e3445cb, 64314d5e, merge 846114ad).
+
+Hallazgo adicional al correr la suite COMPLETA (que el DT-33 pide):
+tests/e2e/test_fase8_e2e.py tenía 3 ERROR por password Odoo
+hardcodeada "admin/admin" (drift de credenciales, deuda preexistente).
+Fix: leer ODOO_PASSWORD de infra/odoo/.env (mismo patrón que bloque4).
+
+EVIDENCIA FINAL (suite completa, sin --ignore, todos los directorios):
+  1009 passed, 14 skipped, 0 failed, 0 errors
+  (e2e aislado: 4/4 passed contra Odoo 17 vivo)
