@@ -1,5 +1,23 @@
 # FRENTE R3-INTEGRACION — Integraciones externas y deuda de tests
 
+## Estado: CERRADO (2026-10-01) — T1, T2 y T3 completadas
+
+Verificacion final real (suite completa tronco tras merge 846114ad
++ fix financial a461f371):
+963 passed, 0 failed, 0 errores de coleccion.
+Baseline original de este frente: 1 failed + 5 errores.
+
+- T1 (NameError did2 + BD hardcodeada): commit 7da3df44
+- T2 (familia A: helper comun, 4 tests migrados): commit 8e3445cb
+- T3 (odoo_sync integracion real, cleanup operativo): commit 64314d5e
+- Merge al tronco: 846114ad (sin conflictos)
+- Extra (fuera de contrato, orden del lider): fix schema drift
+  financial (models.py + database.py + test actualizado), snapshot
+  a461f371 — cierra el ultimo failed preexistente del tronco.
+
+Odoo verificado limpio de residuos de test (0 invoices / 0 SO /
+0 partners TESTPOD) tras corrida real de integracion.
+
 ## Mision
 
 Reparar los 5 errores de tests preexistentes (deuda real heredada, nadie
