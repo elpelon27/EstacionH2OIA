@@ -18,10 +18,14 @@ from pathlib import Path
 from unittest import mock
 
 os.environ["POD_VEHICLE_TOKEN"] = "test-token-fase2"
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
-PDF_DIR = Path("/mnt/ssd_trabajo/hermes-agent/data/pod_pdfs")
+from tests.unit.pod_test_helper import setup_pod_test  # noqa: E402
+
+ctx = setup_pod_test("test-token-fase2")
+conn = ctx.conn
+DB = ctx.db
+PDF_DIR = ctx.pdf_dir
 H = {"X-Vehicle-Token": "test-token-fase2"}
 
 from fastapi import FastAPI  # noqa: E402
@@ -30,6 +34,15 @@ from PIL import Image, ImageDraw  # noqa: E402
 
 from api.pod_router import router  # noqa: E402
 from scripts import waha_client  # noqa: E402
+from scripts.pod import generate_pdf  # noqa: E402
+
+# PDFs redirigidos al tmpdir del test (hook oficial _set_pdf_dir)
+PDF_DIR.mkdir(parents=True, exist_ok=True)
+generate_pdf._set_pdf_dir(PDF_DIR)
+# WAHA a un puerto muerto local: TEST6 verifica fail-open REAL (sin tocar
+# el WAHA vivo de produccion). Env se lee al importar => setear antes no
+# aplica; waha_client ya esta importado arriba, parcheamos la constante.
+waha_client.WAHA_BASE_URL = "http://127.0.0.1:59999"
 
 app = FastAPI()
 app.include_router(router)
@@ -54,8 +67,6 @@ def wait_for(cond, timeout=10, what="condición"):
 
 
 # Fixture: delivery con cliente Nivel 1 (restaurant: nunca escribe primero)
-conn = sqlite3.connect(DB)
-conn.row_factory = sqlite3.Row
 nivel1 = conn.execute(
     "SELECT id, name, phone, address_text FROM clients WHERE client_type != 'retail' LIMIT 1"
 ).fetchone() or conn.execute("SELECT id, name, phone, address_text FROM clients LIMIT 1").fetchone()
@@ -175,8 +186,5 @@ try:
 finally:
     conn.execute("DELETE FROM pod_records WHERE delivery_id = ?", (did,))
     conn.execute("DELETE FROM deliveries WHERE id = ?", (did,))
-    conn.commit()
-    conn.close()
-    for old in PDF_DIR.glob(f"pod_{did}_*.pdf") if PDF_DIR.exists() else []:
-        old.unlink()
+    ctx.teardown()
     print("CLEANUP_OK")

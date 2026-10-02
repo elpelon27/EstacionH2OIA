@@ -4,16 +4,21 @@ import base64
 import os
 import sqlite3
 import sys
+import tempfile
 
 os.environ["POD_VEHICLE_TOKEN"] = "test-token-bloque2"
-sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
+# Worktree-safe y autonomo: usar el helper comun (BD temporal + parcheo del
+# router si ya fue importado). Detalle del porque en tests/unit/pod_test_helper.py.
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 
-DB = "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
+from tests.unit.pod_test_helper import setup_pod_test  # noqa: E402
+
+ctx = setup_pod_test("test-token-bloque2")
+conn = ctx.conn
+DB = ctx.db
 H = {"X-Vehicle-Token": "test-token-bloque2"}
 
-# Fixture
-conn = sqlite3.connect(DB)
-conn.row_factory = sqlite3.Row
+# Fixture: delivery de prueba sobre la BD temporal del helper
 client = conn.execute("SELECT id FROM clients LIMIT 1").fetchone()
 vehicle = conn.execute("SELECT id FROM vehicles LIMIT 1").fetchone()
 cur = conn.execute(
@@ -34,6 +39,10 @@ from api.pod_router import router  # noqa: E402
 app = FastAPI()
 app.include_router(router)
 c = TestClient(app)
+
+# did2 se define dentro del try (TEST 4); si una prueba anterior falla,
+# el finally hacia NameError: did2. Inicializar antes y limpiar solo lo creado.
+did2 = None
 
 try:
     # TEST 1: GET /api/pod/{id} devuelve datos correctos
@@ -124,9 +133,12 @@ try:
 
     print("ALL_POD_ENDPOINT_TESTS_PASSED")
 finally:
-    # Cleanup
-    conn.execute("DELETE FROM pod_records WHERE delivery_id IN (?, ?)", (did, did2))
-    conn.execute("DELETE FROM deliveries WHERE id IN (?, ?)", (did, did2))
-    conn.commit()
-    conn.close()
+    # Cleanup (defensivo: did2 puede no existir si fallo una prueba anterior)
+    if did2 is not None:
+        conn.execute("DELETE FROM pod_records WHERE delivery_id IN (?, ?)", (did, did2))
+        conn.execute("DELETE FROM deliveries WHERE id IN (?, ?)", (did, did2))
+    else:
+        conn.execute("DELETE FROM pod_records WHERE delivery_id = ?", (did,))
+        conn.execute("DELETE FROM deliveries WHERE id = ?", (did,))
+    ctx.teardown()
     print("CLEANUP_OK")
