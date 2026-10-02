@@ -205,7 +205,13 @@ def extract_facts_with_ollama(text: str, model: str = "qwen2.5:7b") -> list[dict
             data = resp.json()
             facts = json.loads(data.get("response", "[]"))
             if not isinstance(facts, list):
-                return []
+                # FIX 2026-10-02: qwen2.5:7b con "format":"json" a veces
+                # retorna un objeto único en vez de un array. Si es un dict
+                # con "fact", lo envolvemos en lista; si no, descartamos.
+                if isinstance(facts, dict) and "fact" in facts:
+                    facts = [facts]
+                else:
+                    return []
             return facts
     except Exception as e:
         logger.warning(f"Ollama extraction failed: {e}")
