@@ -1060,10 +1060,7 @@ def _detect_message_type(answer: str) -> dict[str, Any]:
         return {
             "type": "button",
             "body": answer.split("¿Cómo")[0].strip() + "\n\n¿Cómo desea pagar?",
-            "buttons": [
-                {"id": "1", "title": "💳 Pago Móvil"},
-                {"id": "2", "title": "💵 Efectivo"},
-            ],
+            "buttons": _c2p_menu_pago_buttons(),
         }
 
     # --- Después de dar datos de cuenta → Quick Reply "Ya pagué" ---
