@@ -365,59 +365,62 @@ class TestFsmC2p:
         bridge._clear_state(PH)
 
     def test_flujo_completo_c2p_aprobado(self):
+        """Flujo rediseñado: 2 → registro 1-mensaje → OTP → code 00 → despachado."""
         with patch.object(bridge, "C2P_ENABLED", True), patch.object(
             bridge, "_send_to_dispatch_queue"
         ) as mock_dispatch, patch.object(
             bridge, "_c2p_guardar_dato_cliente"
-        ) as mock_save, patch(
+        ) as mock_save, patch.object(
+            bridge, "_c2p_disparar_generar_otp"
+        ) as mock_otp, patch.object(
+            bridge, "_c2p_datos_guardados",
+            side_effect=lambda ph: {"cedula": "", "banco": "", "nombre": ""},
+        ), patch(
             "src.integrations.r4.client.R4Client.cobro_c2p",
             new=AsyncMock(return_value=_resp("00", "59707278")),
-        ) as mock_c2p, patch(
-            "src.integrations.r4.client.R4Client.generar_otp",
-            new=AsyncMock(return_value=_resp("202")),
-        ):
-            # Paso 1: elige "2" → pide cédula
+        ) as mock_c2p:
+            # Paso 1: elige "2" → pide registro en 1 mensaje
             r = asyncio.run(
                 bridge._handle_deterministic(PH, "2", PHONE, "Cliente Test", _msg("2"), {})
             )
-            assert "cédula" in r["answer"].lower()
-            assert bridge._get_state(PH)["state"] == "awaiting_c2p_cedula"
+            assert "en un solo mensaje" in r["answer"]
+            assert bridge._get_state(PH)["state"] == "awaiting_c2p_registro"
 
-            # Paso 2: cédula → pide banco
+            # Paso 2: registro completo → pide clave dinámica con el nombre
             r = asyncio.run(
-                bridge._handle_deterministic(PH, "V-12345678", PHONE, "Cliente Test", _msg("V-12345678"), {})
+                bridge._handle_deterministic(
+                    PH, "Karla Perez V12345678 BNC", PHONE, "Cliente Test",
+                    _msg("Karla Perez V12345678 BNC"), {}
+                )
             )
-            assert "banco" in r["answer"].lower()
-            assert bridge._get_state(PH)["state"] == "awaiting_c2p_banco"
-            assert bridge._get_state(PH)["c2p_cedula"] == "V12345678"
-
-            # Paso 3: banco → GenerarOtp lanzado, pide OTP
-            r = asyncio.run(
-                bridge._handle_deterministic(PH, "0105", PHONE, "Cliente Test", _msg("0105"), {})
-            )
-            assert "código" in r["answer"].lower()
+            assert "Listo, Karla Perez" in r["answer"]
             assert bridge._get_state(PH)["state"] == "awaiting_c2p_otp"
-            assert bridge._get_state(PH)["c2p_banco"] == "0105"
+            assert bridge._get_state(PH)["c2p_banco"] == "0191"
             assert bridge._get_state(PH)["c2p_expires_at"] > 0
+            mock_otp.assert_called_once()
 
-            # Paso 4: OTP → cobro_c2p code 00 → confirmado + despachado
+            # Paso 3: OTP → cobro_c2p code 00 → confirmado + despachado
             r = asyncio.run(
                 bridge._handle_deterministic(PH, "13309525", PHONE, "Cliente Test", _msg("13309525"), {})
             )
             assert "Pago confirmado" in r["answer"]
             mock_c2p.assert_awaited_once()
             mock_dispatch.assert_called_once()
-            # Estado final: limpiado tras completar
             assert bridge._get_state(PH).get("state") in (None, "completed")
 
-    def test_cedula_invalida_reintenta(self):
-        with patch.object(bridge, "C2P_ENABLED", True):
-            bridge._set_state(PH, {**bridge._get_state(PH), "state": "awaiting_c2p_cedula"})
+    def test_registro_sin_formato_reintenta(self):
+        """Mensaje de registro sin cédula/banco → re-pide el registro completo."""
+        with patch.object(bridge, "C2P_ENABLED", True), patch.object(
+            bridge, "_c2p_datos_guardados",
+            return_value={"cedula": "", "banco": "", "nombre": ""},
+        ):
+            r = asyncio.run(bridge._handle_deterministic(PH, "2", PHONE, "Cliente Test", _msg("2"), {}))
+            bridge._set_state(PH, {**bridge._get_state(PH), "state": "awaiting_c2p_registro"})
             r = asyncio.run(
-                bridge._handle_deterministic(PH, "hola", PHONE, "Cliente Test", _msg("hola"), {})
+                bridge._handle_deterministic(PH, "hola que tal", PHONE, "Cliente Test", _msg("hola que tal"), {})
             )
-            assert "no es válido" in r["answer"]
-            assert bridge._get_state(PH)["state"] == "awaiting_c2p_cedula"
+            assert "en un solo mensaje" in r["answer"]
+            assert bridge._get_state(PH)["state"] == "awaiting_c2p_registro"
 
     def test_rechazo_banco_ofrece_alternativa(self):
         """cobro_c2p code 51 → mensaje de fondos insuficientes + volver a awaiting_payment."""
@@ -479,13 +482,14 @@ class TestFsmC2p:
             assert bridge._get_state(PH).get("state") in (None, "completed")
 
     def test_pago_movil_no_roto(self):
-        """Regresión: opción 1 (Pago Móvil) sigue funcionando con C2P activado."""
+        """Regresión: opción 1 (Pago Móvil) muestra datos copiables + oferta QR."""
         with patch.object(bridge, "C2P_ENABLED", True):
             r = asyncio.run(
                 bridge._handle_deterministic(PH, "1", PHONE, "Cliente Test", _msg("1"), {})
             )
-            assert "datos para su pago" in r["answer"]
-            assert bridge._get_state(PH)["state"] == "awaiting_confirmation"
+            assert "R4 Banco Microfinanciero" in r["answer"]
+            assert "J506356899" in r["answer"]
+            assert bridge._get_state(PH)["state"] == "awaiting_qr_respuesta"
             assert bridge._get_state(PH)["payment_method"] == "Pago Móvil"
 
 

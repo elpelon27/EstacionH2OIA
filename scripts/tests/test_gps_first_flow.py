@@ -99,8 +99,8 @@ r = asyncio.run(_handle_deterministic(
 check("3a sigue flujo de pago (no pide GPS)",
       "pago" in r.get("answer", "").lower(),
       f"answer={r.get('answer', '')[:60]}")
-check("3b estado avanzó a awaiting_confirmation",
-      state() == "awaiting_confirmation")
+check("3b estado avanzó a awaiting_qr_respuesta (rediseño Pago Móvil ágil)",
+      state() == "awaiting_qr_respuesta")
 
 print("== TEST 4 (extra): primer mensaje YA es location ==")
 _clear_state(PH_HASH)
