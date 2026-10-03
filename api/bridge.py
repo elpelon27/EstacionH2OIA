@@ -1187,6 +1187,128 @@ BANK_DATA = (
     "Envíe el comprobante de pago por aquí. ¡Gracias! 💧"
 )
 
+# ============================================================
+# C2P — Cobro Automático (R4c2p). Diseño: docs/02-arquitectura/R4_C2P_DISEÑO.md
+# Feature flag: C2P_ENABLED=false hasta que el banco habilite el servicio.
+# ============================================================
+C2P_ENABLED = os.getenv("C2P_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+C2P_OTP_TIMEOUT_SECONDS = 300  # 5 minutos para que el cliente reciba/dígame el OTP
+
+# Mensajes C2P — español neutro venezolano (segunda persona = usted)
+C2P_MSG_CEDULA = "Dígame su cédula (formato: V12345678)"
+C2P_MSG_BANCO = "Dígame el código de su banco (4 dígitos, ej: 0105 Mercantil, 0102 BBVA, 0114 BNC)"
+C2P_MSG_OTP_ENVIADO = (
+    "Le cobraremos {monto_bs} Bs. Su banco le enviará un código de autorización "
+    "por mensaje de texto o por su aplicación.\n\n"
+    "Dígame ese código cuando lo reciba. Tiene 5 minutos."
+)
+C2P_MSG_PAGO_OK = "✅ Pago confirmado. Su repartidor va en camino. ¡Gracias! 💧"
+C2P_MSG_RECHAZO = (
+    "❌ El pago fue rechazado. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?"
+)
+C2P_RECHAZO_POR_CODIGO = {
+    "51": "❌ Fondos insuficientes en su cuenta. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?",
+    "41": "❌ Su banco no está disponible en este momento. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?",
+    "80": "❌ La cédula no coincide con la registrada en su banco. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?",
+    "56": "❌ El teléfono no coincide con el registrado en su banco. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?",
+    "30": "❌ Hubo un error con los datos del cobro. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?",
+}
+C2P_MSG_TIMEOUT = "⏰ El código expiró. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?"
+
+
+def _c2p_normalizar_cedula(texto: str) -> str | None:
+    """
+    Normaliza la cédula al formato del banco: 9 alfanumérico sin guion
+    (ej: "V-12345678" o "v12345678" → "V12345678").
+    Returns None si el formato es inválido.
+    """
+    limpio = re.sub(r"[\s\.\-]", "", (texto or "").strip()).upper()
+    if re.fullmatch(r"[VEJG]\d{7,8}", limpio):
+        return limpio
+    return None
+
+
+def _c2p_normalizar_banco(texto: str) -> str | None:
+    """
+    Normaliza el banco emisor a 4 dígitos. Acepta "0105", "105" o alias
+    textuales comunes (ej: "mercantil", "bbva", "bnc").
+    Returns None si no se puede resolver.
+    """
+    limpio = re.sub(r"[\s\.\-]", "", (texto or "").strip()).lower()
+    if re.fullmatch(r"\d{4}", limpio):
+        return limpio
+    if re.fullmatch(r"\d{1,3}", limpio):
+        return limpio.zfill(4)
+    alias = {
+        "mercantil": "0105",
+        "bbva": "0102",
+        "provincial": "0102",
+        "bnc": "0114",
+        "bancooncovicentebolivar": "0114",
+        "venezolano": "0116",
+        "banvenez": "0102",
+        "banesco": "0134",
+        "exterior": "0115",
+        "mercantil": "0105",
+    }
+    return alias.get(limpio)
+
+
+def _c2p_guardar_dato_cliente(ph_hash: str, campo: str, valor: str) -> None:
+    """Guarda cédula/banco del cliente en dispatch.db (clients). Fail-soft."""
+    try:
+        conn = _get_db_with_fk(DISPATCH_DB_PATH)
+        conn.execute(
+            f"UPDATE clients SET {campo} = ?, updated_at = ? WHERE phone_hash = ?",
+            (valor, datetime.now(CARACAS_TZ).timestamp(), ph_hash),
+        )
+        conn.commit()
+        conn.close()
+    except sqlite3.Error as e:
+        logger.warning("C2P: no se pudo guardar %s en clients: %s", campo, e)
+
+
+def _c2p_menu_pago_buttons() -> list[dict[str, str]]:
+    """
+    Botones del menú de pago según C2P_ENABLED:
+    - true: 3 opciones (Pago Móvil / Cobro Automático / Efectivo)
+    - false: 2 opciones (Pago Móvil / Efectivo) — C2P oculto
+    """
+    if C2P_ENABLED:
+        return [
+            {"id": "1", "title": "💳 Pago Móvil"},
+            {"id": "2", "title": "⚡ Cobro Automático"},
+            {"id": "3", "title": "💵 Efectivo"},
+        ]
+    logger.debug("C2P deshabilitado, opción oculta (C2P_ENABLED=false)")
+    return [
+        {"id": "1", "title": "💳 Pago Móvil"},
+        {"id": "2", "title": "💵 Efectivo"},
+    ]
+
+
+def _c2p_otp_expiro(state: dict[str, Any]) -> bool:
+    """True si el estado awaiting_c2p_otp superó el timeout de 5 minutos."""
+    expires_at = state.get("c2p_expires_at")
+    if not expires_at:
+        return False
+    return time.time() > float(expires_at)
+
+
+def _c2p_respuesta_fallback(texto: str) -> dict[str, Any]:
+    """Respuesta de fallback tras rechazo/timeout C2P: elegir 1 (Pago Móvil) o 3 (Efectivo)."""
+    return {
+        "answer": texto,
+        "interactive": {
+            "type": "button",
+            "body": texto,
+            "buttons": [
+                {"id": "1", "title": "💳 Pago Móvil"},
+                {"id": "3", "title": "💵 Efectivo"},
+            ],
+        },
+    }
+
 OUT_OF_HOURS_MSG = (
     "¡Hola! 👋 Ahora mismo estamos cerrados 🌙 Volvemos a las 8:00 AM (Lun-Sáb, 8am-6pm)."
 )
@@ -2482,15 +2604,12 @@ def _handle_deterministic(
             "interactive": {
                 "type": "button",
                 "body": confirm_msg,
-                "buttons": [
-                    {"id": "1", "title": "💳 Pago Móvil"},
-                    {"id": "2", "title": "💵 Efectivo"},
-                ],
+                "buttons": _c2p_menu_pago_buttons(),
             },
         }
 
     # ====================================================================
-    # ESTADO: awaiting_payment (cliente debe elegir 1 o 2)
+    # ESTADO: awaiting_payment (cliente debe elegir 1, 2 o 3)
     # ====================================================================
     if current_state == "awaiting_payment":
         total = state.get("total_eur", 0.0)
@@ -2513,7 +2632,29 @@ def _handle_deterministic(
             }
 
         if text_body.strip() == "2":
-            # Efectivo
+            if C2P_ENABLED:
+                # ⚡ Cobro Automático C2P — pedir cédula primero
+                new_state = state.copy()
+                new_state["state"] = "awaiting_c2p_cedula"
+                _set_state(ph_hash, new_state)
+                return {"answer": C2P_MSG_CEDULA}
+            # C2P deshabilitado: "2" sigue siendo Efectivo (menú de 2 opciones)
+
+        if text_body.strip() == "3" and C2P_ENABLED:
+            # 💵 Efectivo (solo existe "3" cuando el menú tiene 3 opciones)
+            new_state = state.copy()
+            new_state["state"] = "completed"
+            new_state["payment_method"] = "Efectivo"
+            _set_state(ph_hash, new_state)
+            # FASE 1.5: Encolar pedido para dispatcher (antes de limpiar estado)
+            _send_to_dispatch_queue(ph_hash, new_state, from_phone)
+            _clear_state(ph_hash)
+            return {
+                "answer": f"Perfecto. Pague en efectivo al recibir su pedido.\n\n💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f})\n\nEl chofer va en camino. ¡Gracias! 💧"  # noqa: E501
+            }
+
+        if text_body.strip() == "2" and not C2P_ENABLED:
+            # 💵 Efectivo (menú de 2 opciones: Efectivo sigue siendo "2")
             new_state = state.copy()
             new_state["state"] = "completed"
             new_state["payment_method"] = "Efectivo"

@@ -1073,6 +1073,145 @@ async def r4_webhook_health(
 # ============================================================
 
 
+@router.post(
+    "/c2p",
+    summary="C2P - Hook pasivo de contingencia (NO vía principal)",
+    description="""
+    Hook de contingencia para una eventual notificación asincrónica de C2P.
+
+    IMPORTANTE: el PDF R4 CONECTA V3.0 (pág. 30) documenta que la respuesta
+    de R4c2p es SÍNCRONA (code + reference en el POST /MBc2p). NO existe
+    webhook documentado para C2P. Este endpoint queda como hook pasivo:
+    loggea la notificación y procesa el pago SOLO si el pedido sigue
+    pendiente (idempotente: si ya fue confirmado por la vía síncrona,
+    solo loggea y responde 200 sin duplicar).
+
+    Seguridad (mismo modelo que /consulta y /notifica, PDF págs. 7 y 9):
+    - IP whitelist
+    - Authorization: UUID directo (sin Bearer, sin HMAC en webhooks entrantes)
+    - Rate limiting
+    """,
+)
+async def r4_c2p_webhook(
+    request: Request,
+    authorization: str | None = Header(None),
+    config: R4WebhookConfig = _webhook_config_singleton,
+) -> dict[str, Any]:
+    """
+    Hook pasivo C2P — contingencia asincrónica.
+
+    Body supuesto (a validar con el banco; formato NO documentado):
+        {"TelefonoDestino", "Cedula", "Monto", "Referencia", "code"}
+
+    Response: {"status": true/false}
+    """
+    logger.info("=== C2P webhook pasivo recibido (contingencia) ===")
+
+    # === SEGURIDAD: mismo modelo estricto que /consulta y /notifica ===
+    await verify_ip_whitelist(request, config)
+    await verify_rate_limit(request, config)
+    await verify_auth_token(authorization, config)
+
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Body JSON inválido",
+        ) from None
+
+    if not isinstance(body, dict):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Body debe ser un objeto JSON",
+        )
+
+    client_ip = request.headers.get("CF-Connecting-IP") or request.headers.get(
+        "X-Forwarded-For", "unknown"
+    )
+    # Log resumido SIN secrets (el formato real no está documentado)
+    keys = sorted(body.keys())
+    logger.info("C2P pasivo desde IP=%s campos=%s", client_ip, keys)
+
+    code = str(body.get("code", body.get("codigo", "")))
+    reference = str(body.get("Referencia", body.get("reference", "")))
+    telefono = str(body.get("TelefonoDestino", body.get("Telefono", "")))
+
+    # Solo procesar aprobaciones (code "00"); todo lo demás se loggea y ack
+    if code != "00":
+        logger.info(
+            "C2P pasivo: notificación no aprobatoria (code=%s) — solo log", code
+        )
+        return {"status": True}
+
+    # Aprobación: intentar marcar el pedido SOLO si sigue pendiente.
+    # procesar_pago_c2p_async es idempotente por referencia y tolera
+    # pedidos ya pagados por la vía síncrona (primer ganador marca).
+    try:
+        monto = str(body.get("Monto", "0"))
+        procesado = await procesar_pago_c2p_async(
+            telefono=telefono, monto=monto, referencia=reference
+        )
+        logger.info(
+            "C2P pasivo: referencia=%s procesado=%s (idempotente)", reference, procesado
+        )
+    except Exception as e:  # noqa: BLE001 - contingencia: nunca romper el webhook
+        logger.warning("C2P pasivo: fallo procesando pago (no bloquea): %s", e)
+
+    # Siempre ack al banco: la vía principal es la respuesta síncrona.
+    return {"status": True}
+
+
+async def procesar_pago_c2p_async(
+    telefono: str, monto: str, referencia: str
+) -> bool:
+    """
+    Contingencia C2P: marca pedido pendiente como pagado si hay match
+    teléfono+monto. Idempotente: si no hay pedido pendiente que matchee,
+    NO hace nada (puede haber sido confirmado por la vía síncrona).
+
+    Returns: True si marcó un pedido, False si no hubo match/ya pagado.
+    """
+    if not telefono or not monto:
+        return False
+
+    try:
+        from src.financial.database import buscar_pedidos_por_telefono_monto
+        from src.financial.verificacion import verificar_pago_manual
+
+        pedidos = buscar_pedidos_por_telefono_monto(telefono, monto)
+        if not pedidos:
+            logger.info(
+                "C2P pasivo: sin pedido pendiente tel=%s monto=%s (¿ya pagado?)",
+                telefono[:4] + "***",
+                monto,
+            )
+            return False
+
+        for pedido in pedidos:
+            if pedido.id is None:
+                continue
+            resultado = await verificar_pago_manual(
+                fs_pedido_id=pedido.id,
+                monto_eur=pedido.monto_total_eur,
+                metodo_pago="c2p",
+                referencia=referencia or "C2P-ASYNC",
+                verificado_por="r4_c2p_webhook",
+            )
+            if resultado.get("success"):
+                logger.info(
+                    "C2P pasivo: pedido %s marcado pagado ref=%s",
+                    pedido.id,
+                    referencia,
+                )
+                return True
+            logger.warning("C2P pasivo: verificar_pago_manual rechazó: %s", resultado)
+            return False
+    except Exception as e:  # noqa: BLE001
+        logger.warning("C2P pasivo: error buscando/marcando pedido: %s", e)
+    return False
+
+
 def include_r4_webhooks(app: Any) -> None:
     """
     Registra los webhooks R4 en la aplicación FastAPI.

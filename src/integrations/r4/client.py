@@ -779,6 +779,49 @@ class R4Client:
         }
         return await self._request(R4Endpoint.CI_CUENTAS, payload)
 
+    # 13a. Cobro C2P (R4c2p — PDF R4 CONECTA V3.0 pág. 30)
+    async def cobro_c2p(
+        self,
+        telefono_destino: str,
+        cedula: str,
+        banco: str,
+        monto: str,
+        otp: str,
+        concepto: str = "ESTACION H2O",
+        ip: str = "",
+    ) -> R4Response:
+        """
+        Ejecuta cobro C2P directo al cliente (POST /MBc2p).
+
+        Requiere OTP generado previamente con generar_otp() (el banco le
+        envía el código al cliente por su canal; el cliente nos lo dicta).
+
+        PDF pág. 30 — Request:
+            {"TelefonoDestino", "Cedula", "Concepto", "Banco", "Ip", "Monto", "Otp"}
+        Response SÍNCRONA:
+            aprobado  -> {"code": "00", "message": "TRANSACCION EXITOSA", "reference": "..."}
+            rechazado -> {"code": "08", "message": "TOKEN inválido"} (etc.)
+
+        Args:
+            telefono_destino: celular del cliente (11 dígitos, ej: "04145555555")
+            cedula: documento del cliente (9 alfanumérico, sin guion, ej: "V12345678")
+            banco: banco emisor del cliente (4 dígitos, ej: "0105")
+            monto: monto en VES ("1.15" — máx 8 enteros + 2 decimales, punto '.')
+            otp: OTP interbancario dictado por el cliente
+            concepto: descripción del cobro
+            ip: IP origen (pendiente aclarar con el banco qué IP va aquí)
+        """
+        payload = {
+            "TelefonoDestino": telefono_destino,
+            "Cedula": cedula,
+            "Concepto": concepto[:30],
+            "Banco": banco,
+            "Ip": ip or "0.0.0.0",
+            "Monto": monto,
+            "Otp": otp,
+        }
+        return await self._request(R4Endpoint.R4C2P, payload)
+
     # 13. Anulación C2P
     async def anulacion_c2p(self, cedula: str, banco: str, referencia: str) -> R4Response:
         """
