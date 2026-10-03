@@ -7,6 +7,7 @@ Escenarios de la directiva:
 3. Conversación en curso (awaiting_payment) → NO pide GPS de nuevo.
 4. Extra: primer mensaje ya es location → geocerca directa.
 """
+import asyncio
 import sqlite3
 import sys
 from pathlib import Path
@@ -45,9 +46,9 @@ msg_greeting = {"type": "text", "text": {"body": "Hola"}}
 
 print("== TEST 1: nueva conversación DENTRO de zona ==")
 _clear_state(PH_HASH)
-r = _handle_deterministic(
+r = asyncio.run(_handle_deterministic(
     PH_HASH, "Hola", TEST_PH, "Test Uno", msg_greeting, {}
-) or {}
+)) or {}
 check("1a saludo → estado gps_required", state() == "gps_required",
       f"state={state()}")
 check("1b respuesta pide ubicación",
@@ -55,10 +56,10 @@ check("1b respuesta pide ubicación",
       f"answer={r.get('answer', '')[:60]}")
 msg_loc = {"type": "location",
            "location": {"latitude": DENTRO[0], "longitude": DENTRO[1]}}
-r = _handle_deterministic(
+r = asyncio.run(_handle_deterministic(
     PH_HASH, "Mi ubicación: (coordenadas: 10.6725, -71.6126)",
     TEST_PH, "Test Uno", msg_loc, {},
-) or {}
+)) or {}
 check("1c GPS dentro → estado menu_sent", state() == "menu_sent",
       f"state={state()}")
 inter = r.get("interactive") or {}
@@ -69,16 +70,16 @@ check("1e mensaje confirma zona", "zona" in r.get("answer", ""))
 
 print("== TEST 2: nueva conversación FUERA de zona ==")
 _clear_state(PH_HASH)
-r = _handle_deterministic(
+r = asyncio.run(_handle_deterministic(
     PH_HASH, "Buenas", TEST_PH, "Test Dos", msg_greeting, {}
-) or {}
+)) or {}
 check("2a pide GPS primero", state() == "gps_required")
 msg_loc_fuera = {"type": "location",
                  "location": {"latitude": FUERA[0], "longitude": FUERA[1]}}
-r = _handle_deterministic(
+r = asyncio.run(_handle_deterministic(
     PH_HASH, "Mi ubicación: (coordenadas: 10.4806, -66.9036)",
     TEST_PH, "Test Dos", msg_loc_fuera, {},
-) or {}
+)) or {}
 check("2b responde MSG_FUERA_ZONA",
       "no atendemos tu zona" in r.get("answer", ""),
       f"answer={r.get('answer', '')[:60]}")
@@ -91,10 +92,10 @@ check("2e check_location reporta fuera", chk["status"] == "fuera")
 print("== TEST 3: conversación en curso NO pide GPS ==")
 _set_state(PH_HASH, {"state": "awaiting_payment", "total_eur": 3.0,
                      "qty_botellones": 3, "qty_hielo": 0})
-r = _handle_deterministic(
+r = asyncio.run(_handle_deterministic(
     PH_HASH, "1", TEST_PH, "Test Tres",
     {"type": "text", "text": {"body": "1"}}, {},
-) or {}
+)) or {}
 check("3a sigue flujo de pago (no pide GPS)",
       "pago" in r.get("answer", "").lower(),
       f"answer={r.get('answer', '')[:60]}")
@@ -103,10 +104,10 @@ check("3b estado avanzó a awaiting_confirmation",
 
 print("== TEST 4 (extra): primer mensaje YA es location ==")
 _clear_state(PH_HASH)
-r = _handle_deterministic(
+r = asyncio.run(_handle_deterministic(
     PH_HASH, "Mi ubicación: (coordenadas: 10.6725, -71.6126)",
     TEST_PH, "Test Cuatro", msg_loc, {},
-) or {}
+)) or {}
 check("4a location como 1er msg → geocerca → menú",
       state() == "menu_sent" and bool(r.get("interactive")))
 

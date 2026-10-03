@@ -7,6 +7,7 @@ Patrón: spy con patch.object(b, '_send_to_dispatch_queue', side_effect=spy).
 No toca BD real (el spy reemplaza la función antes de que toque SQLite).
 """
 
+import asyncio
 import os
 import sys
 
@@ -49,7 +50,11 @@ def _test_case(name, state_overrides, input_text, should_dispatch):
     msg = {"type": "text", "text": {"body": input_text}}
     try:
         with patch.object(b, "_send_to_dispatch_queue", side_effect=spy):
-            b._handle_deterministic(ph, input_text, "+58412xxxxxxxx", "Cliente Test", msg, {})
+            result = asyncio.run(
+                b._handle_deterministic(
+                    ph, input_text, "+58412xxxxxxxx", "Cliente Test", msg, {}
+                )
+            )
     except Exception:
         # Algunos paths pueden faltar mocks auxiliares; lo importante es el spy
         pass
