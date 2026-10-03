@@ -1645,6 +1645,114 @@ def _sync_client_to_dispatch_db(
         logger.error("Error sincronizando client a dispatch.db: %s", e)
 
 
+# Ruta del QR OFICIAL del banco R4 (uso obligatorio — NO generar QR dinámico).
+# El Líder coloca la imagen aquí. Nota: el archivo actual es JPEG con extensión
+# .png — el MIME se detecta por magic bytes, no por extensión.
+QR_R4_OFICIAL_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "config", "assets", "qr_r4_oficial.png"
+)
+
+# Datos bancarios Estación H2O para Pago Móvil (texto copiable)
+PAGO_MOVIL_DATOS = (
+    "Pago Móvil a:\n"
+    "Banco: R4 Banco Microfinanciero (0169)\n"
+    "RIF: J506356899\n"
+    "Teléfono: 04122560721\n"
+    "Monto: {monto_bs} VES\n"
+    "Concepto: Agua H2O"
+)
+PAGO_MOVIL_QR_PREGUNTA = (
+    "¿Desea que le envíe el código QR oficial para escanear desde su aplicación bancaria?"
+)
+PAGO_MOVIL_QR_SI = (
+    "Perfecto. Realice la transferencia y envíeme el comprobante por aquí. 💧"
+)
+
+
+async def send_image_from_file(phone: str, file_path: str, caption: str = "") -> bool:
+    """
+    Envía una imagen existente en disco via Meta Cloud API.
+
+    Flujo Meta: POST /{phone_number_id}/media (multipart, image/jpeg|png)
+    → obtiene media_id → POST /messages con type=image.
+
+    Si el archivo no existe: loggea el error y retorna False (NUNCA inventar
+    ni generar un QR de reemplazo — regla del Líder).
+    """
+    if not os.path.isfile(file_path):
+        logger.error("send_image_from_file: archivo NO existe: %s (no se envía nada)", file_path)
+        return False
+    if not META_ACCESS_TOKEN or not META_PHONE_NUMBER_ID:
+        logger.error("META_ACCESS_TOKEN o META_PHONE_NUMBER_ID no configurados")
+        return False
+    if _http_client is None:
+        logger.error("HTTP client no inicializado (lifespan no corrido)")
+        return False
+
+    # MIME por magic bytes (el QR oficial llegó con extensión .png pero es JPEG)
+    try:
+        with open(file_path, "rb") as f:
+            head = f.read(12)
+        if head.startswith(b"\x89PNG\r\n\x1a\n"):
+            mime = "image/png"
+        elif head.startswith(b"\xff\xd8"):
+            mime = "image/jpeg"
+        else:
+            logger.error("send_image_from_file: formato no soportado: %s", file_path)
+            return False
+    except OSError as e:
+        logger.error("send_image_from_file: no se pudo leer %s: %s", file_path, e)
+        return False
+
+    upload_url = f"https://graph.facebook.com/{META_API_VERSION}/{META_PHONE_NUMBER_ID}/media"
+    messages_url = f"https://graph.facebook.com/{META_API_VERSION}/{META_PHONE_NUMBER_ID}/messages"
+    headers = {"Authorization": f"Bearer {META_ACCESS_TOKEN}"}
+
+    try:
+        # 1) Subir imagen
+        with open(file_path, "rb") as f:
+            upload = await _http_client.post(
+                upload_url,
+                headers=headers,
+                files={"file": (os.path.basename(file_path), f, mime)},
+                data={"messaging_product": "whatsapp", "type": "image"},
+                timeout=30,
+            )
+        if upload.status_code != 200:
+            logger.error("Meta media upload error %d: %s", upload.status_code, upload.text[:200])
+            return False
+        media_id = upload.json().get("id")
+        if not media_id:
+            logger.error("Meta media upload sin id: %s", upload.text[:200])
+            return False
+
+        # 2) Enviar mensaje con la imagen
+        image_payload: dict[str, Any] = {"id": media_id}
+        if caption:
+            image_payload["caption"] = caption[:1024]
+        payload = {
+            "messaging_product": "whatsapp",
+            "recipient_type": "individual",
+            "to": phone,
+            "type": "image",
+            "image": image_payload,
+        }
+        resp = await _http_client.post(messages_url, headers=headers, json=payload, timeout=10)
+        if resp.status_code == 200:
+            logger.info(
+                "Imagen enviada a phone:%s (file=%s media_id=%s)",
+                _phone_hash(phone)[:8],
+                os.path.basename(file_path),
+                media_id,
+            )
+            return True
+        logger.error("Meta send image error %d: %s", resp.status_code, resp.text[:200])
+        return False
+    except httpx.HTTPError as e:
+        logger.error("Error enviando imagen a Meta: %s", e)
+        return False
+
+
 def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str) -> None:
     """Escribe pedido en dispatch_queue para que el dispatcher lo envíe al chofer.
     TRIGGER: cuando cliente confirma pago (efectivo '2' o 'ya pagué' tras pago móvil).
@@ -2610,23 +2718,29 @@ async def _handle_deterministic(
     # ====================================================================
     if current_state == "awaiting_payment":
         total = state.get("total_eur", 0.0)
+        monto_bs_txt = f"{_convert_eur_to_bs(total) or 0:.2f}"
 
         if text_body.strip() == "1":
-            # Pago Móvil
+            # 💳 Pago Móvil ágil: datos copiables + oferta de QR oficial
             new_state = state.copy()
-            new_state["state"] = "awaiting_confirmation"
+            new_state["state"] = "awaiting_qr_respuesta"
             new_state["payment_method"] = "Pago Móvil"
             _set_state(ph_hash, new_state)
+            datos = PAGO_MOVIL_DATOS.format(monto_bs=monto_bs_txt)
             return {
-                "answer": BANK_DATA.format(total=total, total_bs=_convert_eur_to_bs(total) or 0),
+                "answer": datos + "\n\n" + PAGO_MOVIL_QR_PREGUNTA,
                 "interactive": {
                     "type": "button",
-                    "body": BANK_DATA.format(total=total, total_bs=_convert_eur_to_bs(total) or 0),
+                    "body": datos + "\n\n" + PAGO_MOVIL_QR_PREGUNTA,
                     "buttons": [
-                        {"id": "ya_pague", "title": "✅ Ya pagué"},
+                        {"id": "qr_si", "title": "📲 Sí, envíeme el QR"},
+                        {"id": "qr_no", "title": "✋ No, gracias"},
                     ],
                 },
             }
+
+        # ESTADO transicional: awaiting_qr_respuesta (SÍ/NO al QR oficial)
+        # (se maneja abajo con los demás estados C2P/QR)
 
         if text_body.strip() == "2":
             if C2P_ENABLED:
@@ -2750,6 +2864,72 @@ async def _handle_deterministic(
                 "body": BANK_DATA.format(total=total, total_bs=_convert_eur_to_bs(total) or 0),
                 "buttons": [
                     {"id": "ya_pague", "title": "✅ Ya pagué"},
+                ],
+            },
+        }
+
+    # ====================================================================
+    # ESTADO: awaiting_qr_respuesta (Pago Móvil — cliente responde SÍ/NO al QR)
+    # ====================================================================
+    if current_state == "awaiting_qr_respuesta":
+        total = state.get("total_eur", 0.0)
+        monto_bs_txt = f"{_convert_eur_to_bs(total) or 0:.2f}"
+
+        if text_lower in ["sí", "si", "qr_si", "sí, envíeme el qr", "1"]:
+            # Enviar QR OFICIAL del banco (archivo estático — NUNCA generado).
+            # Si el archivo no existe, fall-soft: texto sin QR + log del error.
+            enviado = await send_image_from_file(
+                from_phone,
+                QR_R4_OFICIAL_PATH,
+                caption="Código QR oficial — Banco R4 Banco Microfinanciero (0169)",
+            )
+            if not enviado:
+                logger.error(
+                    "QR oficial no enviado (archivo faltante o error Meta): %s",
+                    QR_R4_OFICIAL_PATH,
+                )
+            # Continuar al estado de confirmación con datos copiables
+            new_state = state.copy()
+            new_state["state"] = "awaiting_confirmation"
+            _set_state(ph_hash, new_state)
+            datos = PAGO_MOVIL_DATOS.format(monto_bs=monto_bs_txt)
+            return {
+                "answer": datos + "\n\n" + PAGO_MOVIL_QR_SI,
+                "interactive": {
+                    "type": "button",
+                    "body": datos + "\n\n" + PAGO_MOVIL_QR_SI,
+                    "buttons": [
+                        {"id": "ya_pague", "title": "✅ Ya pagué"},
+                    ],
+                },
+            }
+
+        if text_lower in ["no", "qr_no", "no, gracias", "2"]:
+            new_state = state.copy()
+            new_state["state"] = "awaiting_confirmation"
+            _set_state(ph_hash, new_state)
+            datos = PAGO_MOVIL_DATOS.format(monto_bs=monto_bs_txt)
+            return {
+                "answer": datos + "\n\n" + PAGO_MOVIL_QR_SI,
+                "interactive": {
+                    "type": "button",
+                    "body": datos + "\n\n" + PAGO_MOVIL_QR_SI,
+                    "buttons": [
+                        {"id": "ya_pague", "title": "✅ Ya pagué"},
+                    ],
+                },
+            }
+
+        # Otra cosa: repetir la pregunta del QR
+        datos = PAGO_MOVIL_DATOS.format(monto_bs=monto_bs_txt)
+        return {
+            "answer": datos + "\n\n" + PAGO_MOVIL_QR_PREGUNTA,
+            "interactive": {
+                "type": "button",
+                "body": datos + "\n\n" + PAGO_MOVIL_QR_PREGUNTA,
+                "buttons": [
+                    {"id": "qr_si", "title": "📲 Sí, envíeme el QR"},
+                    {"id": "qr_no", "title": "✋ No, gracias"},
                 ],
             },
         }
