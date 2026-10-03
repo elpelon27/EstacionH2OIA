@@ -37,9 +37,11 @@ import bridge  # noqa: E402
 # Helpers
 # ============================================================
 
-def _resp(code: str, reference: str = "") -> R4Response:
+def _resp(code: str, reference: str = "", success: bool | None = None) -> R4Response:
+    if success is None:
+        success = code in ("00", "202", "ACCP")  # 00=C2P, 202=ack recepción (OTP/domiciliación)
     return R4Response(
-        success=(code == "00"),
+        success=success,
         code=code,
         message="TRANSACCION EXITOSA" if code == "00" else "Rechazado",
         reference=reference,
