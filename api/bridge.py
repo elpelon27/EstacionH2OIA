@@ -1223,6 +1223,18 @@ C2P_RECHAZO_POR_CODIGO = {
     "30": "❌ Hubo un error con los datos del cobro. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?",
 }
 C2P_MSG_TIMEOUT = "⏰ El código expiró. ¿Desea pagar con Pago Móvil (1) o Efectivo (3)?"
+# Registro 1-mensaje (cliente nuevo — rediseño UX)
+C2P_MSG_REGISTRO = (
+    "Para registrar su pago automático, envíeme en un solo mensaje:\n"
+    "1. Su nombre completo\n"
+    "2. Su cédula (ej: V12345678)\n"
+    "3. Su banco (escriba el nombre o el código)\n\n"
+    "Ejemplo: Karla Perez V12345678 BNC"
+)
+C2P_MSG_BANCO_NO_RECONOCIDO = (
+    "No reconocí su banco. Escriba el código o el nombre. "
+    "Ejemplos: 0191, BNC, Mercantil, 0105, Bancaribe, 0114."
+)
 
 
 def _c2p_normalizar_cedula(texto: str) -> str | None:
@@ -1331,6 +1343,31 @@ def _c2p_msg_cobro_recurrente(nombre: str, monto_bs: str) -> str:
         "registrados. Solicite su clave dinámica a su banco (mensaje de texto "
         "al 2846 o desde su aplicación) y escríbamela aquí."
     )
+
+
+def _c2p_disparar_generar_otp(banco: str, monto_bs: str, telefono: str, cedula: str) -> None:
+    """
+    Dispara GenerarOtp al banco R4 como task de fondo (no bloquea la respuesta
+    al cliente — el banco le envía la clave dinámica por su canal).
+    Tolerante a contexts sin event loop (tests síncronos): solo loggea.
+    """
+    try:
+        from src.integrations.r4.client import R4Client
+
+        async def _task() -> None:
+            try:
+                async with R4Client() as r4:
+                    resp = await r4.generar_otp(
+                        banco=banco, monto=monto_bs, telefono=telefono, cedula=cedula
+                    )
+                    nivel = logger.info if resp.success else logger.warning
+                    nivel("C2P GenerarOtp code=%s: %s", resp.code, resp.message)
+            except Exception as e:  # noqa: BLE001
+                logger.warning("C2P GenerarOtp excepción: %s", e)
+
+        asyncio.get_running_loop().create_task(_task())
+    except RuntimeError:
+        logger.warning("C2P GenerarOtp: sin event loop, no se envió OTP request")
 
 
 def _c2p_menu_pago_buttons() -> list[dict[str, str]]:
@@ -2166,11 +2203,20 @@ def _geofence_gate(
 
     # ok o sin_geocerca → menú principal
     _set_state(ph_hash, {"state": "menu_sent"})
+    # Personalización (2da vez en adelante): saludo con nombre guardado
+    interactive = _MENU_LIST_INTERACTIVE
+    datos = _c2p_datos_guardados(ph_hash)
+    if datos.get("nombre") and datos.get("cedula"):
+        primer_nombre = datos["nombre"].split()[0].title()
+        interactive = {
+            **_MENU_LIST_INTERACTIVE,
+            "body": f"¡Hola, {primer_nombre}! Qué gusto de nuevo 💧 ¿En qué puedo servirle hoy?",
+        }
     return {
         "answer": (
             "¡Perfecto! Estamos en su zona 🎉 ¿En qué puedo servirle hoy?"
         ),
-        "interactive": _MENU_LIST_INTERACTIVE,
+        "interactive": interactive,
     }
 
 
@@ -3026,10 +3072,10 @@ async def _handle_deterministic(
         }
 
     # ====================================================================
-    # ESTADO: awaiting_c2p_cedula (Cobro Automático — pedir cédula)
+    # ESTADO: awaiting_c2p_registro (C2P — cliente nuevo, 1 solo mensaje)
+    # Rediseño UX: nombre + cédula + banco en un mensaje.
     # ====================================================================
-    if current_state == "awaiting_c2p_cedula":
-        # Cancelar desde el flujo C2P
+    if current_state == "awaiting_c2p_registro":
         if text_lower in ["volver", "menú", "menu", "atrás", "atras", "inicio", "cancelar"]:
             _set_state(ph_hash, {**state, "state": "awaiting_payment"})
             return {
@@ -3041,84 +3087,34 @@ async def _handle_deterministic(
                 },
             }
 
-        cedula = _c2p_normalizar_cedula(text_body)
-        if cedula is None:
-            return {
-                "answer": "Ese formato de cédula no es válido. " + C2P_MSG_CEDULA
-            }
+        parseado = _c2p_parsear_registro(text_body)
+        if parseado is None:
+            return {"answer": C2P_MSG_REGISTRO}
 
-        _c2p_guardar_dato_cliente(ph_hash, "client_cedula", cedula)
-        new_state = state.copy()
-        new_state["state"] = "awaiting_c2p_banco"
-        new_state["c2p_cedula"] = cedula
-        _set_state(ph_hash, new_state)
-        return {"answer": C2P_MSG_BANCO}
-
-    # ====================================================================
-    # ESTADO: awaiting_c2p_banco (Cobro Automático — pedir banco emisor)
-    # ====================================================================
-    if current_state == "awaiting_c2p_banco":
-        if text_lower in ["volver", "menú", "menu", "atrás", "atras", "inicio", "cancelar"]:
-            _set_state(ph_hash, {**state, "state": "awaiting_payment"})
-            return {
-                "answer": "Claro. ¿Cómo desea pagar?",
-                "interactive": {
-                    "type": "button",
-                    "body": "Claro. ¿Cómo desea pagar?",
-                    "buttons": _c2p_menu_pago_buttons(),
-                },
-            }
-
-        banco = _c2p_normalizar_banco(text_body)
+        nombre, cedula, banco_input = parseado
+        banco = _c2p_normalizar_banco(banco_input)
         if banco is None:
-            return {"answer": "No reconocí ese banco. " + C2P_MSG_BANCO}
+            return {"answer": C2P_MSG_BANCO_NO_RECONOCIDO}
 
+        # Guardar todo en clients: nombre, cédula, banco (2da vez ya no se pide)
+        _c2p_guardar_dato_cliente(ph_hash, "client_cedula", cedula)
         _c2p_guardar_dato_cliente(ph_hash, "client_banco_emisor", banco)
+        _c2p_guardar_dato_cliente(ph_hash, "name", nombre)
 
-        # Datos para GenerarOtp + R4c2p
-        cedula = state.get("c2p_cedula", "")
         total_eur = float(state.get("total_eur", 0.0))
         monto_bs = _convert_eur_to_bs(total_eur) or 0.0
         telefono = from_phone if from_phone.startswith("0") else "0" + from_phone[-10:]
 
         new_state = state.copy()
         new_state["state"] = "awaiting_c2p_otp"
+        new_state["c2p_cedula"] = cedula
         new_state["c2p_banco"] = banco
         new_state["c2p_monto_bs"] = monto_bs
         new_state["c2p_expires_at"] = time.time() + C2P_OTP_TIMEOUT_SECONDS
-
-        # Llamar GenerarOtp (asincrónico: lanzar task; el mensaje al cliente no
-        # depende del resultado inmediato — el banco le envía el OTP por su canal)
-        try:
-            from src.integrations.r4.client import R4Client
-
-            async def _c2p_generar_otp_task() -> None:
-                try:
-                    async with R4Client() as r4:
-                        resp = await r4.generar_otp(
-                            banco=banco,
-                            monto=f"{monto_bs:.2f}",
-                            telefono=telefono,
-                            cedula=cedula,
-                        )
-                        if not resp.success:
-                            logger.warning(
-                                "C2P GenerarOtp falló (code=%s): %s",
-                                resp.code,
-                                resp.message,
-                            )
-                        else:
-                            logger.info("C2P GenerarOtp OK (code=%s)", resp.code)
-                except Exception as e:  # noqa: BLE001
-                    logger.warning("C2P GenerarOtp excepción: %s", e)
-
-            asyncio.get_running_loop().create_task(_c2p_generar_otp_task())
-        except RuntimeError:
-            # Sin event loop (tests síncronos): registrar y continuar
-            logger.warning("C2P GenerarOtp: sin event loop, no se envió OTP request")
-
+        new_state["contact_name"] = nombre
+        _c2p_disparar_generar_otp(banco, f"{monto_bs:.2f}", telefono, cedula)
         _set_state(ph_hash, new_state)
-        return {"answer": C2P_MSG_OTP_ENVIADO.format(monto_bs=f"{monto_bs:.2f}")}
+        return {"answer": _c2p_msg_solicitud_otp(nombre, f"{monto_bs:.2f}")}
 
     # ====================================================================
     # ESTADO: awaiting_c2p_otp (Cobro Automático — cliente dicta el código)
