@@ -537,14 +537,16 @@ def _init_db() -> None:
         "CREATE INDEX IF NOT EXISTS idx_dispatch_queue_estado ON dispatch_queue(estado, creado_at)"
     )
 
-    # C2P (R4c2p): columnas de cédula y banco emisor en clients (dispatch.db).
-    # Migración idempotente: si la columna ya existe, sqlite lanza OperationalError
-    # "duplicate column name" y la ignoramos.
+    # C2P (R4c2p): columnas de cédula y banco emisor en clients.
+    # clients vive en dispatch.db (DISPATCH_DB_PATH), no necesariamente en
+    # esta BD — migración idempotente y tolerante: si no hay tabla clients
+    # aquí o la columna ya existe, ignorar (fail-soft, igual que el resto
+    # de la sincronización con dispatch.db).
     for c2p_col in ("client_cedula", "client_banco_emisor"):
         try:
             conn.execute(f"ALTER TABLE clients ADD COLUMN {c2p_col} TEXT")
         except sqlite3.OperationalError as e:
-            if "duplicate column" not in str(e).lower():
+            if "duplicate column" not in str(e).lower() and "no such table" not in str(e).lower():
                 raise
 
     # P0-1: FSM persistente — tabla conversation_state.
