@@ -4,7 +4,8 @@
 **Autor:** Prometeo (modo cerebro, sin tocar producción)
 **Fuente:** R4 CONECTA V3.0 (006).pdf, págs. 5, 16, 30, 32 — verificado en vivo 2026-10-03
 **Repo:** /mnt/ssd_trabajo/hermes-agent @ feat/odoo-r4-integration
-**Estado:** 🟡 DISEÑO — pendiente de aprobación del Líder. NO implementar todavía.
+**Estado:** ✅ FASE 2 IMPLEMENTADA (2026-10-03) — C2P_ENABLED=false hasta habilitación
+del banco. Tests: tests/unit/test_r4_c2p.py (20/20) + suite global 1025 passed.
 
 ---
 
