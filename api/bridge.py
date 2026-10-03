@@ -1239,28 +1239,13 @@ def _c2p_normalizar_cedula(texto: str) -> str | None:
 
 def _c2p_normalizar_banco(texto: str) -> str | None:
     """
-    Normaliza el banco emisor a 4 dígitos. Acepta "0105", "105" o alias
-    textuales comunes (ej: "mercantil", "bbva", "bnc").
-    Returns None si no se puede resolver.
+    Normaliza el banco emisor a 4 dígitos usando scripts/banks_ve.py
+    (mapa oficial del gist arodu + fuzzy matching). Acepta código,
+    acrónimo o nombre.
     """
-    limpio = re.sub(r"[\s\.\-]", "", (texto or "").strip()).lower()
-    if re.fullmatch(r"\d{4}", limpio):
-        return limpio
-    if re.fullmatch(r"\d{1,3}", limpio):
-        return limpio.zfill(4)
-    alias = {
-        "mercantil": "0105",
-        "bbva": "0102",
-        "provincial": "0102",
-        "bnc": "0114",
-        "bancooncovicentebolivar": "0114",
-        "venezolano": "0116",
-        "banvenez": "0102",
-        "banesco": "0134",
-        "exterior": "0115",
-        "mercantil": "0105",
-    }
-    return alias.get(limpio)
+    from scripts.banks_ve import normalize_bank
+
+    return normalize_bank(texto)
 
 
 def _c2p_guardar_dato_cliente(ph_hash: str, campo: str, valor: str) -> None:
