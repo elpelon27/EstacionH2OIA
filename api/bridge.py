@@ -1262,6 +1262,77 @@ def _c2p_guardar_dato_cliente(ph_hash: str, campo: str, valor: str) -> None:
         logger.warning("C2P: no se pudo guardar %s en clients: %s", campo, e)
 
 
+def _c2p_datos_guardados(ph_hash: str) -> dict[str, str]:
+    """
+    Lee cédula + banco + nombre guardados del cliente en dispatch.db (clients).
+    Returns {} si no hay row o falla la BD (fail-soft).
+    """
+    try:
+        conn = _get_db_with_fk(DISPATCH_DB_PATH)
+        row = conn.execute(
+            "SELECT client_cedula, client_banco_emisor, name FROM clients WHERE phone_hash = ?",
+            (ph_hash,),
+        ).fetchone()
+        conn.close()
+        if not row:
+            return {}
+        return {
+            "cedula": (row[0] or "").strip(),
+            "banco": (row[1] or "").strip(),
+            "nombre": (row[2] or "").strip(),
+        }
+    except sqlite3.Error as e:
+        logger.warning("C2P: no se pudo leer clients para %s: %s", ph_hash[:8], e)
+        return {}
+
+
+def _c2p_parsear_registro(texto: str) -> tuple[str, str, str] | None:
+    """
+    Parser del mensaje único de registro C2P (cliente nuevo).
+
+    Formato esperado: "Nombre Completo V12345678 Banco"
+    Ejemplo: "Karla Perez V12345678 BNC"
+
+    Returns (nombre, cedula, banco_original) o None si no matchea.
+    El banco NO se normaliza aquí (lo hace el caller con banks_ve).
+    """
+    if not texto:
+        return None
+    # Cédula: letra + 7-8 dígitos, con o sin guion/punto/espacios internos
+    m = re.search(r"\b([VEJG])[\s\.\-]?(\d{7,8})\b", texto.strip(), re.IGNORECASE)
+    if not m:
+        return None
+    cedula = f"{m.group(1).upper()}{m.group(2)}"
+    antes = texto[: m.start()].strip(" ,;.-")
+    despues = texto[m.end():].strip(" ,;.-")
+    if not antes or not despues:
+        return None
+    return antes, cedula, despues
+
+
+def _c2p_es_cliente_recurrente(ph_hash: str) -> bool:
+    """Cliente recurrente ⇔ clients.client_cedula con valor. Nuevo ⇔ NULL/vacío."""
+    return bool(_c2p_datos_guardados(ph_hash).get("cedula"))
+
+
+def _c2p_msg_solicitud_otp(nombre: str, monto_bs: str) -> str:
+    """Mensaje pidiendo la clave dinámica (OTP) — español neutro venezolano."""
+    return (
+        f"Listo, {nombre}. Para autorizar el cobro de {monto_bs} VES, "
+        "solicite su clave dinámica a su banco (mensaje de texto al 2846 "
+        "o desde su aplicación bancaria). Luego escríbamela aquí."
+    )
+
+
+def _c2p_msg_cobro_recurrente(nombre: str, monto_bs: str) -> str:
+    """Mensaje de cobro para cliente recurrente (sin pedir datos)."""
+    return (
+        f"{nombre}, le cobraremos {monto_bs} VES con los datos que ya tenemos "
+        "registrados. Solicite su clave dinámica a su banco (mensaje de texto "
+        "al 2846 o desde su aplicación) y escríbamela aquí."
+    )
+
+
 def _c2p_menu_pago_buttons() -> list[dict[str, str]]:
     """
     Botones del menú de pago según C2P_ENABLED:
@@ -2744,11 +2815,31 @@ async def _handle_deterministic(
 
         if text_body.strip() == "2":
             if C2P_ENABLED:
-                # ⚡ Cobro Automático C2P — pedir cédula primero
+                # ⚡ Cobro Automático C2P — rediseño UX 1-mensaje
+                datos = _c2p_datos_guardados(ph_hash)
+                monto_bs = f"{_convert_eur_to_bs(total) or 0:.2f}"
+                if datos.get("cedula") and datos.get("banco"):
+                    # CLIENTE RECURRENTE: NO pedir cédula/banco, directo al OTP
+                    new_state = state.copy()
+                    new_state["state"] = "awaiting_c2p_otp"
+                    new_state["c2p_cedula"] = datos["cedula"]
+                    new_state["c2p_banco"] = datos["banco"]
+                    new_state["c2p_monto_bs"] = float(monto_bs)
+                    new_state["c2p_expires_at"] = time.time() + C2P_OTP_TIMEOUT_SECONDS
+                    # Disparar GenerarOtp con los datos guardados
+                    _c2p_disparar_generar_otp(
+                        datos["banco"], monto_bs, from_phone, datos["cedula"]
+                    )
+                    _set_state(ph_hash, new_state)
+                    nombre = datos.get("nombre") or ""
+                    return {
+                        "answer": _c2p_msg_cobro_recurrente(nombre, monto_bs)
+                    }
+                # CLIENTE NUEVO: pedir todo en UN solo mensaje
                 new_state = state.copy()
-                new_state["state"] = "awaiting_c2p_cedula"
+                new_state["state"] = "awaiting_c2p_registro"
                 _set_state(ph_hash, new_state)
-                return {"answer": C2P_MSG_CEDULA}
+                return {"answer": C2P_MSG_REGISTRO}
             # C2P deshabilitado: "2" sigue siendo Efectivo (menú de 2 opciones)
 
         if text_body.strip() == "3" and C2P_ENABLED:
