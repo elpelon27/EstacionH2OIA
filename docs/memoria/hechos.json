@@ -96,5 +96,19 @@
     "hecho": "2026-10-01: schema drift en financial: data_hardening.py y sync Odoo anadianon columnas a la BD real (fs_pedidos: cliente_telefono_hash, odoo_invoice_id; fs_pagos: cuenta_cobrar_id, cliente_telefono_hash, odoo_payment_id) que el modelo PedidoFinanciero/Pago no conocia. Modelo + CREATE TABLE sincronizados con PRAGMA table_info real.",
     "confianza": "certain",
     "fecha": "2026-10-02"
+  },
+  {
+    "id": 15,
+    "tema": "web-launch-engineer",
+    "hecho": "2026-10-04: Skill web-launch-engineer v1.0.0 creado (creative/ en hermes-unified) por entrevista de arquitectura con el Líder: pipeline 7 fases (intake tiered T1-T3 → design → build estático → seguridad _headers → QA dogfood+Lighthouse → deploy → contrato Google). 7 decisiones cerradas: contrato=Core Web Vitals+SEO técnico (PSI móvil ≥90 ×4); deploy=Cloudflare Pages free (git-driven, _headers/_redirects); WhatsApp=widget flotante wa.me con mensaje prellenado español venezolano usted; seguridad=protocolo tiered (CSP base obligatoria, SRI/OWASP en T2+); verificación=Lighthouse local (gates ≥95/100) + PSI API post-deploy con JSON en qa/ + checklist Search Console ejecutado por el Líder. Composición delega en claude-design, popular-web-designs, sketch, dogfood, design-md.",
+    "confianza": "certain",
+    "fecha": "2026-10-04"
+  },
+  {
+    "id": 16,
+    "tema": "web-launch-engineer",
+    "hecho": "2026-10-04: Caso base probado del skill = sitio publicitario del negocio (T1 estático) con WhatsApp como canal de conversión principal; formularios vía Cloudflare Pages Forms, GA4+Search Console. Decisiones diferidas (documentadas en references/architecture-decisions.md): monitoreo CWV continuo por cronjob, integración Valentina/WAHA como protocolo avanzado (requiere endpoint intermedio), protocolos T2/T3 plenos aún sin proyecto real. Registro completo de decisiones de entrevista en /home/skynet/hermes-unified/skills/creative/web-launch-engineer/references/architecture-decisions.md",
+    "confianza": "certain",
+    "fecha": "2026-10-04"
   }
 ]
