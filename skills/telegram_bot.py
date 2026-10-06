@@ -343,6 +343,19 @@ async def _post_init(app) -> None:  # noqa: ANN001
         BotCommand("list_peso", "📋 Prioritarios por nivel"),
         BotCommand("list_tipo", "📋 Clientes por tipo"),
         BotCommand("client_info", "👤 Ficha completa del cliente"),
+        # DT-31 FASE 4: comandos de seguridad (handlers ya registrados via
+        # security_commands.register_security_handlers, faltaban SOLO en el menú)
+        BotCommand("blacklist_add", "🚫 Añadir teléfono a blacklist"),
+        BotCommand("blacklist_remove", "✅ Quitar teléfono de blacklist"),
+        BotCommand("block", "⛔ Bloquear teléfono 1h"),
+        BotCommand("unblock", "🔓 Desbloquear teléfono"),
+        BotCommand("observe", "👁️ Poner teléfono en observación"),
+        BotCommand("credit_client", "💰 Marcar cliente con crédito"),
+        BotCommand("cliente_info", "🛡️ Historial seguridad del cliente"),
+        BotCommand("ataque_detectado", "⚔️ Ataques recientes"),
+        BotCommand("lockdown_status", "🔒 Estado del lockdown"),
+        BotCommand("lockdown_release", "🔓 Salir del lockdown"),
+        BotCommand("stats", "📊 Estadísticas de seguridad del día"),
     ]
     try:
         await app.bot.set_my_commands(commands)
