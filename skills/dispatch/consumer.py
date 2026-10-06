@@ -45,7 +45,11 @@ sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent")
 # Inicializar LOG_SALT en módulo crypto centralizado
 from core.crypto import hash_phone as _hash_phone  # noqa: E402  (require sys.path previo)
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
+# DT-46 FIX 1A: basicConfig anadia un handler al root logger cuando ya existia
+# (al importarse dentro del proceso del bridge, duplicaba cada linea de log
+# de valentina_bridge en journald). Solo configurar si el root no tiene handlers.
+if not logging.getLogger().handlers:
+    logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s")
 logger = logging.getLogger("dispatch_consumer")
 
 CARACAS_TZ = timezone(timedelta(hours=-4))
