@@ -356,6 +356,11 @@ async def _post_init(app) -> None:  # noqa: ANN001
         BotCommand("lockdown_status", "🔒 Estado del lockdown"),
         BotCommand("lockdown_release", "🔓 Salir del lockdown"),
         BotCommand("stats", "📊 Estadísticas de seguridad del día"),
+        # Plan de clientes: /resumen /revoke_vehicle /activate_vehicle /reset_pin
+        BotCommand("resumen", "📄 Estado de cuenta del cliente"),
+        BotCommand("revoke_vehicle", "🚫 Revocar token POD vehículo"),
+        BotCommand("activate_vehicle", "✅ Reactivar vehículo revocado"),
+        BotCommand("reset_pin", "🔑 Resetear PIN chofer"),
     ]
     try:
         await app.bot.set_my_commands(commands)
