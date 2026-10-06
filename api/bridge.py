@@ -2202,7 +2202,14 @@ def _geofence_gate(
                 "Guardamos tu número y te avisaremos en cuanto lleguemos."}
 
     # ok o sin_geocerca → menú principal
-    _set_state(ph_hash, {"state": "menu_sent"})
+    # DT-46 FIX 3A: guardar el GPS ya validado para no pedirlo de nuevo tras elegir producto
+    _set_state(ph_hash, {
+        "state": "menu_sent",
+        "gps_validated": True,
+        "gps_lat": lat,
+        "gps_lng": lng,
+        "gps_address": "",
+    })
     # Personalización (2da vez en adelante): saludo con nombre guardado
     interactive = _MENU_LIST_INTERACTIVE
     datos = _c2p_datos_guardados(ph_hash)
@@ -2217,6 +2224,70 @@ def _geofence_gate(
             "¡Perfecto! Estamos en su zona 🎉 ¿En qué puedo servirle hoy?"
         ),
         "interactive": interactive,
+    }
+
+
+def _after_qty_selected(
+    ph_hash: str,
+    from_phone: str,
+    state: dict[str, Any],
+    contact_name: str,
+    qty_bot: int,
+    qty_hielo: int,
+) -> dict[str, Any]:
+    """DT-46 FIX 3B: tras elegir cantidad, si el GPS ya fue validado por la geocerca,
+    NO se vuelve a pedir dirección: se usan las coordenadas guardadas, se registra el
+    pedido y se transiciona directo a awaiting_payment. Sin GPS validado → flujo actual.
+    """
+    gps_ok = bool(state.get("gps_validated")) and state.get("gps_lat") is not None
+    if not gps_ok:
+        _set_state(ph_hash, {
+            "state": "awaiting_address",
+            "qty_botellones": qty_bot,
+            "qty_hielo": qty_hielo,
+        })
+        return {
+            "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
+        }
+
+    lat = float(state["gps_lat"])
+    lng = float(state["gps_lng"])
+    gps_addr = str(state.get("gps_address") or "").strip()
+    addr_parts = [p for p in (gps_addr, f"GPS: {lat}, {lng}") if p]
+    address = "Mi ubicación: " + ", ".join(addr_parts)
+
+    total = _calc_total(qty_bot, qty_hielo)
+    product_desc = _format_product_desc(qty_bot, qty_hielo)
+
+    new_state = dict(state)
+    new_state["state"] = "awaiting_payment"
+    new_state["qty_botellones"] = qty_bot
+    new_state["qty_hielo"] = qty_hielo
+    new_state["address"] = address
+    new_state["latitude"] = lat
+    new_state["longitude"] = lng
+    new_state["total_eur"] = total
+    new_state["contact_name"] = contact_name
+    _set_state(ph_hash, new_state)
+
+    _save_order_to_db_and_sheets(
+        from_phone, ph_hash, contact_name, qty_bot, qty_hielo,
+        address, lat, lng, total, new_state.get("conversation_id", ""),
+    )
+
+    confirm_msg = (
+        f"✅ Pedido confirmado: {product_desc}. Entrega en la ubicación que nos envió 📍 "
+        f"({address}).\n\n"
+        f"💰 Total: €{total:.2f} (Bs. {_convert_eur_to_bs(total) or 0:.2f}).\n\n"
+        f"¿Cómo desea pagar?"
+    )
+    return {
+        "answer": confirm_msg,
+        "interactive": {
+            "type": "button",
+            "body": confirm_msg,
+            "buttons": _c2p_menu_pago_buttons(),
+        },
     }
 
 
@@ -2460,7 +2531,8 @@ async def _handle_deterministic(
     if current_state == "menu_sent":
         # Opción 1: Recarga de botellones
         if text_body.strip() == "1":
-            _set_state(ph_hash, {"state": "awaiting_qty_agua"})
+            _gps_keep = {k: v for k, v in state.items() if k.startswith("gps_")}
+            _set_state(ph_hash, {"state": "awaiting_qty_agua", **_gps_keep})
             return {
                 "answer": "¿Cuántos botellones de agua desea recargar?",
                 "interactive": {
@@ -2476,7 +2548,8 @@ async def _handle_deterministic(
 
         # Opción 2: Pedido de hielo
         if text_body.strip() == "2":
-            _set_state(ph_hash, {"state": "awaiting_qty_hielo"})
+            _gps_keep = {k: v for k, v in state.items() if k.startswith("gps_")}
+            _set_state(ph_hash, {"state": "awaiting_qty_hielo", **_gps_keep})
             return {
                 "answer": "¿Cuántas bolsas de hielo necesita?",
                 "interactive": {
@@ -2492,7 +2565,8 @@ async def _handle_deterministic(
 
         # Opción 3: Pedido combinado
         if text_body.strip() == "3":
-            _set_state(ph_hash, {"state": "awaiting_qty_combo"})
+            _gps_keep = {k: v for k, v in state.items() if k.startswith("gps_")}
+            _set_state(ph_hash, {"state": "awaiting_qty_combo", **_gps_keep})
             return {
                 "answer": "¿Cuántos botellones de agua y cuántas bolsas de hielo necesita?",
                 "interactive": {
@@ -2599,14 +2673,7 @@ async def _handle_deterministic(
                     },
                 }
             # Cantidad válida → pedir dirección
-            new_state = state.copy()
-            new_state["state"] = "awaiting_address"
-            new_state["qty_botellones"] = qty
-            new_state["qty_hielo"] = 0
-            _set_state(ph_hash, new_state)
-            return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
-            }
+            return _after_qty_selected(ph_hash, from_phone, state, contact_name, qty, 0)
 
         return None  # Delegar a Dify
 
@@ -2621,14 +2688,7 @@ async def _handle_deterministic(
                 return {
                     "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"  # noqa: E501
                 }
-            new_state = state.copy()
-            new_state["state"] = "awaiting_address"
-            new_state["qty_botellones"] = qty
-            new_state["qty_hielo"] = 0
-            _set_state(ph_hash, new_state)
-            return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
-            }
+            return _after_qty_selected(ph_hash, from_phone, state, contact_name, qty, 0)
         return None
 
     # ====================================================================
@@ -2657,14 +2717,7 @@ async def _handle_deterministic(
                         ],
                     },
                 }
-            new_state = state.copy()
-            new_state["state"] = "awaiting_address"
-            new_state["qty_hielo"] = qty
-            new_state["qty_botellones"] = 0
-            _set_state(ph_hash, new_state)
-            return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
-            }
+            return _after_qty_selected(ph_hash, from_phone, state, contact_name, 0, qty)
 
         return None
 
@@ -2679,14 +2732,7 @@ async def _handle_deterministic(
                 return {
                     "answer": "Claro, con gusto le atendemos. Le comento que el pedido mínimo es de 3 unidades. ¿Desea pedir 3 o más?"  # noqa: E501
                 }
-            new_state = state.copy()
-            new_state["state"] = "awaiting_address"
-            new_state["qty_hielo"] = qty
-            new_state["qty_botellones"] = 0
-            _set_state(ph_hash, new_state)
-            return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
-            }
+            return _after_qty_selected(ph_hash, from_phone, state, contact_name, 0, qty)
         return None
 
     # ====================================================================
@@ -2709,14 +2755,7 @@ async def _handle_deterministic(
                 return {
                     "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."  # noqa: E501
                 }
-            new_state = state.copy()
-            new_state["state"] = "awaiting_address"
-            new_state["qty_botellones"] = qty_bot
-            new_state["qty_hielo"] = qty_hielo
-            _set_state(ph_hash, new_state)
-            return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
-            }
+            return _after_qty_selected(ph_hash, from_phone, state, contact_name, qty_bot, qty_hielo)
 
         return None
 
@@ -2733,14 +2772,7 @@ async def _handle_deterministic(
                 return {
                     "answer": "Claro, con gusto le atendemos. Para pedido combinado, el mínimo es 3 botellones y 2 bolsas de hielo."  # noqa: E501
                 }
-            new_state = state.copy()
-            new_state["state"] = "awaiting_address"
-            new_state["qty_botellones"] = qty_bot
-            new_state["qty_hielo"] = qty_hielo
-            _set_state(ph_hash, new_state)
-            return {
-                "answer": "Perfecto. Por favor, envíe su ubicación por GPS, nombre del edificio/casa/local y un punto de referencia."  # noqa: E501
-            }
+            return _after_qty_selected(ph_hash, from_phone, state, contact_name, qty_bot, qty_hielo)
         return None
 
     # ====================================================================
