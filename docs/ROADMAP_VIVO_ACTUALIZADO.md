@@ -1,12 +1,35 @@
 # ROADMAP VIVO ACTUALIZADO — Estación H2O
 
 **Revalidación en vivo:** 2026-09-30 → 2026-10-01 (barrido completo, solo lectura)
+**Actualización:** 2026-10-05 (jornada DT-36→DT-52: 6 fixes de prueba de campo, pilotos DT-31/DT-33, bug QR producción). Ver §0.
 **Auditor:** Prometeo 💧 · **Regla aplicada:** verificación con datos de primera mano, no informes previos.
 
 > ⚠️ Este documento reemplaza el estado de `docs/DEUDAS_TECNICAS_Y_PROYECTOS.md`
 > (cuya última actualización era 2026-09-27, desactualizado en varios puntos).
 > Las tablas de abajo se armaron con `curl`, `sqlite3`, `docker ps`, `systemctl`
 > y `pytest` ejecutados durante esta auditoría, no copiando el doc anterior.
+
+---
+
+## 0. ACTUALIZACIÓN 2026-10-05 — DT-31/32/33/34 CERRADAS + jornada DT-46
+
+> Piloto con verificación en vivo. Todas las líneas de abajo llevan comando real ejecutado.
+
+| Ítem | Estado | Evidencia (2026-10-05) |
+|---|---|---|
+| **DT-31 comandos de seguridad** | ✅ **CERRADA** | getMyCommands @Skynet_27_bot = **30** (11 seguridad + 4 clientes: resumen/revoke_vehicle/activate_vehicle/reset_pin + 15 originales). Log `set_my_commands OK: 30`. Nota: el menú ya tenía los 11 de seguridad el 01-oct (doc desactualizado); faltaban los operacionales. Commit `4b0e3a87`. |
+| **DT-32 cloudflared** | ✅ **ESTABILIZADA** | 0 caídas en la última hora (antes: 95/h), servicio active, edge HTTP 200 ×3 consecutivos. **Vigilar 48h más** antes de cerrar definitivamente. |
+| **DT-33 tests / colección** | ✅ **CERRADA** | 1070 tests recogidos sin errores de colección; corrida completa **1055 passed / 15 skipped / 0 failed**, cobertura **67%** (era 60%). QR asset fix commit `7af36a5d`. |
+| **DT-34 Redis** | ✅ **RECUPERADA** | `DBSIZE=10` (era 0), PING OK, warming escribiendo. Pendiente TAREA-3 de esta jornada: verificar cron warming activo para prevenir recaída. |
+| **BUG QR PRODUCCIÓN (nuevo hallazgo)** | ✅ **FIXEADO** | bridge.py:1759 `QR_R4_OFICIAL_PATH` apunta a `qr_r4_oficial.png`; el QR bancario fue subido como `.jpg` el 03-oct → **el QR del Pago Móvil jamás habría llegado a un cliente** (falla silenciosa). Fix: PNG generado desde el JPG (Pillow; .jpg original conservado). Commit `7af36a5d`. Enlaza con DT-46/Issue-2. |
+| **DT-46 (prueba de campo del Líder)** | ✅ **FIXES APLICADOS** | FIX 1A doble-log handler (consumer.py, verificado 1 línea no 2); FIX 3 GPS-validado → skip re-pedir dirección (13/13 + 12/12 tests, commits snapshot 7c19bdce/6be3c6a3 + marker 0c8ae4cf); FIX 4 Fase 1: 3 deliveries stale de Yordanis → cancelled (pending v1 = 0); FIX 5 Parte 1: POD_SIGN_URL → `https://valentina.estacionh2o.com/pod` (antes `:8000` muerto desde internet); FIX 6 aviso cercanía = NO IMPLEMENTADO (deuda, ver DEUDA_TECNICA_DT46.md). |
+| **Fase A containerd (DT-39)** | ✅ **MIGRADA + renombrada** | `/var/lib/containerd.purge-20261004_210605` espera borrado definitivo **2026-10-11**. |
+| **Fase B Chrome→SSD** | ❌ **CANCELADA** | Chrome no soporta symlinks para `~/.cache`/`~/.config/google-chrome`. Copias huérfanas del SSD (4.6GB) eliminadas 2026-10-05: SSD 170G→165G usado. |
+
+Deuda técnica derivada de DT-46 (detalle en `docs/02-arquitectura/DEUDA_TECNICA_DT46.md`):
+- **DT-46-A** asignación por GPS choferes (política carga se mantiene) · **DT-46-B** link POD
+  automático al cliente · **DT-46-C** aviso de cercanía (bloqueada por DT-46-A).
+- **DT-35** sigue ABIERTA: 4/363 clientes clasificados (requiere criterio del Líder).
 
 ---
 
@@ -73,10 +96,10 @@
 | **D6** | Redis | ⚠️ **REABIERTA** | `DBSIZE` = **0**. Redis activo y persistente, pero **vacío** — el warming no está escribiendo. Revisar por qué | Prometeo |
 | **D10** | SOUL FASE 3 parches | ✅ **CERRADA 2026-10-01** | Parches implementados; `auto_activation_ready()` → `True` (21+ días desde 2026-09-10) | — |
 | **D14** | Factura Meta | ✅ **CERRADA** | Confirmada por el Líder 2026-09-09 | — |
-| **DT-31** | Comandos de seguridad del bot | 🟡 **PARCIAL** | Los 11 handlers existen en `skills/security_commands.py` como `async def`, pero **no están registrados** en `setMyCommands` → no aparecen en el menú de Telegram | Prometeo |
-| 🆕 **DT-32** | **Cloudflared en crash-loop** | ❌ **ABIERTA (NUEVA, P0)** | 95 caídas/hora, `status=2/INVALIDARGUMENT`. Causa el 502 intermitente en `valentina.estacionh2o.com` | Prometeo |
-| 🆕 **DT-33** | **5 tests rompen la colección** | ❌ **ABIERTA (NUEVA, P0)** | `test_killswitch_bloque5`, `test_pod_endpoints_bloque2`, `test_pod_odoo_sync_bloque4`, `test_pod_waha_fase2`, `test_pwa_bloque3` → abortan toda la suite | Prometeo |
-| 🆕 **DT-34** | **Redis vacío** (derivada de D6) | ❌ **ABIERTA (NUEVA)** | `DBSIZE=0` pese a warming activo. La capa Buffer no se está llenando | Prometeo |
+| **DT-31** | Comandos de seguridad del bot | ✅ **CERRADA 2026-10-05** | getMyCommands = 30 (11 seguridad + 4 clientes + 15 originales). Commit `4b0e3a87`. Nota: el menú ya tenía los 11 de seguridad el 01-oct; doc previo desactualizado | Prometeo |
+| 🆕 **DT-32** | **Cloudflared en crash-loop** | ✅ **ESTABILIZADA 2026-10-05** | 0 caídas/hora, edge 200×3. Vigilar 48h. (Antes: 95 caídas/hora, `status=2/INVALIDARGUMENT`, 502 intermitente) | Prometeo |
+| 🆕 **DT-33** | **5 tests rompen la colección** | ✅ **CERRADA 2026-10-05** | Colección sana (1070 recogidos, 0 errores); corrida completa 1055 passed / 0 failed, 67% cobertura. Fix del asset QR: commit `7af36a5d` | Prometeo |
+| 🆕 **DT-34** | **Redis vacío** (derivada de D6) | ✅ **RECUPERADA 2026-10-05** | `DBSIZE=10` (era 0), warming escribiendo. Verificar cron para prevenir recaída | Prometeo |
 | 🆕 **DT-35** | **Clasificación de clientes sin datos** | 🟡 **NUEVA** | 11 tipos en código, solo **4/363** clientes con `client_type='retail'` | Líder/Prometeo |
 
 ### Nota sobre DT-01 — verificación con datos
