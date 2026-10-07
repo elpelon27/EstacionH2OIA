@@ -252,3 +252,27 @@ jobs:
 ---
 
 *Runbooks generados 2026-08-07 post chaos engineering*
+
+---
+
+## 🚨 INCIDENTE 7: "Servicio caído" que se recupera solo (DNS del ISP)
+
+**Lección 2026-10-07:** episodios de `Temporary failure in name resolution`
+(DNS del ISP) tumbaron salidas WhatsApp/Telegram y Dify. Síntoma engañoso:
+servicios "caídos" que se recuperan solos.
+
+### Fix aplicado (Líder)
+- `/etc/systemd/resolved.conf.d/estacion-h2o.conf`
+  (DNS 1.1.1.1/8.8.8.8, fallbacks 9.9.9.9/1.0.0.1)
+- `nmcli ipv4.ignore-auto-dns yes` en perfiles `netplan-enp0s31f6` y `casam&m`.
+
+### ⚠️ Reglas
+- La conexión ethernet la genera **netplan**: si se corre `netplan apply`
+  puede regenerar el perfil y pisar el DNS manual → verificar tras
+  cualquier `netplan apply`.
+- **REGLA GENERAL:** ante cualquier "servicio caído / no responde",
+  descartar DNS PRIMERO:
+  ```bash
+  resolvectl query <host>
+  journalctl -u <svc> | grep "name resolution"
+  ```
