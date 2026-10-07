@@ -184,6 +184,90 @@ def update_delivery_status(delivery_id: int, status: str, notes: str = "") -> No
     logger.info("Entrega #%d → %s", delivery_id, status)
 
 
+# URL pública de la PWA de firma (misma fuente que skills/dispatch/telegram_bot.py:188)
+POD_SIGN_URL = os.getenv("POD_SIGN_URL", "https://valentina.estacionh2o.com/pod")
+
+
+def create_pod_record(delivery_id: int, vehicle_id: int | None = None) -> int | None:
+    """Crea pod_record pending para la entrega — portado del módulo nuevo
+    (skills/dispatch/telegram_bot.py:191) al dispatcher en producción
+    (skills/dispatcher.py). 2026-10-07: pod_records tenía 0 filas — el
+    dispatcher vivo jamás llamaba al gatillo.
+
+    Idempotente: si la entrega ya tiene POD, devuelve su id sin duplicar.
+    Conecta deliveries.pod_id / pod_status. Retorna pod_id o None si falla.
+    """
+    conn = get_dispatch_db()
+    try:
+        row = conn.execute(
+            """
+            SELECT d.id, d.vehicle_id, c.phone, c.name
+            FROM deliveries d JOIN clients c ON d.client_id = c.id
+            WHERE d.id = ?
+            """,
+            (delivery_id,),
+        ).fetchone()
+        if not row:
+            logger.error("create_pod_record: entrega #%s no existe", delivery_id)
+            return None
+
+        existing = conn.execute(
+            "SELECT id FROM pod_records WHERE delivery_id = ? ORDER BY id DESC LIMIT 1",
+            (delivery_id,),
+        ).fetchone()
+        if existing:
+            pod_id = existing["id"]
+            logger.info(
+                "POD #%d ya existe para entrega #%d (idempotente)",
+                pod_id, delivery_id,
+            )
+            conn.execute(
+                "UPDATE deliveries SET pod_id = ?, pod_status = 'pending' WHERE id = ?",
+                (pod_id, delivery_id),
+            )
+            conn.commit()
+            return pod_id
+
+        cur = conn.execute(
+            """
+            INSERT INTO pod_records
+                (delivery_id, client_phone, client_name, vehicle_id, pod_status)
+            VALUES (?, ?, ?, ?, 'pending')
+            """,
+            (delivery_id, row["phone"], row["name"], vehicle_id or row["vehicle_id"]),
+        )
+        pod_id = int(cur.lastrowid or 0)
+        conn.execute(
+            "UPDATE deliveries SET pod_id = ?, pod_status = 'pending' WHERE id = ?",
+            (pod_id, delivery_id),
+        )
+        conn.commit()
+        logger.info("POD #%d creado para entrega #%d (pending)", pod_id, delivery_id)
+        return pod_id
+    except Exception as e:
+        conn.rollback()
+        logger.error("create_pod_record: error para entrega #%s: %s", delivery_id, e)
+        return None
+    finally:
+        conn.close()
+
+
+def _pod_block(delivery_id: int, vehicle_id: int | None) -> str:
+    """Bloque de mensaje POD — link de firma o advertencia, sin romper el flujo."""
+    try:
+        pod_id = create_pod_record(delivery_id, vehicle_id)
+    except Exception as e:  # paracaídas: la entrega NUNCA falla por el POD
+        logger.error("POD: excepción gatillando POD para entrega #%s: %s", delivery_id, e)
+        pod_id = None
+    if not pod_id:
+        return "\n\n⚠️ No se pudo crear la nota digital (POD). " \
+               "Reporta al administrador."
+    return (
+        f"\n\n✍️ NOTA DE ENTREGA DIGITAL:\n"
+        f"Abrí el link de firma en tu celular:\n{POD_SIGN_URL}/{delivery_id}"
+    )
+
+
 def save_gps_track(
     vehicle_id: int,
     lat: float,
@@ -437,6 +521,10 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         delivery_id = int(data.replace("del_", ""))
         update_delivery_status(delivery_id, "delivered")
 
+        # POD (2026-10-07): crear nota de entrega digital + link de firma
+        # en el MISMO mensaje de confirmación (portado del módulo nuevo).
+        pod_msg = _pod_block(delivery_id, chofer["id"])
+
         # Verificar si hay más entregas
         deliveries = get_pending_deliveries_for_chofer(chofer["id"])
         pending = [d for d in deliveries if d["status"] == "pending"]
@@ -444,7 +532,7 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         if pending:
             next_d = pending[0]
             msg = (
-                f"✅ Entrega completada.\n\n"
+                f"✅ Entrega completada.\n"
                 f"📍 PRÓXIMA PARADA:\n"
                 f"👤 {next_d['client_name']}\n"
                 f"📱 {next_d['phone']}\n"
@@ -463,12 +551,12 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
                 ],
             ]
             reply_markup = InlineKeyboardMarkup(keyboard)
-            await query.edit_message_text(msg, reply_markup=reply_markup)
+            await query.edit_message_text(msg + pod_msg, reply_markup=reply_markup)
         else:
             await query.edit_message_text(
                 "✅ Entrega completada.\n\n"
                 "🏁 No tienes más entregas pendientes. ¡Buen trabajo!\n"
-                "💧 Estación H2O"
+                "💧 Estación H2O" + pod_msg
             )
 
     elif data.startswith("no_"):
@@ -533,37 +621,12 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         elif action_kind == "del":
             update_delivery_status(delivery_id, "delivered")
 
-            # SWAP: Notificar WorkloadRouter para asignar
-            # botellón loaner (available -> in_transit_full)
-            try:
-                from core.workload_router import get_router
-
-                router = get_router()
-                result = await router.execute(
-                    trigger="dispatch_request",
-                    action="assign_loaner_bottle",
-                    params={"vehicle_id": vehicle_id, "delivery_id": delivery_id},
-                )
-                if result.get("success"):
-                    logger.info(
-                        "SWAP: loaner bottle asignado a vehicle_id=%d, delivery_id=%d",
-                        vehicle_id,
-                        delivery_id,
-                    )
-                else:
-                    logger.warning(
-                        "SWAP: failed to assign loaner: %s", result.get("error", "unknown")
-                    )
-            except Exception as e:
-                logger.warning("SWAP: error notificando WorkloadRouter: %s", e)
-
-            await query.edit_message_text(
-                "✅ Llegada registrada.\n\n"
-                "📍 Por favor, envía tu ubicación actual por GPS.\n"
-                "(Toca el clip 📎 → Ubicación → Enviar mi ubicación actual)"
-            )
-        elif action_kind == "del":
-            update_delivery_status(delivery_id, "delivered")
+            # POD (2026-10-07): crear nota de entrega digital + link de firma
+            # en el MISMO mensaje de confirmación (portado del módulo nuevo).
+            # NOTA: este bloque antes estaba DUPLICADO (dos elif == "del",
+            # el segundo muerto y el primero con mensaje de "Llegada
+            # registrada") — corregido en la misma pasada.
+            pod_msg = _pod_block(delivery_id, vehicle_id)
 
             # SWAP: Notificar al WorkloadRouter para tracking
             # de botellón (available -> in_transit_full -> with_client)
@@ -590,7 +653,7 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text(
                 "✅ Entrega completada. ✅ Botellón loaner tracking activado.\n"
                 "━━━━━━━━━━━━━━━━\n"
-                "💧 Estación H2O"
+                "💧 Estación H2O" + pod_msg
             )
         elif action_kind == "no":
             update_delivery_status(delivery_id, "no_answer", "Cliente no responde")

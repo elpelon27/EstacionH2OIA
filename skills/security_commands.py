@@ -403,10 +403,15 @@ def register_security_handlers(app):
         "lockdown_status": cmd_lockdown_status,
         "lockdown_release": cmd_lockdown_release,
         "stats": cmd_stats,
-        "set_gps": cmd_set_gps,
+        # "set_gps" MOVIDO (2026-10-07) a client_commands: flujo unificado
+        # /clasificar (registro + clasificación + GPS). Registrarlo aquí
+        # también ejecutaría AMBOS handlers (PTB corre todos los que
+        # matchean) → mensajes duplicados. Las funciones quedan para
+        # compatibilidad con tests/test_set_gps.py.
     }
     for name, fn in cmds.items():
         app.add_handler(CommandHandler(name, fn))
-    # geolocalización manual: mensajes tipo Location (después de /set_gps)
-    app.add_handler(MessageHandler(filters.LOCATION, handle_gps_location))
+    # geolocalización manual: MOVIDO a client_commands (_on_location) —
+    # este MessageHandler global respondía "Usá /set_gps primero" a TODA
+    # ubicación del Líder aunque no hubiera estado pendiente.
     return len(cmds)
