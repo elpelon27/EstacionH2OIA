@@ -42,7 +42,7 @@ NIVEL_2 = (
     "gimnasio", "hotel", "condominios", "farmacias",
     "talleres", "comercios", "empresa",
 )
-TIPOS_VALIDOS = NIVEL_1 + NIVEL_2 + ("residencial",)
+TIPOS_VALIDOS = NIVEL_1 + NIVEL_2 + ("residencial", "retail")  # retail = alias de residencial
 
 
 def _norm_phone(phone: str) -> str:
