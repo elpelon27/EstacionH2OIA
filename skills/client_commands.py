@@ -33,6 +33,9 @@ DISPATCH_DB = os.getenv(
     "DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
 )
 
+# Estados GPS pendientes por chat_id: {chat_id: {client_id, phone, tipo, ...}}
+_pending_gps: dict = {}
+
 # Tipos válidos (11) → nivel
 NIVEL_1 = ("restaurante", "clinica", "escuela")
 NIVEL_2 = (
@@ -89,8 +92,19 @@ def _level_of(tipo: str) -> int:
     return 3
 
 
+def _last10(phone: str) -> str:
+    """Últimos 10 dígitos del teléfono (formato venezolano sin prefijo)."""
+    d = _norm_phone(phone)
+    return d[-10:] if len(d) >= 10 else d
+
+
 def _find_client_row(phone: str) -> Any:
-    """Busca cliente por phone exacto/dígitos. Devuelve sqlite3.Row o None."""
+    """Busca cliente tolerante a formato: exacto → últimos 10 dígitos.
+
+    Trae todas las filas de clients (pocos cientos) y compara en Python
+    los últimos 10 dígitos normalizados — inmune a +58/0/espacios/guiones.
+    Devuelve sqlite3.Row o None.
+    """
     import sqlite3
 
     d = _norm_phone(phone)
@@ -98,17 +112,72 @@ def _find_client_row(phone: str) -> Any:
         return None
     conn = sqlite3.connect(DISPATCH_DB)
     conn.row_factory = sqlite3.Row
+    # 1) match exacto rápido (formato ya normalizado)
     row = conn.execute(
-        "SELECT * FROM clients WHERE phone = ? OR phone = ? OR phone = ?",
-        (phone, f"+{d}", d),
+        "SELECT * FROM clients WHERE phone = ? OR phone = ?",
+        (phone, f"+{d}"),
     ).fetchone()
     if not row:
-        row = conn.execute(
-            "SELECT * FROM clients WHERE phone LIKE ?",
-            (f"%{d}%",),
-        ).fetchone()
+        # 2) match tolerante por últimos 10 dígitos
+        tail = _last10(phone)
+        if tail:
+            for r in conn.execute("SELECT * FROM clients").fetchall():
+                if _last10(r["phone"] or "") == tail:
+                    row = r
+                    break
     conn.close()
     return row
+
+
+def _upsert_client(phone: str) -> Any:
+    """Auto-registro: si el cliente no existe en clients, lo CREA.
+
+    La clasificación en ruta ES el acto de registrar al cliente (lección
+    2026-10-07: clients solo tenía 4 filas seed; los ~363 clientes reales
+    viven en dispatch_queue y jamás se registraron).
+    Devuelve sqlite3.Row del cliente (recién creado o existente).
+    """
+    import sqlite3
+
+    row = _find_client_row(phone)
+    if row:
+        return row
+    d = _norm_phone(phone)
+    phone_hash = ""
+    try:
+        from core.crypto import hash_phone
+
+        phone_hash = hash_phone("+" + d)
+    except Exception:
+        pass  # hash opcional — no romper la clasificación si LOG_SALT falta
+    conn = sqlite3.connect(DISPATCH_DB)
+    conn.execute(
+        "INSERT INTO clients (phone, phone_hash, client_type, "
+        "is_priority, is_automatic, active, created_at, updated_at) "
+        "VALUES (?, ?, 'residencial', 0, 0, 1, "
+        "strftime('%s','now'), strftime('%s','now'))",
+        (f"+{d}", phone_hash),
+    )
+    conn.commit()
+    cid = conn.execute(
+        "SELECT last_insert_rowid()"
+    ).fetchone()[0]
+    conn.close()
+    return _find_client_row(f"+{d}") or cid
+
+
+def _save_gps(client_id: int, lat: float, lng: float) -> None:
+    """Guarda lat/lng del cliente."""
+    import sqlite3
+
+    conn = sqlite3.connect(DISPATCH_DB)
+    conn.execute(
+        "UPDATE clients SET lat = ?, lng = ?, "
+        "updated_at = strftime('%s','now') WHERE id = ?",
+        (lat, lng, client_id),
+    )
+    conn.commit()
+    conn.close()
 
 
 def _apply_peso(client_id: int, tipo: str, notas: str | None) -> int:
@@ -137,16 +206,26 @@ def _apply_peso(client_id: int, tipo: str, notas: str | None) -> int:
 
 
 async def cmd_set_peso(update: Any, context: Any) -> None:
-    """/set_peso <telefono> <tipo> [notas]"""
+    """/clasificar <tel> <tipo> [notas | lat,lng] — comando unificado.
+
+    /set_peso queda como alias de /clasificar (memoria muscular intacta).
+    Flujo:
+      /clasificar <tel> <tipo>          → confirma/registra cliente, pide pin GPS
+      /clasificar <tel> <tipo> <lat>,<lng> → todo de una, sin preguntas
+    Si el cliente no existe en clients, se AUTO-REGISTRA (upsert) — la
+    clasificación en ruta ES el acto de registrarlo.
+    """
     if not _authorized(update):
         return
     phone = _arg(context, 0)
     tipo = (_arg(context, 1) or "").lower()
-    notas = " ".join(context.args[2:]) if len(context.args) > 2 else None
+    coords = _arg(context, 2)
+    notas = " ".join(context.args[3:]) if len(context.args) > 3 else None
     if not phone or not tipo:
         await _reply(
             update, context,
-            "Uso: /set_peso <telefono> <tipo> [notas]\n"
+            "Uso: /clasificar <telefono> <tipo> [lat,lng] [notas]\n"
+            "  (sin coordenadas → le pido el pin de ubicación de Telegram)\n"
             f"Tipos: {', '.join(TIPOS_VALIDOS)}",
         )
         return
@@ -156,31 +235,95 @@ async def cmd_set_peso(update: Any, context: Any) -> None:
             f"❌ Tipo '{tipo}' inválido. Tipos: {', '.join(TIPOS_VALIDOS)}",
         )
         return
-    row = _find_client_row(phone)
+    row = _upsert_client(phone)
     if not row:
-        al.log_event(
-            "operador_decision", phone=phone,
-            details={"cmd": "set_peso", "tipo": tipo,
-                     "error": "cliente no existe"},
-            action_taken="rechazado", operator_decision="Líder",
-        )
         await _reply(update, context,
-                     f"❌ Cliente {phone} no existe en dispatch.db.")
+                     f"❌ No pude encontrar ni registrar al cliente {phone}.")
         return
-    nivel = _apply_peso(row["id"], tipo, notas)
+    client_id = row["id"] if hasattr(row, "keys") and "id" in row.keys() \
+        else row["id"] if hasattr(row, "__getitem__") else row
+    creado = not row["name"]  # upsert reciente no lleva nombre
+    nivel = _apply_peso(client_id, tipo, notas)
     modo = "Automático" if nivel == 1 else (
         "On-Demand" if nivel == 2 else "Residencial"
     )
     al.log_event(
         "operador_decision", phone=phone,
-        details={"cmd": "set_peso", "tipo": tipo, "nivel": nivel,
-                 "notas": notas, "client_id": row["id"]},
+        details={"cmd": "clasificar", "tipo": tipo, "nivel": nivel,
+                 "notas": notas, "client_id": client_id},
         action_taken=f"nivel_{nivel}_asignado", operator_decision="Líder",
     )
+
+    # Variante una línea: coordenadas escritas → sin preguntas
+    if coords:
+        import re as _re
+
+        m = _re.match(r"^(-?\d+\.?\d*)\s*[,;]\s*(-?\d+\.?\d*)$", coords)
+        if not m:
+            await _reply(update, context,
+                         "❌ Coordenadas inválidas. Usá <lat>,<lng> "
+                         "(ej: 10.6698,-71.6117).")
+            return
+        lat, lng = float(m.group(1)), float(m.group(2))
+        _save_gps(client_id, lat, lng)
+        await _reply(
+            update, context,
+            f"{'🆕 Cliente registrado y clasificado' if creado else '✅ Cliente clasificado'}"
+            f" {row['phone']} — NIVEL {nivel} ({tipo}). {modo}.\n"
+            f"📍 GPS guardado: {lat:.5f}, {lng:.5f}",
+        )
+        return
+
+    # Modo interactivo: esperar el pin de ubicación de Telegram
+    _pending_gps[update.effective_chat.id] = {  # type: ignore[union-attr]
+        "client_id": client_id, "phone": row["phone"],
+        "tipo": tipo, "nivel": nivel, "modo": modo,
+    }
     await _reply(
         update, context,
-        f"✅ Cliente {phone} marcado como NIVEL {nivel} ({tipo}). {modo}.",
+        f"{'🆕 Cliente registrado' if creado else '✅ Cliente encontrado'}: "
+        f"{row['phone']} — NIVEL {nivel} ({tipo}). {modo}.\n\n"
+        "📍 Ahora mandame la ubicación del local (pin de Telegram:\n"
+        "clip 📎 → Ubicación → Enviar mi ubicación actual).",
     )
+
+
+async def _on_location(update: Any, context: Any) -> None:
+    """Recibe el pin de ubicación pendiente de un /clasificar."""
+    chat_id = update.effective_chat.id
+    pend = _pending_gps.pop(chat_id, None)
+    if not pend or not update.message or not update.message.location:
+        return
+    loc = update.message.location
+    _save_gps(pend["client_id"], loc.latitude, loc.longitude)
+    al.log_event(
+        "operador_decision", phone=pend["phone"],
+        details={"cmd": "clasificar_gps", "lat": loc.latitude,
+                 "lng": loc.longitude, "client_id": pend["client_id"]},
+        action_taken="gps_guardado", operator_decision="Líder",
+    )
+    await update.message.reply_text(
+        f"✅ Cliente {pend['phone']} clasificado.\n"
+        f"🏷 Tipo: {pend['tipo']} — NIVEL {pend['nivel']} ({pend['modo']})\n"
+        f"📍 GPS guardado: {loc.latitude:.5f}, {loc.longitude:.5f}"
+    )
+
+
+async def cmd_set_gps(update: Any, context: Any) -> None:
+    """/set_gps <telefono> [lat,lng] — alias legacy de /clasificar.
+
+    Delegado: invoca el mismo flujo unificado (registro + GPS).
+    """
+    if not _authorized(update):
+        return
+    if not _arg(context, 0):
+        await _reply(
+            update, context,
+            "Uso: /set_gps <telefono> [lat,lng] "
+            "(recomendado: /clasificar <tel> <tipo>)",
+        )
+        return
+    await cmd_set_peso(update, context)
 
 
 async def cmd_unset_peso(update: Any, context: Any) -> None:
@@ -329,7 +472,9 @@ def register_client_handlers(app: Any) -> int:
     from telegram.ext import CommandHandler
 
     cmds = {
-        "set_peso": cmd_set_peso,
+        "clasificar": cmd_set_peso,       # comando unificado (DT-35)
+        "set_peso": cmd_set_peso,         # alias legacy
+        "set_gps": cmd_set_gps,           # alias legacy
         "unset_peso": cmd_unset_peso,
         "list_peso": cmd_list_peso,
         "list_tipo": cmd_list_tipo,
@@ -339,9 +484,15 @@ def register_client_handlers(app: Any) -> int:
         "activate_vehicle": cmd_activate_vehicle,
         "reset_pin": cmd_reset_pin,
     }
+    from telegram.ext import MessageHandler, filters
+
     for name, fn in cmds.items():
         app.add_handler(CommandHandler(name, fn))
-    return len(cmds)
+    # Pin de ubicación para /clasificar pendiente
+    app.add_handler(
+        MessageHandler(filters.LOCATION & ~filters.COMMAND, _on_location)
+    )
+    return len(cmds) + 1
 
 
 async def cmd_resumen(update: Any, context: Any) -> None:
