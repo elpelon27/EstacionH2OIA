@@ -159,5 +159,12 @@
     "hecho": "2026-10-09 tarde: annas-archive.is VERIFICADA real (no secuestro) y ENRUTADA como AA_BASE en descarga-libros. Es espejo de catálogo: búsqueda server-side OK (formato /books/<id>-<slug>, ya parseado) pero descargas tras LOGIN de cuenta — para automatizar falta AA_SECRET_KEY del Líder (slot listo en config.env; login experimental implementado). account ID Líder: AQV8QW5. Tool mejorado: control de relevancia en pedir (no más descargas fuera de tema). Recordar: annas-archive.gs es secuestro, NO usar.",
     "confianza": "certain",
     "fecha": "2026-10-09"
+  },
+  {
+    "id": 24,
+    "tema": "skill zootecnista",
+    "hecho": "2026-10-09: Instalado skill zootecnista v1.0.0 (Aristeo, el Zootecnista, UFV Viçosa ZOT 2025) en skills/zootecnista — especialista en bovinos del trópico: Bos indicus (Nelore, Guzerat, Gir Leiteiro, Red Sindhi/Sindi Nordestino) y Jersey tropical; corazón en mejoramiento genético (h², DEP/ACC, índices, cruzamientos/heterosis, referencia mejoramiento-genetico.md) y nutrición de rumiantes. SkillRegistry: 15 skills cargados, OK. ingeniero-agronomo actualizado a v1.0.1 con handoff espejo: pasto como cultivo → agronomo; animal/genética/nutrición → zootecnista; dieta completa → ambos (fusión de alimentación bovina). Proyecto aislado ZCode: ~/.zcode/workspace/default/ZOOTECNISTA/. Reporte: docs/reportes-zcode/2026-10-09c-zootecnista-aristeo.md",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
   }
 ]
