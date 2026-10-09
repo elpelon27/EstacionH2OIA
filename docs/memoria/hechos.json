@@ -152,5 +152,12 @@
     "hecho": "2026-10-09: herramienta LIBRE descarga-libros creada en /mnt/ssd_trabajo/herramientas-libres/descarga-libros/ (no aislada, para cualquier skill): descarga_libros.py (solo stdlib) con comandos buscar/pedir/descargar/recibir/enviar; config.env chmod 600 con BOT_TOKEN del bot Zlibrary @elpelon27_bot y chat del Líder. Verificada punta a punta: pedir → PDF real → sendDocument al Telegram del Líder. Backends: Open Library (buscador es-ES) + archive.org (descarga); LibGen solo fichas (anti-bot); AA_BASE y ZLIB_* opcionales en config (annas-archive.gs es secuestro publicitario, NO usar). Uso e integración: SKILL.md de la herramienta. Reporte: docs/reportes-zcode/2026-10-09b-descarga-libros-libre.md",
     "confianza": "certain",
     "fecha": "2026-10-09"
+  },
+  {
+    "id": 23,
+    "tema": "herramienta-libre",
+    "hecho": "2026-10-09 tarde: annas-archive.is VERIFICADA real (no secuestro) y ENRUTADA como AA_BASE en descarga-libros. Es espejo de catálogo: búsqueda server-side OK (formato /books/<id>-<slug>, ya parseado) pero descargas tras LOGIN de cuenta — para automatizar falta AA_SECRET_KEY del Líder (slot listo en config.env; login experimental implementado). account ID Líder: AQV8QW5. Tool mejorado: control de relevancia en pedir (no más descargas fuera de tema). Recordar: annas-archive.gs es secuestro, NO usar.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
   }
 ]

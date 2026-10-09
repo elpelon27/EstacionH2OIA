@@ -43,3 +43,22 @@ del Líder → reenviar al bot → `descarga_libros.py recibir`.
 - (Opcional) credenciales de su cuenta Z-Library para el backend directo.
 
 — técnico ZCode, 2026-10-09
+
+---
+
+## ACTUALIZACIÓN 09-oct tarde: Anna's Archive verificada y enrutada
+
+- **`https://annas-archive.is` VERIFICADA como Anna's Archive real** (título ES,
+  sin marcas de secuestro — a diferencia del .gs). **ENRUTADA** en
+  `config.env` (`AA_BASE=https://annas-archive.is`, `AA_ACCOUNT_ID=AQV8QW5`).
+- Carácter del dominio: **catálogo/búsqueda server-side OK** (enlaces nuevos
+  `/books/<id>-<slug>`; el backend del tool ya lo parsea) pero **descargas tras
+  login de cuenta** ("Log in to access downloads"; partner servers para
+  miembros). Para automatizar la descarga falta la CLAVE SECRETA de la cuenta
+  del Líder → slot `AA_SECRET_KEY` en config.env (login experimental ya
+  implementado en `aa_descargar`; se ajustará empíricamente con la clave).
+- Mejoras al tool en esta pasada: parser AA nuevo, control de relevancia en
+  `pedir` (ya no descarga items fuera de tema por fallback — antes pescó
+  "The Humour of Homer" para "pastoreo racional voisin"), título de fichas AA
+  limpio. Re-testeado: AA busca fichas; `pedir` descargó un boletín real de
+  pastizales (2.4 MB) pertinente a la consulta.
