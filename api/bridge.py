@@ -1933,7 +1933,7 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         conn.execute(
             """
             INSERT INTO dispatch_queue (
-                cliente_nombre, cliente_telefono, producto_desc,
+                fs_pedido_id, cliente_nombre, cliente_telefono, producto_desc,
                 total_eur, total_bs, metodo_pago,
                 gps_lat, gps_lng, gps_url, direccion,
                 estado, creado_at
