@@ -314,6 +314,10 @@ def _watchdog_pagados_sin_cola() -> list[dict[str, Any]]:
     # de strings ISO: mezclar -04:00 con +00:00 rompe el orden lexicográfico)
     umbral = datetime.now(UTC) - timedelta(minutes=WATCHDOG_UMBRAL_MIN)
     umbral_iso = umbral.isoformat()
+    # Ventana superior de 24h: pedidos viejos pagados y ya entregados por la
+    # ruta planeada de las 7:45 (que NO pasa por dispatch_queue) no deben
+    # disparar alertas en masa. Solo pedidos de hoy sin entregar.
+    desde_iso = (datetime.now(UTC) - timedelta(hours=24)).isoformat()
     encontrados: list[dict[str, Any]] = []
 
     try:
@@ -325,13 +329,15 @@ def _watchdog_pagados_sin_cola() -> list[dict[str, Any]]:
                    p.monto_total_eur, p.creado_at
             FROM fs_pedidos p
             WHERE p.estado_pago = 'pagado'
+              AND p.estado_entrega IN ('sin_entregar')
               AND p.id NOT IN (SELECT fs_pedido_id FROM dispatch_queue
                                WHERE fs_pedido_id IS NOT NULL)
               AND p.id NOT IN (SELECT fs_pedido_id FROM fs_verificacion_log
                                WHERE resultado_detalle = 'watchdog_despacho_alertado')
               AND p.creado_at < ?
+              AND p.creado_at > ?
             """,
-            (umbral_iso,),
+            (umbral_iso, desde_iso),
         ).fetchall()
 
         for row in rows:
