@@ -135,8 +135,9 @@ Tras ingerir: registra en `docs/agronomo/aprendizajes.md` y tacha la deuda en
 
 ## Pitfalls
 
-- El payload de Qdrant trae `file` SIEMPRE, pero `text`/`chunk` a veces vienen
-  vacíos → ir al PDF original (procedimiento d) o al hecho en `docs/biblioteca/`.
+- En Qdrant el payload trae `file` SIEMPRE y `chunk` = **número de página** (el
+  índice es semántico; el texto NO está en el payload) → ir al PDF original
+  (procedimiento d) o al hecho en `docs/biblioteca/`.
 - `docs/biblioteca/` y `pdfs/Agrop M&M/` son solo lectura; escribir solo en
   `pdfs/inbox/` y en `docs/agronomo/`.
 - Credenciales Paperless son dev (`biblioteca_h2o_change_me`); no exponer

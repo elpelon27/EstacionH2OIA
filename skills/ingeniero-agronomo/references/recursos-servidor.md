@@ -33,8 +33,9 @@ EOF
 ```
 
 - Score > 0.75 suele ser relevante; entre 0.6-0.75 revisar con calma.
-- El payload trae `file` SIEMPRE; `text`/`chunk` a veces vienen vacíos → abrir
-  el original (sección 4).
+- El payload trae `file` SIEMPRE y `chunk` = **número de página** (no hay texto
+  en el payload: el índice es semántico) → abrir el original (sección 4) o el
+  hecho en `docs/biblioteca/`.
 - Verificar servicio: `curl -s http://localhost:6333/collections | jq`.
 
 ## 3. Open Notebook
