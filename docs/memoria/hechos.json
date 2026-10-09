@@ -110,5 +110,33 @@
     "hecho": "2026-10-04: Caso base probado del skill = sitio publicitario del negocio (T1 estático) con WhatsApp como canal de conversión principal; formularios vía Cloudflare Pages Forms, GA4+Search Console. Decisiones diferidas (documentadas en references/architecture-decisions.md): monitoreo CWV continuo por cronjob, integración Valentina/WAHA como protocolo avanzado (requiere endpoint intermedio), protocolos T2/T3 plenos aún sin proyecto real. Registro completo de decisiones de entrevista en /home/skynet/hermes-unified/skills/creative/web-launch-engineer/references/architecture-decisions.md",
     "confianza": "certain",
     "fecha": "2026-10-04"
+  },
+  {
+    "id": 17,
+    "tema": "tecnico-zcode",
+    "hecho": "2026-10-08: Skill ingeniero-agronomo v1.0.0 instalado en skills/ingeniero-agronomo/ (SKILL.md + references/pensum-ucv.md + references/recursos-servidor.md), validado con SkillRegistry (14 skills cargados). Proyecto fuente: ~/.zcode/workspace/default/INGENIERO-AGRONOMO/ (PERFIL, MAPA-PENSUM-UCV, skill/, misiones/).",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 18,
+    "tema": "biblioteca-h2o",
+    "hecho": "2026-10-08 verificado: en Qdrant biblioteca_h2o el payload trae file y chunk=NUMERO DE PAGINA (nunca el texto). El texto se lee del PDF original via Paperless (localhost:8001) o /mnt/ssd_trabajo/biblioteca/pdfs/. En biblioteca/search con filtro por file si se quiere restringir a un documento.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 19,
+    "tema": "biblioteca-h2o",
+    "hecho": "2026-10-08/09 ingeridos por tecnico-zcode: Pensum_Ingenieria_Agronomica_UCV_2023 (19 chunks, hecho curado a mano por ser tablas) y nordeste_palma_forrageira_doc233 (Embrapa Doc 233, 48 pags, 43 chunks, recuperado truncado tras mision forrajes). Total nordeste_* = 17 documentos citables.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 20,
+    "tema": "tecnico-zcode",
+    "hecho": "Convención permanente: ZCode deja reporte en docs/reportes-zcode/AAAA-MM-DD-*.md cada vez que trabaja en el servidor y registra hechos clave via memoria_hechos --add. Primer reporte: docs/reportes-zcode/2026-10-09-tecnico-zcode.md.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
   }
 ]
