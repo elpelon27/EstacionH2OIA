@@ -3612,6 +3612,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     _consumer_task = asyncio.create_task(consumer_loop(poll_interval=5))
     logger.info("🔄 Consumer loop task creado")
 
+    # 2026-10-08 §2: Watchdog pedido-pagado-sin-despachar (>15 min → alerta
+    # al Líder por Telegram, una sola vez por pedido). Red de seguridad que
+    # hace visible cualquier falla silenciosa del encolado §1.
+    async def _watchdog_despacho_loop() -> None:
+        from src.integrations.r4.webhooks import watchdog_ciclo_despacho
+
+        # Cada 5 minutos; primer ciclo tras 60s para no pisar el startup
+        await asyncio.sleep(60)
+        while True:
+            try:
+                await asyncio.get_running_loop().run_in_executor(
+                    None, watchdog_ciclo_despacho
+                )
+            except Exception as e:
+                logger.warning("Watchdog despacho (ciclo) falló: %s", e)
+            await asyncio.sleep(300)
+
+    _watchdog_despacho_task = asyncio.create_task(_watchdog_despacho_loop())
+    logger.info("👀 Watchdog despacho task creado (umbral 15 min, ciclo 5 min)")
+
     yield
 
     # P1-2: Cancelar watchdog en shutdown

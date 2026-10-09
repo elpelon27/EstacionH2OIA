@@ -310,7 +310,9 @@ def _watchdog_pagados_sin_cola() -> list[dict[str, Any]]:
     import sqlite3
     from datetime import datetime as _dt
 
-    umbral = datetime.now(_CARACAS_TZ) - timedelta(minutes=WATCHDOG_UMBRAL_MIN)
+    # umbral en UTC ISO — mismo formato que fs_pedidos.creado_at (comparación
+    # de strings ISO: mezclar -04:00 con +00:00 rompe el orden lexicográfico)
+    umbral = datetime.now(UTC) - timedelta(minutes=WATCHDOG_UMBRAL_MIN)
     umbral_iso = umbral.isoformat()
     encontrados: list[dict[str, Any]] = []
 

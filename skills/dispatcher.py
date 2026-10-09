@@ -188,6 +188,99 @@ def update_delivery_status(delivery_id: int, status: str, notes: str = "") -> No
 POD_SIGN_URL = os.getenv("POD_SIGN_URL", "https://valentina.estacionh2o.com/pod")
 
 
+# ============================================================================
+# 2026-10-08 §3: Aviso de llegada al cliente (v1 por botón, sin GPS)
+# ============================================================================
+# Cuando el chofer toca [📍 Llegué] → WhatsApp automático al cliente.
+# v1 evita la infraestructura GPS de DT-46-C (esa queda pendiente como estaba).
+
+META_ACCESS_TOKEN_D = os.getenv("META_ACCESS_TOKEN", "")
+META_PHONE_ID_D = os.getenv("META_PHONE_NUMBER_ID", "")
+
+
+async def _avisar_llegada_cliente(phone: str) -> bool:
+    """Envía WhatsApp de llegada al cliente via Meta Graph API.
+
+    Fail-open: si falta token o el envío falla → log warning, sin romper el
+    flujo del chofer. Texto en español neutro venezolano, forma 'usted'.
+    """
+    if not phone:
+        logger.warning("Aviso llegada: sin teléfono del cliente — omitido")
+        return False
+    if not META_ACCESS_TOKEN_D or not META_PHONE_ID_D:
+        logger.warning("Aviso llegada: META token/phone_id no configurados")
+        return False
+
+    tel = phone.lstrip("+")
+    if tel.startswith("58") and len(tel) == 12:
+        pass
+    elif tel.startswith("0"):
+        tel = "58" + tel[1:]
+    elif len(tel) == 10:
+        tel = "58" + tel
+
+    url = (
+        f"https://graph.facebook.com/{os.getenv('META_API_VERSION', 'v25.0')}"
+        f"/{META_PHONE_ID_D}/messages"
+    )
+    text = (
+        "💧 ¡Su pedido está llegando!\n"
+        "El chofer de Estación H2O está en su dirección. "
+        "Por favor téngase listo para recibir sus botellones."
+    )
+    payload = {
+        "messaging_product": "whatsapp",
+        "recipient_type": "individual",
+        "to": tel,
+        "type": "text",
+        "text": {"body": text, "preview_url": False},
+    }
+    try:
+        import httpx
+
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                url,
+                headers={
+                    "Authorization": f"Bearer {META_ACCESS_TOKEN_D}",
+                    "Content-Type": "application/json",
+                },
+                json=payload,
+                timeout=10,
+            )
+            if resp.status_code == 200:
+                logger.info("Aviso llegada enviado a %s****", tel[:6])
+                return True
+            logger.error(
+                "Aviso llegada: Meta API error %d: %s",
+                resp.status_code,
+                resp.text[:200],
+            )
+            return False
+    except Exception as e:
+        logger.warning("Aviso llegada falló (no rompe flujo chofer): %s", e)
+        return False
+
+
+def _telefono_cliente_delivery(delivery_id: int) -> str:
+    """Consulta el teléfono del cliente (clients) para una delivery. '' si falla."""
+    try:
+        conn = get_dispatch_db()
+        row = conn.execute(
+            """
+            SELECT c.phone FROM deliveries d
+            JOIN clients c ON d.client_id = c.id
+            WHERE d.id = ?
+            """,
+            (delivery_id,),
+        ).fetchone()
+        conn.close()
+        return (row["phone"] or "") if row else ""
+    except Exception as e:
+        logger.warning("Buscando teléfono de delivery %d: %s", delivery_id, e)
+        return ""
+
+
 def create_pod_record(delivery_id: int, vehicle_id: int | None = None) -> int | None:
     """Crea pod_record pending para la entrega — portado del módulo nuevo
     (skills/dispatch/telegram_bot.py:191) al dispatcher en producción
@@ -510,6 +603,13 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         delivery_id = int(data.replace("arr_", ""))
         update_delivery_status(delivery_id, "arrived")
 
+        # 2026-10-08 §3: WhatsApp automático al cliente "su pedido está llegando"
+        try:
+            tel_cli = _telefono_cliente_delivery(delivery_id)
+            await _avisar_llegada_cliente(tel_cli)
+        except Exception as e:
+            logger.warning("Aviso llegada (arr_) no bloquea flujo: %s", e)
+
         # Solicitar ubicación GPS del chofer
         await query.edit_message_text(
             "✅ Llegada registrada.\n\n"
@@ -613,6 +713,14 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
         delivery_id = delivery["id"]
         if action_kind == "arr":
             update_delivery_status(delivery_id, "arrived")
+
+            # 2026-10-08 §3: WhatsApp automático al cliente "su pedido está llegando"
+            try:
+                tel_cli = _telefono_cliente_delivery(delivery_id)
+                await _avisar_llegada_cliente(tel_cli)
+            except Exception as e:
+                logger.warning("Aviso llegada (new_arr_) no bloquea flujo: %s", e)
+
             await query.edit_message_text(
                 "✅ Llegada registrada.\n\n"
                 "📍 Por favor, envía tu ubicación actual por GPS.\n"
