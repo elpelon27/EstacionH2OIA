@@ -145,5 +145,12 @@
     "hecho": "2026-10-09 planificada misión NUTRICIÓN BIBLIOGRÁFICA DEL PENSUM (esquema nocturno, campaña por 8 lotes): plan en ~/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md, área de trabajo INGENIERO-AGRONOMO/harvest-bibliografica/ (mapa-bibliografico-pensum.md es el entregable maestro). Regla de oro: ninguna referencia sin URL viva o ISBN verificado. Módulo Z-Library vía API Telegram del Líder queda como opcional hasta que entregue el acceso.",
     "confianza": "certain",
     "fecha": "2026-10-09"
+  },
+  {
+    "id": 22,
+    "tema": "herramienta-libre",
+    "hecho": "2026-10-09: herramienta LIBRE descarga-libros creada en /mnt/ssd_trabajo/herramientas-libres/descarga-libros/ (no aislada, para cualquier skill): descarga_libros.py (solo stdlib) con comandos buscar/pedir/descargar/recibir/enviar; config.env chmod 600 con BOT_TOKEN del bot Zlibrary @elpelon27_bot y chat del Líder. Verificada punta a punta: pedir → PDF real → sendDocument al Telegram del Líder. Backends: Open Library (buscador es-ES) + archive.org (descarga); LibGen solo fichas (anti-bot); AA_BASE y ZLIB_* opcionales en config (annas-archive.gs es secuestro publicitario, NO usar). Uso e integración: SKILL.md de la herramienta. Reporte: docs/reportes-zcode/2026-10-09b-descarga-libros-libre.md",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
   }
 ]
