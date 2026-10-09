@@ -1101,20 +1101,37 @@ async def _call_dify(query: str, phone: str, conv_id: str | None) -> dict[str, A
     }
     if conv_id:
         payload["conversation_id"] = conv_id
-    try:
-        assert _http_client is not None, "http client not initialized"
-        resp = await _http_client.post(DIFY_API_URL, headers=headers, json=payload, timeout=30)
-        if resp.status_code == 200:
-            data = resp.json()
-            return {
-                "answer": data.get("answer", ""),
-                "conversation_id": data.get("conversation_id", ""),
-            }
-        logger.error("Dify error %d: %s", resp.status_code, resp.text[:300])
-        return None
-    except httpx.HTTPError as e:
-        logger.error("Error llamando a Dify: %s", e)
-        return None
+    # 2026-10-09 forense: si Ollama desalojó el modelo (MAX_LOADED_MODELS=1,
+    # otros proyectos de la máquina), la 1ra llamada paga la recarga y supera
+    # el timeout. Reintentar UNA vez solo en timeout: la recarga sigue en el
+    # servidor y el 2do intento suele llegar con el modelo caliente.
+    timeouts = (30, 120)
+    last_exc: Exception | None = None
+    for attempt, timeout_s in enumerate(timeouts, start=1):
+        try:
+            assert _http_client is not None, "http client not initialized"
+            resp = await _http_client.post(
+                DIFY_API_URL, headers=headers, json=payload, timeout=timeout_s
+            )
+            if resp.status_code == 200:
+                data = resp.json()
+                return {
+                    "answer": data.get("answer", ""),
+                    "conversation_id": data.get("conversation_id", ""),
+                }
+            logger.error("Dify error %d: %s", resp.status_code, resp.text[:300])
+            return None
+        except httpx.TimeoutException as e:
+            last_exc = e
+            logger.warning(
+                "Dify timeout (intento %d/%d, timeout=%ds) — posible recarga de modelo",
+                attempt, len(timeouts), timeout_s,
+            )
+        except httpx.HTTPError as e:
+            logger.error("Error llamando a Dify: %s", e)
+            return None
+    logger.error("Dify no respondió tras %d intentos: %s", len(timeouts), last_exc)
+    return None
 
 
 # ============================================================================
