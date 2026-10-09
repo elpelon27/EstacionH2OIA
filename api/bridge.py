@@ -1893,6 +1893,7 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         # para que el encolado manual y el del webhook R4 se deduquen entre sí.
         # Fail-soft: si no se resuelve, se inserta NULL (comportamiento anterior).
         fs_pedido_id = None
+        conn = _sq3.connect(SQLITE_PATH)
         try:
             row = conn.execute(
                 """
@@ -1929,7 +1930,6 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
             parts.append(f"{qty_hielo} bolsas de hielo")
         producto_desc = " + ".join(parts) if parts else "productos"
 
-        conn = _sq3.connect(SQLITE_PATH)
         conn.execute(
             """
             INSERT INTO dispatch_queue (
