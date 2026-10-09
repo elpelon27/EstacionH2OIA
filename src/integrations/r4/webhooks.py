@@ -157,7 +157,9 @@ def _alertar_lider(mensaje: str) -> None:
 
         url = f"https://api.telegram.org/bot{token}/sendMessage"
         with httpx.Client(timeout=10) as client:
-            resp = client.post(url, json={"chat_id": chat_id, "text": mensaje})
+            resp = client.post(
+                url, json={"chat_id": chat_id, "text": mensaje, "parse_mode": "HTML"}
+            )
             if resp.status_code != 200:
                 logger.warning("Alerta Líder Telegram HTTP %d", resp.status_code)
     except Exception as e:

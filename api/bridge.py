@@ -1888,6 +1888,40 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         gps_url = f"https://maps.google.com/?q={lat},{lng}" if lat and lng else ""
         total_bs = _convert_eur_to_bs(total) or 0
 
+        # 2026-10-08 §1 (idempotencia cruzada): resolver fs_pedido_id del pedido
+        # financiero activo (pendiente/parcial/verificando) por teléfono+monto,
+        # para que el encolado manual y el del webhook R4 se deduquen entre sí.
+        # Fail-soft: si no se resuelve, se inserta NULL (comportamiento anterior).
+        fs_pedido_id = None
+        try:
+            row = conn.execute(
+                """
+                SELECT id FROM fs_pedidos
+                WHERE cliente_telefono = ? AND monto_total_eur BETWEEN ? AND ?
+                  AND estado_pago IN ('pendiente', 'verificando', 'parcial')
+                ORDER BY id DESC LIMIT 1
+                """,
+                (from_phone, total * 0.99, total * 1.01),
+            ).fetchone()
+            if row:
+                fs_pedido_id = int(row[0])
+                # Idempotencia: ya fue encolado por el webhook R4?
+                existing = conn.execute(
+                    "SELECT id FROM dispatch_queue WHERE fs_pedido_id = ? LIMIT 1",
+                    (fs_pedido_id,),
+                ).fetchone()
+                if existing:
+                    logger.info(
+                        "📦 fs_pedido=%s ya está en dispatch_queue (#%s) — no duplicar",
+                        fs_pedido_id,
+                        existing[0],
+                    )
+                    conn.close()
+                    return
+        except Exception as e:
+            logger.warning("Resolviendo fs_pedido_id para dispatch: %s", e)
+            fs_pedido_id = None
+
         parts = []
         if qty_bot > 0:
             parts.append(f"{qty_bot} botellones de agua")
@@ -1903,9 +1937,10 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
                 total_eur, total_bs, metodo_pago,
                 gps_lat, gps_lng, gps_url, direccion,
                 estado, creado_at
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
         """,
             (
+                fs_pedido_id,
                 contact_name,
                 from_phone,
                 producto_desc,
@@ -1921,7 +1956,11 @@ def _send_to_dispatch_queue(ph_hash: str, state: dict[str, Any], from_phone: str
         )
         conn.commit()
         conn.close()
-        logger.info("📦 Pedido enviado a dispatch_queue para phone:%s", ph_hash[:8])
+        logger.info(
+            "📦 Pedido enviado a dispatch_queue para phone:%s (fs_pedido=%s)",
+            ph_hash[:8],
+            fs_pedido_id,
+        )
 
         # Notificar al consumer loop para procesamiento inmediato (sub-segundo)
         try:
