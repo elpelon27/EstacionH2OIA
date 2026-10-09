@@ -21,6 +21,7 @@ import os
 import time
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
@@ -94,6 +95,310 @@ def _obtener_enviador_whatsapp() -> Any:
         if send is not None and client is not None:
             return send
     return None
+
+
+# ============================================================
+# Encolado a despacho desde el webhook bancario (2026-10-08 §1)
+# ============================================================
+# Causa raíz (diagnóstico 08-oct): el encolado a dispatch_queue SOLO ocurría
+# en el flujo de conversación (Efectivo / "ya pagué"). El webhook R4 verificaba
+# el pago y NO encolaba → pedidos pagados por Pago Móvil nunca llegaban al chofer.
+# Esta función arma el INSERT desde la fila de fs_pedidos + clients, con
+# idempotencia por fs_pedido_id (evita duplicado si el cliente además escribe
+# "ya pagué" por el flujo manual).
+
+_CARACAS_TZ = timezone(timedelta(hours=-4))  # America/Caracas UTC-4
+WATCHDOG_UMBRAL_MIN = 15  # §2: pedidos pagados >15 min sin despachar → alerta
+
+
+def _conv_db_path() -> str:
+    """Ruta de conversations.db (misma fuente que api/bridge.py)."""
+    return os.getenv("SQLITE_PATH", "/mnt/ssd_trabajo/hermes-agent/data/conversations.db")
+
+
+def _dispatch_db_path() -> str:
+    """Ruta de dispatch.db (misma fuente que api/bridge.py)."""
+    return os.getenv(
+        "DISPATCH_DB_PATH", "/mnt/ssd_trabajo/hermes-agent/data/dispatch.db"
+    )
+
+
+def _tasa_eur_ves_actual() -> float | None:
+    """Última tasa EUR/VES de fs_tasas_cambio (mismo patrón que bridge._convert_eur_to_bs)."""
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(_conv_db_path())
+        row = conn.execute(
+            "SELECT tasa FROM fs_tasas_cambio "
+            "WHERE par='EUR/VES' ORDER BY registrado_at DESC LIMIT 1"
+        ).fetchone()
+        conn.close()
+        if row and row[0] > 0:
+            return float(row[0])
+    except Exception:
+        pass
+    return None
+
+
+def _alertar_lider(mensaje: str) -> None:
+    """Alerta al Telegram del Líder. Fire-and-forget, nunca lanza (§1/§2).
+
+    Usa el bot de Telegram del bridge si el módulo live está disponible
+    (mismo TELEGRAM_BOT_TOKEN / TELEGRAM_CHAT_ID); si no, envío directo.
+    """
+    token = os.getenv("TELEGRAM_BOT_TOKEN", "")
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "1663148211")  # Líder por defecto
+    if not token:
+        logger.warning("Alerta Líder sin TELEGRAM_BOT_TOKEN: %s", mensaje[:120])
+        return
+    try:
+        import httpx
+
+        url = f"https://api.telegram.org/bot{token}/sendMessage"
+        with httpx.Client(timeout=10) as client:
+            resp = client.post(url, json={"chat_id": chat_id, "text": mensaje})
+            if resp.status_code != 200:
+                logger.warning("Alerta Líder Telegram HTTP %d", resp.status_code)
+    except Exception as e:
+        logger.warning("Alerta Líder falló: %s", e)
+
+
+def _direcciones_desde_clients(cliente_telefono: str) -> tuple[float | None, float | None, str]:
+    """Busca lat/lng/dirección del cliente en dispatch.db (clients).
+
+    Tabla poblada por el flujo /clasificar del bridge. Si no hay → campos
+    vacíos (el chofer puede llamar al cliente).
+    """
+    import sqlite3
+
+    try:
+        conn = sqlite3.connect(_dispatch_db_path())
+        conn.row_factory = sqlite3.Row
+        row = conn.execute(
+            "SELECT lat, lng, address_text FROM clients WHERE phone = ? "
+            "ORDER BY updated_at DESC LIMIT 1",
+            (cliente_telefono,),
+        ).fetchone()
+        conn.close()
+        if row:
+            lat = float(row["lat"]) if row["lat"] is not None else None
+            lng = float(row["lng"]) if row["lng"] is not None else None
+            return lat, lng, row["address_text"] or ""
+    except Exception as e:
+        logger.warning("Buscando dirección en clients falló: %s", e)
+    return None, None, ""
+
+
+def _enqueue_delivery_from_fs(pedido: Any) -> dict[str, Any]:
+    """Encola la entrega en dispatch_queue a partir de la fila de fs_pedidos.
+
+    Idempotente: si ya existe fila en dispatch_queue con ese fs_pedido_id
+    (de un flujo manual "ya pagué" anterior), NO inserta — retorna existing=True.
+
+    Retorna {"enqueued": bool, "existing": bool, "order_id": int|None}.
+    NUNCA lanza: si falla devuelve {"enqueued": False, ...} y el llamador
+    decide (log CRÍTICO + alerta al Líder, sin romper la respuesta al banco).
+    """
+    import sqlite3
+
+    fs_pedido_id = getattr(pedido, "id", None)
+    cliente_telefono = getattr(pedido, "cliente_telefono", "") or ""
+    cliente_nombre = getattr(pedido, "cliente_nombre", "") or ""
+    total_eur = float(getattr(pedido, "monto_total_eur", 0.0) or 0.0)
+    metodo_pago = getattr(pedido, "metodo_pago", "") or "pagomovil"
+    qty_bot = int(getattr(pedido, "botellones_cantidad", 0) or 0)
+    qty_hielo = int(getattr(pedido, "hielo_cantidad", 0) or 0)
+
+    try:
+        conn = sqlite3.connect(_conv_db_path())
+        conn.execute("PRAGMA foreign_keys = ON")
+    except Exception as e:
+        logger.error("Abriendo conversations.db para encolar: %s", e)
+        return {"enqueued": False, "existing": False, "order_id": None, "error": str(e)}
+
+    try:
+        # Idempotencia: ya hay fila con este fs_pedido_id?
+        row = conn.execute(
+            "SELECT id FROM dispatch_queue WHERE fs_pedido_id = ? LIMIT 1",
+            (fs_pedido_id,),
+        ).fetchone()
+        if row:
+            logger.info(
+                "Encolado idempotente: fs_pedido=%s ya está en dispatch_queue (#%s)",
+                fs_pedido_id,
+                row[0],
+            )
+            return {"enqueued": False, "existing": True, "order_id": row[0]}
+
+        # GPS/dirección desde clients (dispatch.db); si no hay, campos vacíos
+        lat, lng, address = _direcciones_desde_clients(cliente_telefono)
+
+        tasa = _tasa_eur_ves_actual()
+        total_bs = float(round(total_eur * tasa, 2)) if tasa else None
+        gps_url = f"https://maps.google.com/?q={lat},{lng}" if lat and lng else ""
+
+        parts = []
+        if qty_bot > 0:
+            parts.append(f"{qty_bot} botellones de agua")
+        if qty_hielo > 0:
+            parts.append(f"{qty_hielo} bolsas de hielo")
+        producto_desc = " + ".join(parts) if parts else "productos"
+
+        cur = conn.execute(
+            """
+            INSERT INTO dispatch_queue (
+                fs_pedido_id, cliente_nombre, cliente_telefono, producto_desc,
+                total_eur, total_bs, metodo_pago,
+                gps_lat, gps_lng, gps_url, direccion,
+                estado, creado_at
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
+            """,
+            (
+                fs_pedido_id,
+                cliente_nombre,
+                cliente_telefono,
+                producto_desc,
+                total_eur,
+                total_bs,
+                metodo_pago,
+                lat,
+                lng,
+                gps_url,
+                address,
+                datetime.now(_CARACAS_TZ).isoformat(),
+            ),
+        )
+        order_id = int(cur.lastrowid or 0)
+        conn.commit()
+        logger.info(
+            "📦 [webhook R4] Entrega encolada en dispatch_queue #%s "
+            "(fs_pedido=%s, %s botellones, €%.2f)",
+            order_id,
+            fs_pedido_id,
+            qty_bot,
+            total_eur,
+        )
+
+        # Despertar al consumer loop del bridge (procesamiento sub-segundo)
+        try:
+            from skills.dispatch.consumer import notify_consumer
+
+            notify_consumer()
+        except Exception:
+            pass  # fail silently: consumer hace poll cada 5s igualmente
+
+        return {"enqueued": True, "existing": False, "order_id": order_id}
+    except Exception as e:
+        logger.error("Encolando entrega desde webhook R4: %s", e, exc_info=True)
+        return {"enqueued": False, "existing": False, "order_id": None, "error": str(e)}
+    finally:
+        conn.close()
+
+
+# ============================================================
+# Watchdog §2 (2026-10-08): pedido pagado sin despachar >15 min
+# ============================================================
+
+def _watchdog_pagados_sin_cola() -> list[dict[str, Any]]:
+    """Detecta fs_pedidos pagados hace >15 min sin fila en dispatch_queue.
+
+    Alerta UNA sola vez por pedido: usa la tabla fs_verificacion_log como
+    registro de alerta (columna notas='watchdog_despacho_alertado'), insertada
+    idempotente tras alertar. Sin auto-corrección: solo detecta y alerta.
+    """
+    import sqlite3
+    from datetime import datetime as _dt
+
+    umbral = datetime.now(_CARACAS_TZ) - timedelta(minutes=WATCHDOG_UMBRAL_MIN)
+    umbral_iso = umbral.isoformat()
+    encontrados: list[dict[str, Any]] = []
+
+    try:
+        conn = sqlite3.connect(_conv_db_path())
+        conn.row_factory = sqlite3.Row
+        rows = conn.execute(
+            """
+            SELECT p.id, p.cliente_telefono, p.cliente_nombre,
+                   p.monto_total_eur, p.creado_at
+            FROM fs_pedidos p
+            WHERE p.estado_pago = 'pagado'
+              AND p.id NOT IN (SELECT fs_pedido_id FROM dispatch_queue
+                               WHERE fs_pedido_id IS NOT NULL)
+              AND p.id NOT IN (SELECT fs_pedido_id FROM fs_verificacion_log
+                               WHERE resultado_detalle = 'watchdog_despacho_alertado')
+              AND p.creado_at < ?
+            """,
+            (umbral_iso,),
+        ).fetchall()
+
+        for row in rows:
+            # Minutos desde creado_at (que es ISO UTC en fs_pedidos)
+            try:
+                creado = _dt.fromisoformat(row["creado_at"].replace("Z", "+00:00"))
+            except Exception:
+                creado = None
+            minutos = (
+                int((datetime.now(UTC) - creado).total_seconds() // 60) if creado else 0
+            )
+            if minutos < WATCHDOG_UMBRAL_MIN:
+                continue
+            encontrados.append(
+                {
+                    "fs_pedido_id": row["id"],
+                    "telefono": row["cliente_telefono"],
+                    "nombre": row["cliente_nombre"],
+                    "total_eur": row["monto_total_eur"],
+                    "minutos": minutos,
+                }
+            )
+        conn.close()
+    except Exception as e:
+        logger.warning("Watchdog pagados-sin-cola falló: %s", e)
+        return encontrados
+
+    return encontrados
+
+
+def watchdog_ciclo_despacho() -> int:
+    """Un ciclo del watchdog §2: alerta al Líder por Telegram. Retorna nº alertas nuevas."""
+    encontrados = _watchdog_pagados_sin_cola()
+    if not encontrados:
+        return 0
+
+    import sqlite3
+
+    alertadas = 0
+    for p in encontrados:
+        try:
+            conn = sqlite3.connect(_conv_db_path())
+            # Schema real de fs_verificacion_log: intento/accion/resultado_detalle/timestamp
+            # (no evento/notas — ver src/financial/database.py:178). Se usa como registro
+            # de "ya alertado" para la idempotencia del watchdog (una alerta por pedido).
+            conn.execute(
+                "INSERT INTO fs_verificacion_log "
+                "(fs_pedido_id, intento, metodo_verificacion, accion, resultado_detalle, timestamp) "
+                "VALUES (?, 0, 'watchdog', 'escalo_humano', 'watchdog_despacho_alertado', ?)",
+                (p["fs_pedido_id"], datetime.now(UTC).isoformat()),
+            )
+            conn.commit()
+            conn.close()
+        except Exception as e:
+            logger.warning("Watchdog: marcando alerta fs_pedido=%s: %s", p["fs_pedido_id"], e)
+
+        msg = (
+            f"⚠️ <b>WATCHDOG DESPACHO</b>\n"
+            f"Pedido #{p['fs_pedido_id']} PAGADO hace {p['minutos']} min "
+            f"<b>SIN encolar a despacho</b>.\n"
+            f"👤 {p['nombre'] or '(sin nombre)'}\n"
+            f"📱 {p['telefono']}\n"
+            f"💰 €{p['total_eur']:.2f}\n"
+            f"Revisar webhook R4 / encolado manual."
+        )
+        _alertar_lider(msg)
+        alertadas += 1
+    logger.warning("Watchdog despacho: %d pedidos pagados sin despachar", alertadas)
+    return alertadas
 
 # ============================================================
 # Configuración desde variables de entorno
@@ -676,6 +981,47 @@ async def process_r4notifica(
             payload.Referencia,
             resultado.get("nuevo_estado"),
         )
+
+        # 2026-10-08 §1: ENCOLAR ENTREGA A DESPACHO tras verificación bancaria.
+        # Antes el encolado solo ocurría en el flujo de conversación (Efectivo /
+        # "ya pagué") → pedidos pagados por Pago Móvil nunca llegaban al chofer.
+        # Idempotente (por fs_pedido_id). Si falla: log CRÍTICO + alerta al
+        # Líder, pero NO romper la respuesta abono=True al banco.
+        try:
+            enc = _enqueue_delivery_from_fs(pedido)
+            if enc.get("enqueued"):
+                logger.info(
+                    "R4notifica: entrega encolada a despacho order_id=%s (fs_pedido=%s)",
+                    enc.get("order_id"),
+                    fs_pedido_id,
+                )
+            elif not enc.get("existing"):
+                logger.critical(
+                    "R4notifica: FALLO encolando entrega fs_pedido=%s: %s — "
+                    "el pedido está PAGADO pero NO está en dispatch_queue",
+                    fs_pedido_id,
+                    enc.get("error", "unknown"),
+                )
+                _alertar_lider(
+                    f"⚠️ <b>ALERTA DESPACHO</b>\n"
+                    f"Pedido #{fs_pedido_id} verificado PAGADO por banco R4 "
+                    f"pero NO se pudo encolar a despacho.\n"
+                    f"Error: {enc.get('error', 'desconocido')}\n"
+                    f"Revisar y encolar manualmente."
+                )
+            # existing=True → ya encolado por otro flujo: no hacer nada
+        except Exception as enc_err:
+            logger.critical(
+                "R4notifica: excepción encolando entrega fs_pedido=%s: %s",
+                fs_pedido_id,
+                enc_err,
+                exc_info=True,
+            )
+            _alertar_lider(
+                f"⚠️ <b>ALERTA DESPACHO</b>\n"
+                f"Excepción encolando pedido #{fs_pedido_id} pagado: {enc_err}\n"
+                f"Revisar y encolar manualmente."
+            )
 
         # d) Sync a Odoo (best-effort, no bloquea si falla)
         try:
