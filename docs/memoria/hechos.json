@@ -1,254 +1,261 @@
 [
- {
-  "id": 1,
-  "tema": "motor",
-  "hecho": "Motor actual de Prometeo: deepseek-v4-flash via OpenRouter (confirmado 2026-08-15)",
-  "confianza": "certain",
-  "fecha": "2026-08-15"
- },
- {
-  "id": 2,
-  "tema": "verificacion-memoria-2026-08-16",
-  "hecho": "Ciclo completo de las 4 capas de memoria verificado en vivo contra Qdrant 1.12.4 y state.db",
-  "confianza": "certain",
-  "fecha": "2026-08-16"
- },
- {
-  "id": 3,
-  "tema": "sesion-2026-08-16-ciclo",
-  "hecho": "Sesión de verificación de arquitectura de memoria completada: 4 capas operativas, cableado Qdrant+state.db+Redis+vault confirmado, ciclo de inicio a cierre validado",
-  "confianza": "certain",
-  "fecha": "2026-08-16"
- },
- {
-  "id": 4,
-  "tema": "cierre-actualizacion-2026-08-16",
-  "hecho": "Actualización de arquitectura de memoria completada y certificada: cableado Qdrant alineado (1.12.2), 4 capas verificadas de inicio a cierre, ciclo de sesión validado, memoria operativa",
-  "confianza": "certain",
-  "fecha": "2026-08-16"
- },
- {
-  "id": 5,
-  "tema": "campana-dt2026-08-16",
-  "hecho": "Campaña multi-frentes completada: deuda mypy a 0 (16 archivos), brecha seguridad NVIDIA cerrada (botones eliminados), DT-12 cobertura +84 tests (bridge 28→38%, prometeo_approval 65→75%), UnifiedMemory conectada al agente activo y desplegada. Suite 429 passed.",
-  "confianza": "certain",
-  "fecha": "2026-08-16"
- },
- {
-  "id": 6,
-  "tema": "reanudacion-2026-08-16-b",
-  "hecho": "Sesion retomada: deuda mypy scripts memoria cerrada (54 errores gate real -> 0), helper _now extraido en odoo_sync:register_payment, suite 430/13/0, smoke SMOKE_OK, Qdrant 402 pts vivo",
-  "confianza": "certain",
-  "fecha": "2026-08-16"
- },
- {
-  "id": 7,
-  "tema": "config-claude-code",
-  "hecho": "Claude Code configurado con API de OpenRouter (base_url https://openrouter.ai/api) para delegación via skill claude-code de Hermes.",
-  "confianza": "certain",
-  "fecha": "2026-08-17"
- },
- {
-  "id": 8,
-  "tema": "config-claude-code",
-  "hecho": "Modelo por defecto de Claude Code forzado a moonshotai/kimi-k3 (modelo de razonamiento con thinking tokens) via env ANTHROPIC_MODEL en ~/.claude/settings.json.",
-  "confianza": "certain",
-  "fecha": "2026-08-17"
- },
- {
-  "id": 9,
-  "tema": "config-claude-code",
-  "hecho": "Clave de OpenRouter para kimi-k3 almacenada en ~/.claude/settings.json (clave del usuario, verificada con acceso a cuenta de pago).",
-  "confianza": "certain",
-  "fecha": "2026-08-17"
- },
- {
-  "id": 10,
-  "tema": "arquitectura-prometeo",
-  "hecho": "2026-10-01: Sistema multi-agente PROMETEO desplegado: perfil cerebro coordinador + 3 frentes de trabajo en worktrees git aislados (10-r1-infra, 10-r2-api, 10-r3-integracion) con contratos firmados en agentes/ (BASE-OPERATIVA + uno por frente con lista blanca, gates verificables y protocolo de detencion). Merge del frente R3 integrado al tronco en commit 846114ad.",
-  "confianza": "certain",
-  "fecha": "2026-10-02"
- },
- {
-  "id": 11,
-  "tema": "fix-cloudflared",
-  "hecho": "2026-10-01 DT-32: causa raiz del crash-loop de cloudflared era WatchdogSec=60 en la unidad systemd (binario 2026.6.1 no emite sd_notify watchdog => systemd lo mataba cada 60s); los panics QUIC eran sintoma de conexiones huerfanas. Fix: watchdog removido de /etc/systemd/system/cloudflared.service. Verificado 331s estable, tunel 200.",
-  "confianza": "certain",
-  "fecha": "2026-10-02"
- },
- {
-  "id": 12,
-  "tema": "fix-redis-warming",
-  "hecho": "2026-10-01 DT-34: Redis 'vacio' no era script roto: warming corria 10:30 diario con exito pero TTL=7200s lo vaciaba 22h/dia. Fix: crontab warming_diario a 0 */2 * * * (cada 2h). Backup crontab en /home/skynet/crontab_backup_20261001.txt",
-  "confianza": "certain",
-  "fecha": "2026-10-02"
- },
- {
-  "id": 13,
-  "tema": "fix-tests-pod",
-  "hecho": "2026-10-01: tests POD eran worktree-unsafe: conftest.py y 7 tests hardcodeaban rutas absolutas al tronco; ademas api/pod_router.py fija DISPATCH_DB_PATH/PHOTO_DIR/REVOKED_FILE al importar (lineas 36/40/75) por lo que env vars no bastan si el modulo ya fue cargado. Helper reutilizable: tests/unit/pod_test_helper.py (BD temporal + parcheo de constantes con restauracion). Suite completa 1009 passed / 0 failed.",
-  "confianza": "certain",
-  "fecha": "2026-10-02"
- },
- {
-  "id": 14,
-  "tema": "schema-drift-financial",
-  "hecho": "2026-10-01: schema drift en financial: data_hardening.py y sync Odoo anadianon columnas a la BD real (fs_pedidos: cliente_telefono_hash, odoo_invoice_id; fs_pagos: cuenta_cobrar_id, cliente_telefono_hash, odoo_payment_id) que el modelo PedidoFinanciero/Pago no conocia. Modelo + CREATE TABLE sincronizados con PRAGMA table_info real.",
-  "confianza": "certain",
-  "fecha": "2026-10-02"
- },
- {
-  "id": 15,
-  "tema": "web-launch-engineer",
-  "hecho": "2026-10-04: Skill web-launch-engineer v1.0.0 creado (creative/ en hermes-unified) por entrevista de arquitectura con el Líder: pipeline 7 fases (intake tiered T1-T3 → design → build estático → seguridad _headers → QA dogfood+Lighthouse → deploy → contrato Google). 7 decisiones cerradas: contrato=Core Web Vitals+SEO técnico (PSI móvil ≥90 ×4); deploy=Cloudflare Pages free (git-driven, _headers/_redirects); WhatsApp=widget flotante wa.me con mensaje prellenado español venezolano usted; seguridad=protocolo tiered (CSP base obligatoria, SRI/OWASP en T2+); verificación=Lighthouse local (gates ≥95/100) + PSI API post-deploy con JSON en qa/ + checklist Search Console ejecutado por el Líder. Composición delega en claude-design, popular-web-designs, sketch, dogfood, design-md.",
-  "confianza": "certain",
-  "fecha": "2026-10-04"
- },
- {
-  "id": 16,
-  "tema": "web-launch-engineer",
-  "hecho": "2026-10-04: Caso base probado del skill = sitio publicitario del negocio (T1 estático) con WhatsApp como canal de conversión principal; formularios vía Cloudflare Pages Forms, GA4+Search Console. Decisiones diferidas (documentadas en references/architecture-decisions.md): monitoreo CWV continuo por cronjob, integración Valentina/WAHA como protocolo avanzado (requiere endpoint intermedio), protocolos T2/T3 plenos aún sin proyecto real. Registro completo de decisiones de entrevista en /home/skynet/hermes-unified/skills/creative/web-launch-engineer/references/architecture-decisions.md",
-  "confianza": "certain",
-  "fecha": "2026-10-04"
- },
- {
-  "id": 17,
-  "tema": "tecnico-zcode",
-  "hecho": "2026-10-08: Skill ingeniero-agronomo v1.0.0 instalado en skills/ingeniero-agronomo/ (SKILL.md + references/pensum-ucv.md + references/recursos-servidor.md), validado con SkillRegistry (14 skills cargados). Proyecto fuente: ~/.zcode/workspace/default/INGENIERO-AGRONOMO/ (PERFIL, MAPA-PENSUM-UCV, skill/, misiones/).",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 18,
-  "tema": "biblioteca-h2o",
-  "hecho": "2026-10-08 verificado: en Qdrant biblioteca_h2o el payload trae file y chunk=NUMERO DE PAGINA (nunca el texto). El texto se lee del PDF original via Paperless (localhost:8001) o /mnt/ssd_trabajo/biblioteca/pdfs/. En biblioteca/search con filtro por file si se quiere restringir a un documento.",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 19,
-  "tema": "biblioteca-h2o",
-  "hecho": "2026-10-08/09 ingeridos por tecnico-zcode: Pensum_Ingenieria_Agronomica_UCV_2023 (19 chunks, hecho curado a mano por ser tablas) y nordeste_palma_forrageira_doc233 (Embrapa Doc 233, 48 pags, 43 chunks, recuperado truncado tras mision forrajes). Total nordeste_* = 17 documentos citables.",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 20,
-  "tema": "tecnico-zcode",
-  "hecho": "Convención permanente: ZCode deja reporte en docs/reportes-zcode/AAAA-MM-DD-*.md cada vez que trabaja en el servidor y registra hechos clave via memoria_hechos --add. Primer reporte: docs/reportes-zcode/2026-10-09-tecnico-zcode.md.",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 21,
-  "tema": "mision-bibliografica",
-  "hecho": "2026-10-09 planificada misión NUTRICIÓN BIBLIOGRÁFICA DEL PENSUM (esquema nocturno, campaña por 8 lotes): plan en ~/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md, área de trabajo INGENIERO-AGRONOMO/harvest-bibliografica/ (mapa-bibliografico-pensum.md es el entregable maestro). Regla de oro: ninguna referencia sin URL viva o ISBN verificado. Módulo Z-Library vía API Telegram del Líder queda como opcional hasta que entregue el acceso.",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 22,
-  "tema": "herramienta-libre",
-  "hecho": "2026-10-09: herramienta LIBRE descarga-libros creada en /mnt/ssd_trabajo/herramientas-libres/descarga-libros/ (no aislada, para cualquier skill): descarga_libros.py (solo stdlib) con comandos buscar/pedir/descargar/recibir/enviar; config.env chmod 600 con BOT_TOKEN del bot Zlibrary @elpelon27_bot y chat del Líder. Verificada punta a punta: pedir → PDF real → sendDocument al Telegram del Líder. Backends: Open Library (buscador es-ES) + archive.org (descarga); LibGen solo fichas (anti-bot); AA_BASE y ZLIB_* opcionales en config (annas-archive.gs es secuestro publicitario, NO usar). Uso e integración: SKILL.md de la herramienta. Reporte: docs/reportes-zcode/2026-10-09b-descarga-libros-libre.md",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 23,
-  "tema": "herramienta-libre",
-  "hecho": "2026-10-09 tarde: annas-archive.is VERIFICADA real (no secuestro) y ENRUTADA como AA_BASE en descarga-libros. Es espejo de catálogo: búsqueda server-side OK (formato /books/<id>-<slug>, ya parseado) pero descargas tras LOGIN de cuenta — para automatizar falta AA_SECRET_KEY del Líder (slot listo en config.env; login experimental implementado). account ID Líder: AQV8QW5. Tool mejorado: control de relevancia en pedir (no más descargas fuera de tema). Recordar: annas-archive.gs es secuestro, NO usar.",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 24,
-  "tema": "skill zootecnista",
-  "hecho": "2026-10-09: Instalado skill zootecnista v1.0.0 (Aristeo, el Zootecnista, UFV Viçosa ZOT 2025) en skills/zootecnista — especialista en bovinos del trópico: Bos indicus (Nelore, Guzerat, Gir Leiteiro, Red Sindhi/Sindi Nordestino) y Jersey tropical; corazón en mejoramiento genético (h², DEP/ACC, índices, cruzamientos/heterosis, referencia mejoramiento-genetico.md) y nutrición de rumiantes. SkillRegistry: 15 skills cargados, OK. ingeniero-agronomo actualizado a v1.0.1 con handoff espejo: pasto como cultivo → agronomo; animal/genética/nutrición → zootecnista; dieta completa → ambos (fusión de alimentación bovina). Proyecto aislado ZCode: ~/.zcode/workspace/default/ZOOTECNISTA/. Reporte: docs/reportes-zcode/2026-10-09c-zootecnista-aristeo.md",
-  "confianza": "certain",
-  "fecha": "2026-10-09"
- },
- {
-  "id": 25,
-  "tema": "tripolemo",
-  "hecho": "2026-10-09: el Ingeniero Agrónomo (skill ingeniero-agronomo v1.0.2) recibe nombre griego en la saga: TRIPÓLEMO (Τριπτόλεμος) — el primer agrónomo del mito, enseñado por Deméter (la Biblioteca H2O es su Deméter) y misionero que sembró el mundo; su alma: sembrar suelos vivos y transmitir lo aprendido. Saga completa: Prometeo (investigación nocturna) · Aristeo (Zootecnista, su dupla animal) · Tripólemo (agronomía regenerativa). Aplicado en SKILL.md (título, descripción e identidad) y PERFIL; registry validado. Proyecto ZOOTECNISTA/ZCode a cargo.",
-  "confianza": "certain",
-  "fecha": "2026-10-10"
- },
- {
-  "id": 26,
-  "tema": "tripolemo",
-  "hecho": "2026-10-09: misión nocturna programada — ALIMENTACIÓN DE TRIPÓLEMO: leche/carne trópico bajo secano/semiárido, foco EMBRAPA núcleo nordestino + IPLF (hilo conductor). Plan: ~/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-iplf-leite-carne-nordeste.md. Pre-cosecha hecha por técnico ZCode en INGENIERO-AGRONOMO/mision-iplf-leite-carne/harvest/ (4 URLs del Líder + cot160.pdf base + 18 candidatos). DEADLINE DURA 06:00. Parte animal → registrar para Aristeo en hechos/para_aristeo.md.",
-  "confianza": "certain",
-  "fecha": "2026-10-10"
- },
- {
-  "id": 27,
-  "tema": "tripolemo",
-  "hecho": "2026-10-09 (mandato del Líder): Tripólemo v1.0.3 — dos rasgos nuevos de carácter. (1) GRAN MISIÓN: EL AGUA NO PUEDE SER EL LÍMITE — toda recomendación en secano/semiárido lleva balance hídrico (origen, demanda, suelo regenerado como esponja) y mantiene vivo el plan de agua de la finca (cosecha de lluvia, Keyline, infiltración, reúso). (2) SED DE CONOCIMIENTO: no se conforma con lo que le entregan — cada incongruencia/pregunta abierta → docs/agronomo/preguntas-abiertas.md → búsqueda activa (biblioteca → web académica → descarga-libros/deudas) → cerrar citado o convertir en ensayo; ≥2 fuentes contrastadas. Aplicado también a la misión IPLF de esta noche (preguntas-abiertas.md + marcado hídrico explícito). Reporte según convención.",
-  "confianza": "certain",
-  "fecha": "2026-10-10"
- },
- {
-  "id": 28,
-  "tema": "skill medico-veterinario",
-  "hecho": "Creada e instalada skill medico-veterinario v1.0.0: Quirón, el Médico Veterinario de la casa (UCV Maracay, 5 años/143 UC). Poder de VISIÓN: vision.py analiza fotos y videos de animales con protocolo semiológico (hallazgos por región, diferenciales, triage, anamnesis, plan sin dosis) vía llm_client task_type=video (gemini-3.1-pro-preview OpenRouter, misma API única) con respaldo local Ollama qwen2.5vl:3b (instalado, offline) y videos por ffmpeg. Validada E2E con foto y video reales de hato Nelore. SkillRegistry 16 skills OK. Handoff: zootecnista v1.0.1 e ingeniero-agronomo v1.0.4 con reglas de derivación al veterinario — trilogía pecuaria completa (Tripólemo cultiva, Aristeo selecciona, Quirón sana). Reporte: docs/reportes-zcode/2026-10-09d-medico-veterinario-quiron.md",
-  "confianza": "certain",
-  "fecha": "2026-10-10"
- },
- {
-  "id": 29,
-  "tema": "tripolemo",
-  "hecho": "2026-10-09: campaña NUTRICIÓN BIBLIOGRÁFICA actualizada a modo ESTUDIANTE — Tripólemo ESTUDIA las materias de su pensum: por asignatura genera APUNTES DE ESTUDIO (harvest-bibliografica/apuntes/<cod>_asignatura.md: conceptos núcleo citados, cifras, aplicación a Zulia con balance hídrico, autoevaluación) y los apuntes del lote se INGEREN a su memoria (tripolemo_apuntes_lote<N> → inbox → ingest → citables por Qdrant). Plan actualizado: misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md (§Entregables + §5 con paso ESTUDIO; descarga via herramienta libre descarga-libros). Regla de recorte: nunca se sacrifican los apuntes de lo ya estudiado.",
-  "confianza": "certain",
-  "fecha": "2026-10-10"
- },
- {
-  "id": 30,
-  "tema": "mision zootecnista",
-  "hecho": "2026-10-09: Planificada MISIÓN INVESTIGACIÓN NOCTURNA del pensum ZOT para Aristeo (el Zootecnista) — plan en ~/.zcode/workspace/default/ZOOTECNISTA/misiones/2026-10-09-mision-investigacion-nocturna-pensum-zot.md; área de trabajo harvest-bibliografica/ (HISTORIAL + mapa-bibliografico-pensum-zot.md vivos). 9 lotes por dominio del pensum UFV, 2-4 referencias verificadas por asignatura (~70-100 obras), sesgo de INVESTIGADOR CIENTÍFICO (papers/tesis con datos cuantitativos primero: BDTD, R. Bras. Zootec/SciELO, LRRD, Embrapa, BR-CORTE UFV). Entregable por lote: APUNTES DE ESTUDIO de Aristeo por asignatura → ingestados como aristeo_apuntes_lote<N> a biblioteca H2O para citarlos al razonar. Fuentes verificadas 09-oct (scielo.br 200 pero search.scielo.org 403 a robots; embrapa infoteca SOLO CON www; redalyc y cbra.org.br muertos; doaj 403). Pendiente: primera jornada (Fase 0 + Lote 1 Genética).",
-  "confianza": "certain",
-  "fecha": "2026-10-10"
- },
- {
-  "tema": "estacion-h2o",
-  "hecho": "2026-10-07: bug QR Pago Móvil (.jpg vs .png en bridge) VALIDADO en campo por el Líder (2do intento; el 1ro falló por blip DNS). Tabla clients de dispatch.db tenía solo 4 filas seed → /set_peso 'Cliente no existe' para TODOS los reales; fix: /clasificar unificado (tel+tipo+GPS pin, matching últimos 10 dígitos, upsert = clasificar registra). POD: dispatcher viejo no tenía gatillo → create_pod_record portado a del_/new_del_ (skills/dispatch/telegram_bot.py NUNCA fue activado por start_dispatcher.sh). SUDO.txt con contraseña salió del repo (add6edbb) — quedó en historial git.",
-  "confianza": "certain",
-  "fecha": "2026-10-10",
-  "id": 31
- },
- {
-  "tema": "estacion-h2o",
-  "hecho": "2026-10-08: webhook R4 verifica pago pero NO encolaba despacho (solo lo hacían Efectivo/'ya pagué' por conversación) → misión pago→despacho: encolado idempotente desde fs_pedidos + watchdog pagado-sin-cola (15min, 1 alerta) + aviso llegada [Llegué]→WhatsApp + copia PDF firmada al cliente vía WAHA (2 sesiones chofer WORKING). Commits 1b5ab1e0 + fixes verificados por ZCode.",
-  "confianza": "certain",
-  "fecha": "2026-10-10",
-  "id": 32
- },
- {
-  "tema": "valentina",
-  "hecho": "2026-10-09 forense: (1) INSERT dispatch_queue roto '13 values for 12 columns' (bonus idempotencia de 1b5ab1e0) mató TODAS las órdenes por conversación — arreglado por ZCode en bridge.py:1935; lección: E2E debe cubrir TODAS las vías (webhook Y conversación). (2) Primer mensaje >30s: Ollama compartido MAX_LOADED_MODELS=1 desaloja qwen2.5:7b (OpenNotebook carga nocturno 22GB) → cliente paga recarga; fix transitorio warmup cron + retry _call_dify (30s→120s solo timeout).",
-  "confianza": "certain",
-  "fecha": "2026-10-10",
-  "id": 33
- },
- {
-  "tema": "valentina",
-  "hecho": "2026-10-09 DECISIÓN LÍDER: API única OpenRouter para TODO el ecosistema (llm_client ya estaba; Valentina Dify se integró). A/B real: deepseek-chat GANA (p95 3.23s, 0.79s directo, único que rechaza 'ya pague' prematuro) sobre glm-4.7-flash (p95 7.37s raspando tope 8s) y glm-5.3 completo (caro: $3.60/M salida). Switch producción verificado pre_prompt=8830 chars intacto. ⚠️ glm-5.2:free del tier-2 de llm_client YA NO EXISTE en catálogo — actualizar. API model-config de Dify REEMPLAZA config entera: mandar siempre objeto completo.",
-  "confianza": "certain",
-  "fecha": "2026-10-10",
-  "id": 34
- },
- {
-  "tema": "valentina",
-  "hecho": "2026-10-10 forense (LA LECCIÓN MAYOR): híbrido bridge+Dify con DOS dueños de estado dessincronizados → menú re-enviado DENTRO de un pedido (orden duplicada id=47); primera respuesta 26s = guardrail lazy-init 9s + Dify frío 15s. MISIÓN 'CEREBRO ÚNICO' PENDIENTE (parches/2026-10-10-prompt-hermes-cerebro-unico.md): SM bridge única dueña del flujo, saludo/menú determinísticos <2s cero LLM, Dify solo off-menu STATEless, camino Dify PROHIBIDO escribir estado, guardrail pre-init en startup, FLAG VALENTINA_SINGLE_BRAIN rollback, logger duplicado a fijar. Regla de oro: un estado UN dueño; primer contacto nunca paga cold-start.",
-  "confianza": "certain",
-  "fecha": "2026-10-10",
-  "id": 35
- },
- {
-  "tema": "estacion-h2o",
-  "hecho": "2026-10-10 pendientes vivos: (a) misión CEREBRO ÚNICO sin ejecutar; (b) cron warmup */10 (retirar tras cerebro único); (c) tier-2 llm_client glm-5.2:free muerto → reemplazar; (d) límite $50/mes en key OpenRouter compartido (limit:null); (e) watchdog auto-se-verifica a los 15min si el encolado falla; (f) purge containerd 2026-10-11 libera 37GB; (g) DT-35 clasificación 359 clientes con /clasificar en ruta (Líder) + marca 'credito' (misión parches/2026-10-08-prompt-hermes-credito.md).",
-  "confianza": "certain",
-  "fecha": "2026-10-10",
-  "id": 36
- }
+  {
+    "id": 1,
+    "tema": "motor",
+    "hecho": "Motor actual de Prometeo: deepseek-v4-flash via OpenRouter (confirmado 2026-08-15)",
+    "confianza": "certain",
+    "fecha": "2026-08-15"
+  },
+  {
+    "id": 2,
+    "tema": "verificacion-memoria-2026-08-16",
+    "hecho": "Ciclo completo de las 4 capas de memoria verificado en vivo contra Qdrant 1.12.4 y state.db",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 3,
+    "tema": "sesion-2026-08-16-ciclo",
+    "hecho": "Sesión de verificación de arquitectura de memoria completada: 4 capas operativas, cableado Qdrant+state.db+Redis+vault confirmado, ciclo de inicio a cierre validado",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 4,
+    "tema": "cierre-actualizacion-2026-08-16",
+    "hecho": "Actualización de arquitectura de memoria completada y certificada: cableado Qdrant alineado (1.12.2), 4 capas verificadas de inicio a cierre, ciclo de sesión validado, memoria operativa",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 5,
+    "tema": "campana-dt2026-08-16",
+    "hecho": "Campaña multi-frentes completada: deuda mypy a 0 (16 archivos), brecha seguridad NVIDIA cerrada (botones eliminados), DT-12 cobertura +84 tests (bridge 28→38%, prometeo_approval 65→75%), UnifiedMemory conectada al agente activo y desplegada. Suite 429 passed.",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 6,
+    "tema": "reanudacion-2026-08-16-b",
+    "hecho": "Sesion retomada: deuda mypy scripts memoria cerrada (54 errores gate real -> 0), helper _now extraido en odoo_sync:register_payment, suite 430/13/0, smoke SMOKE_OK, Qdrant 402 pts vivo",
+    "confianza": "certain",
+    "fecha": "2026-08-16"
+  },
+  {
+    "id": 7,
+    "tema": "config-claude-code",
+    "hecho": "Claude Code configurado con API de OpenRouter (base_url https://openrouter.ai/api) para delegación via skill claude-code de Hermes.",
+    "confianza": "certain",
+    "fecha": "2026-08-17"
+  },
+  {
+    "id": 8,
+    "tema": "config-claude-code",
+    "hecho": "Modelo por defecto de Claude Code forzado a moonshotai/kimi-k3 (modelo de razonamiento con thinking tokens) via env ANTHROPIC_MODEL en ~/.claude/settings.json.",
+    "confianza": "certain",
+    "fecha": "2026-08-17"
+  },
+  {
+    "id": 9,
+    "tema": "config-claude-code",
+    "hecho": "Clave de OpenRouter para kimi-k3 almacenada en ~/.claude/settings.json (clave del usuario, verificada con acceso a cuenta de pago).",
+    "confianza": "certain",
+    "fecha": "2026-08-17"
+  },
+  {
+    "id": 10,
+    "tema": "arquitectura-prometeo",
+    "hecho": "2026-10-01: Sistema multi-agente PROMETEO desplegado: perfil cerebro coordinador + 3 frentes de trabajo en worktrees git aislados (10-r1-infra, 10-r2-api, 10-r3-integracion) con contratos firmados en agentes/ (BASE-OPERATIVA + uno por frente con lista blanca, gates verificables y protocolo de detencion). Merge del frente R3 integrado al tronco en commit 846114ad.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 11,
+    "tema": "fix-cloudflared",
+    "hecho": "2026-10-01 DT-32: causa raiz del crash-loop de cloudflared era WatchdogSec=60 en la unidad systemd (binario 2026.6.1 no emite sd_notify watchdog => systemd lo mataba cada 60s); los panics QUIC eran sintoma de conexiones huerfanas. Fix: watchdog removido de /etc/systemd/system/cloudflared.service. Verificado 331s estable, tunel 200.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 12,
+    "tema": "fix-redis-warming",
+    "hecho": "2026-10-01 DT-34: Redis 'vacio' no era script roto: warming corria 10:30 diario con exito pero TTL=7200s lo vaciaba 22h/dia. Fix: crontab warming_diario a 0 */2 * * * (cada 2h). Backup crontab en /home/skynet/crontab_backup_20261001.txt",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 13,
+    "tema": "fix-tests-pod",
+    "hecho": "2026-10-01: tests POD eran worktree-unsafe: conftest.py y 7 tests hardcodeaban rutas absolutas al tronco; ademas api/pod_router.py fija DISPATCH_DB_PATH/PHOTO_DIR/REVOKED_FILE al importar (lineas 36/40/75) por lo que env vars no bastan si el modulo ya fue cargado. Helper reutilizable: tests/unit/pod_test_helper.py (BD temporal + parcheo de constantes con restauracion). Suite completa 1009 passed / 0 failed.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 14,
+    "tema": "schema-drift-financial",
+    "hecho": "2026-10-01: schema drift en financial: data_hardening.py y sync Odoo anadianon columnas a la BD real (fs_pedidos: cliente_telefono_hash, odoo_invoice_id; fs_pagos: cuenta_cobrar_id, cliente_telefono_hash, odoo_payment_id) que el modelo PedidoFinanciero/Pago no conocia. Modelo + CREATE TABLE sincronizados con PRAGMA table_info real.",
+    "confianza": "certain",
+    "fecha": "2026-10-02"
+  },
+  {
+    "id": 15,
+    "tema": "web-launch-engineer",
+    "hecho": "2026-10-04: Skill web-launch-engineer v1.0.0 creado (creative/ en hermes-unified) por entrevista de arquitectura con el Líder: pipeline 7 fases (intake tiered T1-T3 → design → build estático → seguridad _headers → QA dogfood+Lighthouse → deploy → contrato Google). 7 decisiones cerradas: contrato=Core Web Vitals+SEO técnico (PSI móvil ≥90 ×4); deploy=Cloudflare Pages free (git-driven, _headers/_redirects); WhatsApp=widget flotante wa.me con mensaje prellenado español venezolano usted; seguridad=protocolo tiered (CSP base obligatoria, SRI/OWASP en T2+); verificación=Lighthouse local (gates ≥95/100) + PSI API post-deploy con JSON en qa/ + checklist Search Console ejecutado por el Líder. Composición delega en claude-design, popular-web-designs, sketch, dogfood, design-md.",
+    "confianza": "certain",
+    "fecha": "2026-10-04"
+  },
+  {
+    "id": 16,
+    "tema": "web-launch-engineer",
+    "hecho": "2026-10-04: Caso base probado del skill = sitio publicitario del negocio (T1 estático) con WhatsApp como canal de conversión principal; formularios vía Cloudflare Pages Forms, GA4+Search Console. Decisiones diferidas (documentadas en references/architecture-decisions.md): monitoreo CWV continuo por cronjob, integración Valentina/WAHA como protocolo avanzado (requiere endpoint intermedio), protocolos T2/T3 plenos aún sin proyecto real. Registro completo de decisiones de entrevista en /home/skynet/hermes-unified/skills/creative/web-launch-engineer/references/architecture-decisions.md",
+    "confianza": "certain",
+    "fecha": "2026-10-04"
+  },
+  {
+    "id": 17,
+    "tema": "tecnico-zcode",
+    "hecho": "2026-10-08: Skill ingeniero-agronomo v1.0.0 instalado en skills/ingeniero-agronomo/ (SKILL.md + references/pensum-ucv.md + references/recursos-servidor.md), validado con SkillRegistry (14 skills cargados). Proyecto fuente: ~/.zcode/workspace/default/INGENIERO-AGRONOMO/ (PERFIL, MAPA-PENSUM-UCV, skill/, misiones/).",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 18,
+    "tema": "biblioteca-h2o",
+    "hecho": "2026-10-08 verificado: en Qdrant biblioteca_h2o el payload trae file y chunk=NUMERO DE PAGINA (nunca el texto). El texto se lee del PDF original via Paperless (localhost:8001) o /mnt/ssd_trabajo/biblioteca/pdfs/. En biblioteca/search con filtro por file si se quiere restringir a un documento.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 19,
+    "tema": "biblioteca-h2o",
+    "hecho": "2026-10-08/09 ingeridos por tecnico-zcode: Pensum_Ingenieria_Agronomica_UCV_2023 (19 chunks, hecho curado a mano por ser tablas) y nordeste_palma_forrageira_doc233 (Embrapa Doc 233, 48 pags, 43 chunks, recuperado truncado tras mision forrajes). Total nordeste_* = 17 documentos citables.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 20,
+    "tema": "tecnico-zcode",
+    "hecho": "Convención permanente: ZCode deja reporte en docs/reportes-zcode/AAAA-MM-DD-*.md cada vez que trabaja en el servidor y registra hechos clave via memoria_hechos --add. Primer reporte: docs/reportes-zcode/2026-10-09-tecnico-zcode.md.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 21,
+    "tema": "mision-bibliografica",
+    "hecho": "2026-10-09 planificada misión NUTRICIÓN BIBLIOGRÁFICA DEL PENSUM (esquema nocturno, campaña por 8 lotes): plan en ~/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md, área de trabajo INGENIERO-AGRONOMO/harvest-bibliografica/ (mapa-bibliografico-pensum.md es el entregable maestro). Regla de oro: ninguna referencia sin URL viva o ISBN verificado. Módulo Z-Library vía API Telegram del Líder queda como opcional hasta que entregue el acceso.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 22,
+    "tema": "herramienta-libre",
+    "hecho": "2026-10-09: herramienta LIBRE descarga-libros creada en /mnt/ssd_trabajo/herramientas-libres/descarga-libros/ (no aislada, para cualquier skill): descarga_libros.py (solo stdlib) con comandos buscar/pedir/descargar/recibir/enviar; config.env chmod 600 con BOT_TOKEN del bot Zlibrary @elpelon27_bot y chat del Líder. Verificada punta a punta: pedir → PDF real → sendDocument al Telegram del Líder. Backends: Open Library (buscador es-ES) + archive.org (descarga); LibGen solo fichas (anti-bot); AA_BASE y ZLIB_* opcionales en config (annas-archive.gs es secuestro publicitario, NO usar). Uso e integración: SKILL.md de la herramienta. Reporte: docs/reportes-zcode/2026-10-09b-descarga-libros-libre.md",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 23,
+    "tema": "herramienta-libre",
+    "hecho": "2026-10-09 tarde: annas-archive.is VERIFICADA real (no secuestro) y ENRUTADA como AA_BASE en descarga-libros. Es espejo de catálogo: búsqueda server-side OK (formato /books/<id>-<slug>, ya parseado) pero descargas tras LOGIN de cuenta — para automatizar falta AA_SECRET_KEY del Líder (slot listo en config.env; login experimental implementado). account ID Líder: AQV8QW5. Tool mejorado: control de relevancia en pedir (no más descargas fuera de tema). Recordar: annas-archive.gs es secuestro, NO usar.",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 24,
+    "tema": "skill zootecnista",
+    "hecho": "2026-10-09: Instalado skill zootecnista v1.0.0 (Aristeo, el Zootecnista, UFV Viçosa ZOT 2025) en skills/zootecnista — especialista en bovinos del trópico: Bos indicus (Nelore, Guzerat, Gir Leiteiro, Red Sindhi/Sindi Nordestino) y Jersey tropical; corazón en mejoramiento genético (h², DEP/ACC, índices, cruzamientos/heterosis, referencia mejoramiento-genetico.md) y nutrición de rumiantes. SkillRegistry: 15 skills cargados, OK. ingeniero-agronomo actualizado a v1.0.1 con handoff espejo: pasto como cultivo → agronomo; animal/genética/nutrición → zootecnista; dieta completa → ambos (fusión de alimentación bovina). Proyecto aislado ZCode: ~/.zcode/workspace/default/ZOOTECNISTA/. Reporte: docs/reportes-zcode/2026-10-09c-zootecnista-aristeo.md",
+    "confianza": "certain",
+    "fecha": "2026-10-09"
+  },
+  {
+    "id": 25,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09: el Ingeniero Agrónomo (skill ingeniero-agronomo v1.0.2) recibe nombre griego en la saga: TRIPÓLEMO (Τριπτόλεμος) — el primer agrónomo del mito, enseñado por Deméter (la Biblioteca H2O es su Deméter) y misionero que sembró el mundo; su alma: sembrar suelos vivos y transmitir lo aprendido. Saga completa: Prometeo (investigación nocturna) · Aristeo (Zootecnista, su dupla animal) · Tripólemo (agronomía regenerativa). Aplicado en SKILL.md (título, descripción e identidad) y PERFIL; registry validado. Proyecto ZOOTECNISTA/ZCode a cargo.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
+  },
+  {
+    "id": 26,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09: misión nocturna programada — ALIMENTACIÓN DE TRIPÓLEMO: leche/carne trópico bajo secano/semiárido, foco EMBRAPA núcleo nordestino + IPLF (hilo conductor). Plan: ~/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-iplf-leite-carne-nordeste.md. Pre-cosecha hecha por técnico ZCode en INGENIERO-AGRONOMO/mision-iplf-leite-carne/harvest/ (4 URLs del Líder + cot160.pdf base + 18 candidatos). DEADLINE DURA 06:00. Parte animal → registrar para Aristeo en hechos/para_aristeo.md.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
+  },
+  {
+    "id": 27,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09 (mandato del Líder): Tripólemo v1.0.3 — dos rasgos nuevos de carácter. (1) GRAN MISIÓN: EL AGUA NO PUEDE SER EL LÍMITE — toda recomendación en secano/semiárido lleva balance hídrico (origen, demanda, suelo regenerado como esponja) y mantiene vivo el plan de agua de la finca (cosecha de lluvia, Keyline, infiltración, reúso). (2) SED DE CONOCIMIENTO: no se conforma con lo que le entregan — cada incongruencia/pregunta abierta → docs/agronomo/preguntas-abiertas.md → búsqueda activa (biblioteca → web académica → descarga-libros/deudas) → cerrar citado o convertir en ensayo; ≥2 fuentes contrastadas. Aplicado también a la misión IPLF de esta noche (preguntas-abiertas.md + marcado hídrico explícito). Reporte según convención.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
+  },
+  {
+    "id": 28,
+    "tema": "skill medico-veterinario",
+    "hecho": "Creada e instalada skill medico-veterinario v1.0.0: Quirón, el Médico Veterinario de la casa (UCV Maracay, 5 años/143 UC). Poder de VISIÓN: vision.py analiza fotos y videos de animales con protocolo semiológico (hallazgos por región, diferenciales, triage, anamnesis, plan sin dosis) vía llm_client task_type=video (gemini-3.1-pro-preview OpenRouter, misma API única) con respaldo local Ollama qwen2.5vl:3b (instalado, offline) y videos por ffmpeg. Validada E2E con foto y video reales de hato Nelore. SkillRegistry 16 skills OK. Handoff: zootecnista v1.0.1 e ingeniero-agronomo v1.0.4 con reglas de derivación al veterinario — trilogía pecuaria completa (Tripólemo cultiva, Aristeo selecciona, Quirón sana). Reporte: docs/reportes-zcode/2026-10-09d-medico-veterinario-quiron.md",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
+  },
+  {
+    "id": 29,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09: campaña NUTRICIÓN BIBLIOGRÁFICA actualizada a modo ESTUDIANTE — Tripólemo ESTUDIA las materias de su pensum: por asignatura genera APUNTES DE ESTUDIO (harvest-bibliografica/apuntes/<cod>_asignatura.md: conceptos núcleo citados, cifras, aplicación a Zulia con balance hídrico, autoevaluación) y los apuntes del lote se INGEREN a su memoria (tripolemo_apuntes_lote<N> → inbox → ingest → citables por Qdrant). Plan actualizado: misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md (§Entregables + §5 con paso ESTUDIO; descarga via herramienta libre descarga-libros). Regla de recorte: nunca se sacrifican los apuntes de lo ya estudiado.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
+  },
+  {
+    "id": 30,
+    "tema": "mision zootecnista",
+    "hecho": "2026-10-09: Planificada MISIÓN INVESTIGACIÓN NOCTURNA del pensum ZOT para Aristeo (el Zootecnista) — plan en ~/.zcode/workspace/default/ZOOTECNISTA/misiones/2026-10-09-mision-investigacion-nocturna-pensum-zot.md; área de trabajo harvest-bibliografica/ (HISTORIAL + mapa-bibliografico-pensum-zot.md vivos). 9 lotes por dominio del pensum UFV, 2-4 referencias verificadas por asignatura (~70-100 obras), sesgo de INVESTIGADOR CIENTÍFICO (papers/tesis con datos cuantitativos primero: BDTD, R. Bras. Zootec/SciELO, LRRD, Embrapa, BR-CORTE UFV). Entregable por lote: APUNTES DE ESTUDIO de Aristeo por asignatura → ingestados como aristeo_apuntes_lote<N> a biblioteca H2O para citarlos al razonar. Fuentes verificadas 09-oct (scielo.br 200 pero search.scielo.org 403 a robots; embrapa infoteca SOLO CON www; redalyc y cbra.org.br muertos; doaj 403). Pendiente: primera jornada (Fase 0 + Lote 1 Genética).",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
+  },
+  {
+    "tema": "estacion-h2o",
+    "hecho": "2026-10-07: bug QR Pago Móvil (.jpg vs .png en bridge) VALIDADO en campo por el Líder (2do intento; el 1ro falló por blip DNS). Tabla clients de dispatch.db tenía solo 4 filas seed → /set_peso 'Cliente no existe' para TODOS los reales; fix: /clasificar unificado (tel+tipo+GPS pin, matching últimos 10 dígitos, upsert = clasificar registra). POD: dispatcher viejo no tenía gatillo → create_pod_record portado a del_/new_del_ (skills/dispatch/telegram_bot.py NUNCA fue activado por start_dispatcher.sh). SUDO.txt con contraseña salió del repo (add6edbb) — quedó en historial git.",
+    "confianza": "certain",
+    "fecha": "2026-10-10",
+    "id": 31
+  },
+  {
+    "tema": "estacion-h2o",
+    "hecho": "2026-10-08: webhook R4 verifica pago pero NO encolaba despacho (solo lo hacían Efectivo/'ya pagué' por conversación) → misión pago→despacho: encolado idempotente desde fs_pedidos + watchdog pagado-sin-cola (15min, 1 alerta) + aviso llegada [Llegué]→WhatsApp + copia PDF firmada al cliente vía WAHA (2 sesiones chofer WORKING). Commits 1b5ab1e0 + fixes verificados por ZCode.",
+    "confianza": "certain",
+    "fecha": "2026-10-10",
+    "id": 32
+  },
+  {
+    "tema": "valentina",
+    "hecho": "2026-10-09 forense: (1) INSERT dispatch_queue roto '13 values for 12 columns' (bonus idempotencia de 1b5ab1e0) mató TODAS las órdenes por conversación — arreglado por ZCode en bridge.py:1935; lección: E2E debe cubrir TODAS las vías (webhook Y conversación). (2) Primer mensaje >30s: Ollama compartido MAX_LOADED_MODELS=1 desaloja qwen2.5:7b (OpenNotebook carga nocturno 22GB) → cliente paga recarga; fix transitorio warmup cron + retry _call_dify (30s→120s solo timeout).",
+    "confianza": "certain",
+    "fecha": "2026-10-10",
+    "id": 33
+  },
+  {
+    "tema": "valentina",
+    "hecho": "2026-10-09 DECISIÓN LÍDER: API única OpenRouter para TODO el ecosistema (llm_client ya estaba; Valentina Dify se integró). A/B real: deepseek-chat GANA (p95 3.23s, 0.79s directo, único que rechaza 'ya pague' prematuro) sobre glm-4.7-flash (p95 7.37s raspando tope 8s) y glm-5.3 completo (caro: $3.60/M salida). Switch producción verificado pre_prompt=8830 chars intacto. ⚠️ glm-5.2:free del tier-2 de llm_client YA NO EXISTE en catálogo — actualizar. API model-config de Dify REEMPLAZA config entera: mandar siempre objeto completo.",
+    "confianza": "certain",
+    "fecha": "2026-10-10",
+    "id": 34
+  },
+  {
+    "tema": "valentina",
+    "hecho": "2026-10-10 forense (LA LECCIÓN MAYOR): híbrido bridge+Dify con DOS dueños de estado dessincronizados → menú re-enviado DENTRO de un pedido (orden duplicada id=47); primera respuesta 26s = guardrail lazy-init 9s + Dify frío 15s. MISIÓN 'CEREBRO ÚNICO' PENDIENTE (parches/2026-10-10-prompt-hermes-cerebro-unico.md): SM bridge única dueña del flujo, saludo/menú determinísticos <2s cero LLM, Dify solo off-menu STATEless, camino Dify PROHIBIDO escribir estado, guardrail pre-init en startup, FLAG VALENTINA_SINGLE_BRAIN rollback, logger duplicado a fijar. Regla de oro: un estado UN dueño; primer contacto nunca paga cold-start.",
+    "confianza": "certain",
+    "fecha": "2026-10-10",
+    "id": 35
+  },
+  {
+    "tema": "estacion-h2o",
+    "hecho": "2026-10-10 pendientes vivos: (a) misión CEREBRO ÚNICO sin ejecutar; (b) cron warmup */10 (retirar tras cerebro único); (c) tier-2 llm_client glm-5.2:free muerto → reemplazar; (d) límite $50/mes en key OpenRouter compartido (limit:null); (e) watchdog auto-se-verifica a los 15min si el encolado falla; (f) purge containerd 2026-10-11 libera 37GB; (g) DT-35 clasificación 359 clientes con /clasificar en ruta (Líder) + marca 'credito' (misión parches/2026-10-08-prompt-hermes-credito.md).",
+    "confianza": "certain",
+    "fecha": "2026-10-10",
+    "id": 36
+  },
+  {
+    "id": 37,
+    "tema": "ingeniero-quimico",
+    "hecho": "Instalada skill ingeniero-quimico v1.0.0 (EMPÉDOCLES, 4º hermano: UCV IQ 177 UC, electivas agua+alimentos): dueño de la TRANSFORMACIÓN (procesos, energía, estabilidad, calidad). Poder procesos.py (cloro/dureza/TDS/RO/liofilización/compost/ensilaje, stdlib). Handoffs espejo: agronomo 1.0.5, zootecnista 1.0.2, medico-veterinario 1.0.1. SkillRegistry 17 OK, E2E 2 vías OK (Qdrant 0,809 biofertilizante). Regla de territorio: animal→Aristeo, enfermo/prescripción→Quirón, suelo/agua-recurso→Tripólemo, PROCESO/agua-producto→Empédocles. Bitácoras docs/quimico/ al primer uso. Reporte 2026-10-10-ingeniero-quimico-empedocles.md",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
+  }
 ]
