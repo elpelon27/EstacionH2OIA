@@ -2412,6 +2412,13 @@ async def _handle_deterministic(
     # Detectar si viene de botón interactivo
     msg.get("type") == "interactive" or msg.get("_was_interactive", False)
 
+    def _norm_accents(s: str) -> str:  # 2026-10-10 R1: tildes → sin tildes
+        import unicodedata as _ucd
+
+        return "".join(c for c in _ucd.normalize("NFD", s) if not _ucd.combining(c))
+
+    _text_norm = _norm_accents(text_lower)
+
     # ====================================================================
     # ESTADO: gps_required (GPS-primero — rediseño NEXO §3/§4)
     # El cliente nuevo debe enviar ubicación ANTES de ver el menú.
@@ -2457,17 +2464,9 @@ async def _handle_deterministic(
         # 2026-10-10 R1 (cerebro único): Causa raíz del incidente 08:33 —
         # la lista histórica NO tenía tildes ("buenos dias") y el cliente real
         # escribió "Buenos días" → no matcheó → delegado a Dify (26s de latencia).
-        # Fix: normalizar vocales acentuadas (á→a) ANTES del match + ampliar
-        # patrones. El saludo SIEMPRE es determinístico (sub-segundo), NUNCA se
-        # delega el primer contacto al LLM.
-        import unicodedata as _ucd
-
-        def _norm_accents(s: str) -> str:
-            return "".join(
-                c for c in _ucd.normalize("NFD", s) if not _ucd.combining(c)
-            )
-
-        _text_norm = _norm_accents(text_lower)
+        # Fix: normalizar vocales acentuadas (á→a) ANTES del match (ver
+        # _norm_accents arriba) + ampliar patrones. El saludo SIEMPRE es
+        # determinístico (sub-segundo), NUNCA se delega el primer contacto al LLM.
         greetings_norm = [
             "hola",
             "holaa",
@@ -2622,6 +2621,9 @@ async def _handle_deterministic(
                 },
             }
         # Si no es saludo y no hay estado, delegar a Dify
+        # 2026-10-10 R1: mientras el cliente NO haya enviado ubicación, NO
+        # dejamos que caiga al LLM algo que parece pedido — con el GPS
+        # validado (menu_sent en adelante) la SM ya maneja el flujo completo.
         return None
 
     # ====================================================================
@@ -2755,7 +2757,12 @@ async def _handle_deterministic(
                 "answer": "Por favor, escriba la cantidad que necesita (solo el número, mínimo 3)."
             }
 
-        qty_match = re.match(r"^(\d+)$", text_body.strip())
+        # 2026-10-10 R1 (cerebro único): aceptar también texto con producto
+        # ("3 botellones", "3 agua") — antes caía a off-menu/Dify y rompía
+        # el flujo determinístico del pedido.
+        qty_match = re.match(r"^(\d+)$", text_body.strip()) or re.search(
+            r"(\d+)\s*(botellones?|recargas?|agua)", _norm_accents(text_lower)
+        )
         if qty_match:
             qty = int(qty_match.group(1))
             if qty < 3:
@@ -3648,6 +3655,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     global _http_client, _telegram_bot, _watchdog_task, _recovery_task
     _init_db()
     _http_client = httpx.AsyncClient()
+
+    # ============================================================
+    # 2026-10-10 R4 (cerebro único): PRE-INICIALIZAR el guardrail en el
+    # lifespan — NO en el primer mensaje. El import lazy de llm-guard
+    # tardaba ~9s y caía dentro del timeout del primer cliente real
+    # post-reinicio (incidente 08:33: respuesta a "Buenos días" en 26s).
+    # Aquí corre una vez en el arranque; el primer mensaje ya llega
+    # con los escáneres calientes. El guardrail es solo regex/secrets
+    # (CPU-barato, sin scanner LLM) — verificado 2026-10-10.
+    # ============================================================
+    try:
+        from api import guardrail as _guardrail_module
+
+        _guardrail_module._init_llm_guard()
+        logger.info(
+            "R4: guardrail pre-inicializado en lifespan (available=%s)",
+            _guardrail_module._available,
+        )
+    except Exception as e:  # noqa: BLE001 - fail-open, jamás rompe el arranque
+        logger.warning("R4: pre-init del guardrail falló (fail-open): %s", e)
 
     # Importar y registrar webhook Meta
     from api.webhook_meta import register_webhook_meta_routes, set_message_handler
