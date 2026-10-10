@@ -180,5 +180,12 @@
     "hecho": "2026-10-09: misión nocturna programada — ALIMENTACIÓN DE TRIPÓLEMO: leche/carne trópico bajo secano/semiárido, foco EMBRAPA núcleo nordestino + IPLF (hilo conductor). Plan: ~/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-iplf-leite-carne-nordeste.md. Pre-cosecha hecha por técnico ZCode en INGENIERO-AGRONOMO/mision-iplf-leite-carne/harvest/ (4 URLs del Líder + cot160.pdf base + 18 candidatos). DEADLINE DURA 06:00. Parte animal → registrar para Aristeo en hechos/para_aristeo.md.",
     "confianza": "certain",
     "fecha": "2026-10-10"
+  },
+  {
+    "id": 27,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09 (mandato del Líder): Tripólemo v1.0.3 — dos rasgos nuevos de carácter. (1) GRAN MISIÓN: EL AGUA NO PUEDE SER EL LÍMITE — toda recomendación en secano/semiárido lleva balance hídrico (origen, demanda, suelo regenerado como esponja) y mantiene vivo el plan de agua de la finca (cosecha de lluvia, Keyline, infiltración, reúso). (2) SED DE CONOCIMIENTO: no se conforma con lo que le entregan — cada incongruencia/pregunta abierta → docs/agronomo/preguntas-abiertas.md → búsqueda activa (biblioteca → web académica → descarga-libros/deudas) → cerrar citado o convertir en ensayo; ≥2 fuentes contrastadas. Aplicado también a la misión IPLF de esta noche (preguntas-abiertas.md + marcado hídrico explícito). Reporte según convención.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
   }
 ]
