@@ -276,3 +276,75 @@ servicios "caídos" que se recuperan solos.
   resolvectl query <host>
   journalctl -u <svc> | grep "name resolution"
   ```
+## 🚨 INCIDENTE 8: LLM local desalojado — primer mensaje >30s "problemas técnicos"
+
+**Lección 2026-10-09:** Ollama (nativo) corre con `OLLAMA_MAX_LOADED_MODELS=1`
+COMPARTIDO con otros proyectos de la máquina (OpenNotebook: nocturno 22GB,
+veloz, qwen3.6:35b). Cuando otro proyecto carga su modelo, `qwen2.5:7b`
+(Valentina) es desalojado → el próximo cliente paga la recarga 4.7GB CPU
+(>30s) → timeout del bridge → "dificultades técnicas". El 2do mensaje
+respondía porque la recarga siguió en background.
+
+### Fix aplicado
+- Estructural (DECISIÓN DEL LÍDER): **migración a API única OpenRouter** —
+  todo el ecosistema ya usaba `llm_client.py` (glm-5.3 → glm-5.2:free →
+  ollama); Valentina (Dify) se integró con `deepseek/deepseek-chat`
+  (A/B 10-oct: p95 3.23s, calidad superior, único que rechaza "ya pague"
+  prematuro). ~$2/mes. Switch verificado con pre_prompt 8830 chars intacto.
+- Transitorio (retirar tras cerebro único si procede): cron
+  `*/10 * * * * scripts/warmup_valentina_llm.sh` recarga+fija el modelo.
+- bridge `_call_dify`: retry UNA vez solo en timeout (30s→120s).
+
+### ⚠️ Reglas
+- La API de model-config de Dify **REEMPLAZA la config entera** — si se manda
+  parcial borra el pre_prompt (pasó en el duplicado; NO pasó en producción
+  porque se mandó completo + verificación post-switch).
+- `z-ai/glm-5.2:free` (tier-2 de llm_client.py) YA NO EXISTE en catálogo
+  OpenRouter → ese fallback está muerto silenciosamente → PENDIENTE
+  actualizarlo.
+- Ollama queda para: tier-3 de emergencia + proyectos ajenos a H2O.
+
+## 🚨 INCIDENTE 9: INSERT roto "13 values for 12 columns" — pedidos nunca llegaban a choferes
+
+**Lección 2026-10-09:** el bonus de idempotencia cruzada (commit 1b5ab1e0)
+agregó `fs_pedido_id` a los VALORES del INSERT de `_send_to_dispatch_queue`
+(bridge.py) pero no a las COLUMNAS → **TODA orden por conversación murió
+silenciosamente desde el reinicio de la noche anterior** (síntoma: choferes
+"en silencio", dispatcher sin mensajes; Google Sheets Sí registraba).
+
+### Fix aplicado
+- Columna `fs_pedido_id` agregada al INSERT (validado offline + tests).
+- Fix posterior (§1 misión pago→despacho): webhook R4 encola la entrega al
+  verificar el pago (idempotente) + watchdog pagado-sin-despachar (15 min,
+  1 alerta/pedido) + aviso de llegada [📍 Llegué]→WhatsApp cliente.
+
+### ⚠️ Reglas
+- **El E2E debe cubrir TODAS las vías de un mismo flujo** (webhook bancario Y
+  conversación): el bug vivió justo en la vía no probada.
+- Antes de "choferes no reciben": `journalctl -u valentina-bridge | grep
+  "dispatch_queue"` y `sqlite3 data/conversations.db "SELECT ... FROM
+  dispatch_queue ORDER BY id DESC LIMIT 5"` — la cola es la fuente de verdad.
+
+## 🚨 INCIDENTE 10: DOS CEREBROS dessincronizados — menú re-enviado dentro del pedido
+
+**Lección 2026-10-10 (la más importante de la semana):** el híbrido bridge+Dify
+tiene DOS dueños de estado (SM del bridge + conversación Dify). Incidente
+08:33: turnos "1"/"3 botellones" delegados a Dify SIN avanzar la SM (quedó
+`menu_sent`) → la dirección del cliente (08:34:38) cayó en estado viejo →
+**menú re-enviado en mitad del pedido** → cliente re-elige → orden duplicada.
+Primera respuesta 26s = init lazy del guardrail (~9s, primer mensaje
+post-reinicio) + Dify frío (~15s; deepseek directo 0.79s).
+
+### Fix estructural — MISIÓN "CEREBRO ÚNICO" (parches/2026-10-10-prompt-hermes-cerebro-unico.md, PENDIENTE)
+- SM del bridge = ÚNICA dueña del flujo; saludo/menú determinísticos <2s
+  (cero LLM); camino Dify PROHIBIDO de escribir estado; Dify solo off-menu
+  STATELESS; guardrail pre-inicializado en startup; FEATURE FLAG
+  `VALENTINA_SINGLE_BRAIN` para rollback; E2E aserta 0 delegaciones a Dify
+  en flujo normal.
+- Cosmético pendiente: logger del bridge duplica cada línea (dos handlers).
+
+### ⚠️ Reglas
+- NINGÚN componente puede escribir estado de otro por heurística — un dueño
+  por estado, o dessertincronización garantizada bajo tráfico real.
+- Primer contacto de cliente NUNCA debe pagar cold-start de nada (LLM,
+  guardrail, pools): init en startup, no lazy.
