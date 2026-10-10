@@ -459,6 +459,11 @@ class SanitizingFormatter(logging.Formatter):
 
 logger = logging.getLogger("valentina_bridge")
 logger.setLevel(LOG_LEVEL)
+# 2026-10-10 R5 (cerebro único): cada línea salía DUPLICADA en journalctl —
+# este handler + la propagación al logger root de uvicorn/gunicorn = dos emisores.
+# Un solo handler + propagate=False = una sola línea por evento.
+logger.propagate = False
+logger.handlers.clear()
 _handler = logging.StreamHandler()
 _handler.setFormatter(
     SanitizingFormatter(
@@ -1218,6 +1223,24 @@ BANK_DATA = (
 # Feature flag: C2P_ENABLED=false hasta que el banco habilite el servicio.
 # ============================================================
 C2P_ENABLED = os.getenv("C2P_ENABLED", "false").strip().lower() in ("1", "true", "yes", "on")
+
+# ============================================================================
+# 2026-10-10 CEREBRO ÚNICO — VALENTINA_SINGLE_BRAIN
+# La SM del bridge es la ÚNICA dueña del flujo de pedido. El camino Dify/deepseek
+# queda SOLO para off-menu (texto libre inesperado) y es READ-ONLY respecto a
+# `conversation_state`: NUNCA escribe estado, NUNCA persiste conversation_id,
+# NUNCA parsea su respuesta como menú/botones/pedido.
+# - true  → cerebro único (R2+R3): Dify sin conversation_id, query con contexto
+#           de estado inyectado, respuesta = texto plano, cero efectos laterales.
+# - false → híbrido histórico (rollback instantáneo sin deploy).
+# ============================================================================
+
+VALENTINA_SINGLE_BRAIN = os.getenv("VALENTINA_SINGLE_BRAIN", "false").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+    "on",
+)
 C2P_OTP_TIMEOUT_SECONDS = 300  # 5 minutos para que el cliente reciba/dígame el OTP
 
 # Mensajes C2P — español neutro venezolano (segunda persona = usted)
