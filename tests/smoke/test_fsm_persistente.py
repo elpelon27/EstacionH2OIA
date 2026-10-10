@@ -40,6 +40,7 @@ if os.path.exists(TEST_DB):
 os.environ["SQLITE_PATH"] = TEST_DB
 
 # Importar despues de setear SQLITE_PATH
+os.environ.setdefault("LOG_SALT", "test-salt-fsm-2026")
 import bridge
 
 # Forzar init_db con la BD de test
