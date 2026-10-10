@@ -194,5 +194,12 @@
     "hecho": "Creada e instalada skill medico-veterinario v1.0.0: Quirón, el Médico Veterinario de la casa (UCV Maracay, 5 años/143 UC). Poder de VISIÓN: vision.py analiza fotos y videos de animales con protocolo semiológico (hallazgos por región, diferenciales, triage, anamnesis, plan sin dosis) vía llm_client task_type=video (gemini-3.1-pro-preview OpenRouter, misma API única) con respaldo local Ollama qwen2.5vl:3b (instalado, offline) y videos por ffmpeg. Validada E2E con foto y video reales de hato Nelore. SkillRegistry 16 skills OK. Handoff: zootecnista v1.0.1 e ingeniero-agronomo v1.0.4 con reglas de derivación al veterinario — trilogía pecuaria completa (Tripólemo cultiva, Aristeo selecciona, Quirón sana). Reporte: docs/reportes-zcode/2026-10-09d-medico-veterinario-quiron.md",
     "confianza": "certain",
     "fecha": "2026-10-10"
+  },
+  {
+    "id": 29,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09: campaña NUTRICIÓN BIBLIOGRÁFICA actualizada a modo ESTUDIANTE — Tripólemo ESTUDIA las materias de su pensum: por asignatura genera APUNTES DE ESTUDIO (harvest-bibliografica/apuntes/<cod>_asignatura.md: conceptos núcleo citados, cifras, aplicación a Zulia con balance hídrico, autoevaluación) y los apuntes del lote se INGEREN a su memoria (tripolemo_apuntes_lote<N> → inbox → ingest → citables por Qdrant). Plan actualizado: misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md (§Entregables + §5 con paso ESTUDIO; descarga via herramienta libre descarga-libros). Regla de recorte: nunca se sacrifican los apuntes de lo ya estudiado.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
   }
 ]
