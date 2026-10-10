@@ -2454,11 +2454,28 @@ async def _handle_deterministic(
             return _geofence_gate(ph_hash, from_phone, float(first_lat), float(first_lng))
 
         # Detectar saludo
-        greetings = [
+        # 2026-10-10 R1 (cerebro único): Causa raíz del incidente 08:33 —
+        # la lista histórica NO tenía tildes ("buenos dias") y el cliente real
+        # escribió "Buenos días" → no matcheó → delegado a Dify (26s de latencia).
+        # Fix: normalizar vocales acentuadas (á→a) ANTES del match + ampliar
+        # patrones. El saludo SIEMPRE es determinístico (sub-segundo), NUNCA se
+        # delega el primer contacto al LLM.
+        import unicodedata as _ucd
+
+        def _norm_accents(s: str) -> str:
+            return "".join(
+                c for c in _ucd.normalize("NFD", s) if not _ucd.combining(c)
+            )
+
+        _text_norm = _norm_accents(text_lower)
+        greetings_norm = [
             "hola",
+            "holaa",
+            "holas",
             "buenas",
             "buenos dias",
             "buen dia",
+            "buen diaa",
             "buenas tardes",
             "buenas noches",
             "saludos",
@@ -2466,14 +2483,17 @@ async def _handle_deterministic(
             "que mas",
             "q mas",
         ]
-        has_greeting = any(text_lower.startswith(g) for g in greetings) or text_lower in greetings
+        has_greeting = (
+            any(_text_norm.startswith(g) for g in greetings_norm)
+            or _text_norm in greetings_norm
+        )
 
         # Bug 4 fix: Detectar mensaje compuesto (saludo + pedido)
         # Ej: "buenas me envían 3 recargas" → agua + cantidad 3
         # Ej: "hola, 2 bolsas de hielo" → hielo + cantidad 2
         # Ej: "buenas, 3 botellones y 2 hielo" → combinado
-        botellones_match = re.search(r"(\d+)\s*(botellones?|recargas?|agua)", text_lower)
-        hielo_match = re.search(r"(\d+)\s*(bolsas?|hielo)", text_lower)
+        botellones_match = re.search(r"(\d+)\s*(botellones?|recargas?|agua)", _text_norm)
+        hielo_match = re.search(r"(\d+)\s*(bolsas?|hielo)", _text_norm)
 
         # Pedido combinado detectado
         if botellones_match and hielo_match:
@@ -4293,6 +4313,67 @@ async def meta_webhook(request: Request) -> JSONResponse:
         return JSONResponse({"status": "ok", "message_id": msg_id, "mode": "deterministic"})
 
     # 6. Si el bridge NO pudo manejarlo, llamar a Dify (para opción 4, 5, o mensajes inesperados)
+    # ================================================================
+    # 2026-10-10 R2+R3 — CEREBRO ÚNICO (VALENTINA_SINGLE_BRAIN=true):
+    # Dify/deepseek queda SOLO para off-menu y es STATELESS:
+    #   - Se llama SIN conversation_id (conversación nueva cada vez).
+    #   - El estado actual de la SM se inyecta en el query como contexto.
+    #   - La respuesta sale como TEXTO PLANO al cliente. CERO efectos
+    #     laterales: no se persiste conversation_id, no se parsea la
+    #     respuesta como menú/botones/pedido, no se toca la SM.
+    # Con esto la SM del bridge es la ÚNICA dueña del flujo y es imposible
+    # que el LLM dessincronice el estado (incidente 08:34: menú re-enviado
+    # dentro de un pedido → orden duplicada).
+    # ================================================================
+    if VALENTINA_SINGLE_BRAIN:
+        current_state = _get_state(ph_short_full).get("state") or "sin_estado"
+        context_query = f"[estado: {current_state}; cliente dice]: {text_body}"
+        logger.info(
+            "🧠 Cerebro único — off-menu stateless a Dify para phone:%s (estado=%s)",
+            ph_short, current_state,
+        )
+        DIFY_CALLS.labels(status="ok").inc()  # se marca error abajo si falla
+        dify_result = await _call_dify(context_query, from_phone, None)  # R3: SIN conversation_id
+
+        if not dify_result or not dify_result.get("answer"):
+            logger.error("Dify no respondió (off-menu) para phone:%s", ph_short)
+            DIFY_CALLS.labels(status="error").inc()
+            MESSAGES_TOTAL.labels(status="error").inc()
+            await _alert_critical(
+                "Dify no responde (off-menu)",
+                f"phone:{ph_short} msg_id={msg_id}\nDify API: {DIFY_API_URL}",
+            )
+            await _send_whatsapp_message(
+                from_phone,
+                "Disculpe, en este momento tengo dificultades técnicas. "
+                "Un asesor le contactará en breve. ¡Gracias! 💧",
+            )
+            RESPONSE_TIME.observe(time.time() - request_start)
+            return JSONResponse({"status": "error", "reason": "dify_failed"})
+
+        # R2: respuesta READ-ONLY — texto plano, sin parsear, sin tocar estado.
+        answer = str(dify_result["answer"]).strip()
+        sent = await _send_whatsapp_message(from_phone, answer)
+        if not sent:
+            logger.error("No se pudo enviar respuesta off-menu a phone:%s", ph_short)
+            MESSAGES_TOTAL.labels(status="error").inc()
+            await _alert_critical(
+                "Meta send API falló (off-menu)",
+                f"phone:{ph_short} — posible token expirado (rotar cada 60 días)",
+            )
+            RESPONSE_TIME.observe(time.time() - request_start)
+            return JSONResponse({"status": "error", "reason": "meta_send_failed"})
+        MESSAGES_TOTAL.labels(status="ok").inc()
+        RESPONSE_TIME.observe(time.time() - request_start)
+        logger.info(
+            "🧠 Off-menu respondido (stateless) a phone:%s (len=%d) — estado intacto: %s",
+            ph_short, len(answer), current_state,
+        )
+        return JSONResponse(
+            {"status": "ok", "message_id": msg_id, "mode": "offmenu_stateless"}
+        )
+
+    # --- Camino HÍBRIDO histórico (VALENTINA_SINGLE_BRAIN=false / rollback) ---
     logger.info("🤖 Delegando a Dify para phone:%s (no determinístico)", ph_short)
     existing_conv = _get_conversation_id(from_phone)
     dify_result = await _call_dify(text_body, from_phone, existing_conv)
