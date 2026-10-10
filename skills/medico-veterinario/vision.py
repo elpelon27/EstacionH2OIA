@@ -46,6 +46,7 @@ sys.path.insert(0, str(HERMES_ROOT / "scripts"))
 
 MODELO_LOCAL = "qwen2.5vl:3b"          # respaldo offline (ver /api/tags)
 MAX_BYTES_API = 8 * 1024 * 1024        # recorte defensivo por imagen hacia la API
+MAX_IMAGENES_LOCAL = 6                 # videos en tier local: muestreo (ctx CPU)
 
 # ---------------------------------------------------------------------------
 # PROTOCOLO SEMIOLÓGICO — el corazón del poder de Visión de Quirón
@@ -195,12 +196,19 @@ def analizar_local(content: list[dict]) -> dict:
     texto = next((p["text"] for p in content if p["type"] == "text"), "")
     imagenes = [p["image_url"]["url"].split(",", 1)[1]
                 for p in content if p["type"] == "image_url"]
+    if len(imagenes) > MAX_IMAGENES_LOCAL:  # muestreo uniforme (ctx limitado)
+        paso = len(imagenes) / MAX_IMAGENES_LOCAL
+        imagenes = [imagenes[int(i * paso)]
+                    for i in range(MAX_IMAGENES_LOCAL)]
+        texto += (f"\n\n[Nota: se muestran {len(imagenes)} cuadros "
+                  "representativos del video.]")
     payload = json.dumps({
         "model": MODELO_LOCAL, "stream": False,
         "messages": [{"role": "user",
                       "content": texto,
                       "images": imagenes}],
-        "options": {"temperature": 0.2, "num_predict": 2048},
+        "options": {"temperature": 0.2, "num_predict": 2048,
+                    "num_ctx": 16384},
     }).encode()
     req = urllib.request.Request("http://localhost:11434/api/chat",
                                  data=payload,
