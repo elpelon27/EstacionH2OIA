@@ -166,5 +166,12 @@
     "hecho": "2026-10-09: Instalado skill zootecnista v1.0.0 (Aristeo, el Zootecnista, UFV Viçosa ZOT 2025) en skills/zootecnista — especialista en bovinos del trópico: Bos indicus (Nelore, Guzerat, Gir Leiteiro, Red Sindhi/Sindi Nordestino) y Jersey tropical; corazón en mejoramiento genético (h², DEP/ACC, índices, cruzamientos/heterosis, referencia mejoramiento-genetico.md) y nutrición de rumiantes. SkillRegistry: 15 skills cargados, OK. ingeniero-agronomo actualizado a v1.0.1 con handoff espejo: pasto como cultivo → agronomo; animal/genética/nutrición → zootecnista; dieta completa → ambos (fusión de alimentación bovina). Proyecto aislado ZCode: ~/.zcode/workspace/default/ZOOTECNISTA/. Reporte: docs/reportes-zcode/2026-10-09c-zootecnista-aristeo.md",
     "confianza": "certain",
     "fecha": "2026-10-09"
+  },
+  {
+    "id": 25,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09: el Ingeniero Agrónomo (skill ingeniero-agronomo v1.0.2) recibe nombre griego en la saga: TRIPÓLEMO (Τριπτόλεμος) — el primer agrónomo del mito, enseñado por Deméter (la Biblioteca H2O es su Deméter) y misionero que sembró el mundo; su alma: sembrar suelos vivos y transmitir lo aprendido. Saga completa: Prometeo (investigación nocturna) · Aristeo (Zootecnista, su dupla animal) · Tripólemo (agronomía regenerativa). Aplicado en SKILL.md (título, descripción e identidad) y PERFIL; registry validado. Proyecto ZOOTECNISTA/ZCode a cargo.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
   }
 ]
