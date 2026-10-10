@@ -201,5 +201,12 @@
     "hecho": "2026-10-09: campaña NUTRICIÓN BIBLIOGRÁFICA actualizada a modo ESTUDIANTE — Tripólemo ESTUDIA las materias de su pensum: por asignatura genera APUNTES DE ESTUDIO (harvest-bibliografica/apuntes/<cod>_asignatura.md: conceptos núcleo citados, cifras, aplicación a Zulia con balance hídrico, autoevaluación) y los apuntes del lote se INGEREN a su memoria (tripolemo_apuntes_lote<N> → inbox → ingest → citables por Qdrant). Plan actualizado: misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md (§Entregables + §5 con paso ESTUDIO; descarga via herramienta libre descarga-libros). Regla de recorte: nunca se sacrifican los apuntes de lo ya estudiado.",
     "confianza": "certain",
     "fecha": "2026-10-10"
+  },
+  {
+    "id": 30,
+    "tema": "mision zootecnista",
+    "hecho": "2026-10-09: Planificada MISIÓN INVESTIGACIÓN NOCTURNA del pensum ZOT para Aristeo (el Zootecnista) — plan en ~/.zcode/workspace/default/ZOOTECNISTA/misiones/2026-10-09-mision-investigacion-nocturna-pensum-zot.md; área de trabajo harvest-bibliografica/ (HISTORIAL + mapa-bibliografico-pensum-zot.md vivos). 9 lotes por dominio del pensum UFV, 2-4 referencias verificadas por asignatura (~70-100 obras), sesgo de INVESTIGADOR CIENTÍFICO (papers/tesis con datos cuantitativos primero: BDTD, R. Bras. Zootec/SciELO, LRRD, Embrapa, BR-CORTE UFV). Entregable por lote: APUNTES DE ESTUDIO de Aristeo por asignatura → ingestados como aristeo_apuntes_lote<N> a biblioteca H2O para citarlos al razonar. Fuentes verificadas 09-oct (scielo.br 200 pero search.scielo.org 403 a robots; embrapa infoteca SOLO CON www; redalyc y cbra.org.br muertos; doaj 403). Pendiente: primera jornada (Fase 0 + Lote 1 Genética).",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
   }
 ]
