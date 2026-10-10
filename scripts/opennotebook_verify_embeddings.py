@@ -100,7 +100,7 @@ def fix(pending):
         time.sleep(POLL_SECS)
         if not inflight:
             continue
-        ids = ", ".join(f"`{c}`" for c in inflight)
+        ids = ", ".join(inflight)
         rows = surreal(f"SELECT id, status FROM command WHERE id IN [{ids}];")[0]["result"]
         by_id = {r["id"]: r for r in rows}
         for cid, (sid, t0) in list(inflight.items()):
