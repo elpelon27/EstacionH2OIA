@@ -173,5 +173,12 @@
     "hecho": "2026-10-09: el Ingeniero Agrónomo (skill ingeniero-agronomo v1.0.2) recibe nombre griego en la saga: TRIPÓLEMO (Τριπτόλεμος) — el primer agrónomo del mito, enseñado por Deméter (la Biblioteca H2O es su Deméter) y misionero que sembró el mundo; su alma: sembrar suelos vivos y transmitir lo aprendido. Saga completa: Prometeo (investigación nocturna) · Aristeo (Zootecnista, su dupla animal) · Tripólemo (agronomía regenerativa). Aplicado en SKILL.md (título, descripción e identidad) y PERFIL; registry validado. Proyecto ZOOTECNISTA/ZCode a cargo.",
     "confianza": "certain",
     "fecha": "2026-10-10"
+  },
+  {
+    "id": 26,
+    "tema": "tripolemo",
+    "hecho": "2026-10-09: misión nocturna programada — ALIMENTACIÓN DE TRIPÓLEMO: leche/carne trópico bajo secano/semiárido, foco EMBRAPA núcleo nordestino + IPLF (hilo conductor). Plan: ~/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-iplf-leite-carne-nordeste.md. Pre-cosecha hecha por técnico ZCode en INGENIERO-AGRONOMO/mision-iplf-leite-carne/harvest/ (4 URLs del Líder + cot160.pdf base + 18 candidatos). DEADLINE DURA 06:00. Parte animal → registrar para Aristeo en hechos/para_aristeo.md.",
+    "confianza": "certain",
+    "fecha": "2026-10-10"
   }
 ]
