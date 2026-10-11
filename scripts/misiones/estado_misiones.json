@@ -52,6 +52,12 @@
       "hermano": "ingeniero-agronomo",
       "lote": "jornada 1",
       "resultado": "ok"
+    },
+    {
+      "fecha": "2026-10-10T23:52",
+      "hermano": "zootecnista",
+      "lote": "lote 1",
+      "resultado": "ok"
     }
   ]
 }
