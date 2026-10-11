@@ -1,0 +1,38 @@
+{
+  "version": 1,
+  "creado": "2026-10-10",
+  "cola": ["ingeniero-quimico", "ingeniero-agronomo", "zootecnista", "medico-veterinario"],
+  "pendiente_desborde": [],
+  "hermanos": {
+    "ingeniero-quimico": {
+      "nombre": "Empédocles",
+      "workspace": "/home/skynet/.zcode/workspace/default/INGENIERO-QUIMICO",
+      "mision": "/home/skynet/.zcode/workspace/default/INGENIERO-QUIMICO/misiones/2026-10-10-mision-bibliografica-empedocles.md",
+      "mapa": null,
+      "jornada": 0,
+      "reintentos": 0
+    },
+    "ingeniero-agronomo": {
+      "nombre": "Tripólemo",
+      "workspace": "/home/skynet/.zcode/workspace/default/INGENIERO-AGRONOMO",
+      "mision": "/home/skynet/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md",
+      "mapa": "/home/skynet/.zcode/workspace/default/INGENIERO-AGRONOMO/harvest-bibliografica/mapa-bibliografico-pensum.md",
+      "reintentos": 0
+    },
+    "zootecnista": {
+      "nombre": "Aristeo",
+      "workspace": "/home/skynet/.zcode/workspace/default/ZOOTECNISTA",
+      "mision": "/home/skynet/.zcode/workspace/default/ZOOTECNISTA/misiones/2026-10-09-mision-investigacion-nocturna-pensum-zot.md",
+      "mapa": "/home/skynet/.zcode/workspace/default/ZOOTECNISTA/harvest-bibliografica/mapa-bibliografico-pensum-zot.md",
+      "reintentos": 0
+    },
+    "medico-veterinario": {
+      "nombre": "Quirón",
+      "workspace": "/home/skynet/.zcode/workspace/default/MEDICO-VETERINARIO",
+      "mision": "/home/skynet/.zcode/workspace/default/MEDICO-VETERINARIO/misiones/2026-10-09-mision-bibliografia-veterinaria.md",
+      "mapa": null,
+      "reintentos": 0
+    }
+  },
+  "historial": []
+}
