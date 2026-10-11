@@ -501,11 +501,11 @@ def run_consolidation(
             f"max_sessions={max_sessions}, max_messages={max_messages})"
         )
 
-        # En backfill se fuerza watermark por sesión = 0 para las sesiones de
-        # la ventana (get_unconsolidated_sessions aplica window_*).
-        marks_for_query = (
-            {} if backfill else session_marks
-        )
+        # Watermarks por sesión para la query: en backfill NO se fuerzan a
+        # vacío — los lotes previos ya escribieron watermarks por sesión y
+        # deben respetarse; las sesiones de la ventana sin entrada usan 0
+        # (elegibles). Fuera de backfill es simplemente la tabla.
+        marks_for_query = session_marks
         sessions, new_max_id = get_unconsolidated_sessions(
             since_id,
             max_sessions,
