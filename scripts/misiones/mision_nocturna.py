@@ -475,6 +475,56 @@ def cmd_cierre() -> int:
     return 0
 
 
+def cmd_ejecutar(hermano: str) -> int:
+    """HERMES AGENT ejecuta la misión del hermano con el tier research
+    (OpenRouter: deepseek-v4-flash → glm-5.3-flash). El CLI de ZCode solo
+    despacha y vigila. Salida completa a lotes/<fecha>-<nombre>.log."""
+    sys.path.insert(0, "/mnt/ssd_trabajo/hermes-agent/scripts")
+    from llm_client import LLMClient  # noqa: E402 (ruta fuera del paquete)
+
+    est = cargar_estado()
+    her = est["hermanos"].get(hermano)
+    if not her:
+        print(f"ERROR: hermano desconocido {hermano}", file=sys.stderr)
+        return 2
+    prompt = extraer_prompt(her["mision"])
+    lote_num, _ = proximo_lote(her.get("mapa"))
+    if lote_num and lote_num != "COMPLETO":
+        prompt = re.sub(r"LOTE N", f"LOTE {lote_num}", prompt)
+        etiqueta = f"lote {lote_num}"
+    elif lote_num == "COMPLETO":
+        log(f"{hermano}: mapa ya COMPLETO — nada que ejecutar")
+        return 0
+    else:
+        her["jornada"] = her.get("jornada", 0) + 1
+        etiqueta = f"jornada {her['jornada']}"
+        prompt = f"JORNADA {her['jornada']} de la misión.\n\n{prompt}"
+    guardar_estado(est)
+
+    out_dir = os.path.join(her["workspace"], "harvest-bibliografica", "lotes")
+    os.makedirs(out_dir, exist_ok=True)
+    salida = os.path.join(out_dir, f"{ahora().date().isoformat()}-{her['nombre']}.log")
+    log(f"EJECUTANDO via Hermes (tier research) {hermano} — {etiqueta} -> {salida}")
+    cliente = LLMClient()
+    try:
+        r = cliente.complete(
+            [{"role": "user", "content": prompt}],
+            task_type="research", max_tokens=16000, temperature=0.4)
+    except Exception as e:
+        log(f"ERROR research {hermano}: {e}")
+        return 1
+    if r.get("error"):
+        log(f"ERROR research {hermano}: {r['error']}")
+        return 1
+    with open(salida, "w") as f:
+        f.write(f"<!-- tier={r.get('tier')} model={r.get('model')} "
+                f"{etiqueta} {ahora().isoformat()} -->\n\n{r['content']}\n")
+    tam = len(r.get("content", ""))
+    log(f"OK research {hermano} {etiqueta}: tier={r.get('tier')} "
+        f"caracteres={tam} -> {salida}")
+    return 0 if tam > 2000 else 1
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__)
     ap.add_argument("--turno", action="store_true",
@@ -486,6 +536,8 @@ def main() -> int:
     ap.add_argument("--fallo", action="store_true", help="con --registrar: resultado fallo")
     ap.add_argument("--nota", default="", help="nota para el registro")
     ap.add_argument("--cierre", action="store_true", help="rota cola y resume la noche")
+    ap.add_argument("--ejecutar", metavar="HERMANO",
+                    help="Hermes ejecuta la misión del hermano (tier research OpenRouter)")
     ap.add_argument("--legacy-run", action="store_true",
                     help="DEPRECADO: modo antiguo con qwen (solo diagnóstico)")
     ap.add_argument("--dry-run", action="store_true")
@@ -499,6 +551,8 @@ def main() -> int:
         return cmd_registrar(args.registrar, not args.fallo, args.nota)
     if args.cierre:
         return cmd_cierre()
+    if args.ejecutar:
+        return cmd_ejecutar(args.ejecutar)
     if args.legacy_run:
         return noche_legacy(args.dry_run, args.force)
     ap.print_help()

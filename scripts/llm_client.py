@@ -69,6 +69,36 @@ class LLMClient:
                 "chat_ok": True,
             },
             {
+                # Tier de INVESTIGACIÓN de los 4 hermanos (misiones nocturnas).
+                # Estudio 2026-10-11 (docs/ESTUDIO-LLM-INVESTIGACION.md): mejor
+                # calidad-precio para investigación bibliográfica con resumen
+                # sin pérdida (1M contexto). NO entra en la cadena de
+                # chat/técnico: se invoca con task_type="research".
+                "name": "deepseek-v4-flash-research",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_RESEARCH", "deepseek/deepseek-v4-flash"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": False,
+                "chat_ok": False,
+                "research_ok": True,
+                "timeout": 600,
+            },
+            {
+                # Respaldo research: proveedor de la casa (z-ai), 1M ctx.
+                "name": "glm-5.3-flash-research",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_RESEARCH_BACKUP", "z-ai/glm-5.3-flash"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": False,
+                "chat_ok": False,
+                "research_ok": True,
+                "timeout": 600,
+            },
+            {
                 # Tier dedicado a análisis de video (claude-watch).
                 # NO entra en la cadena de chat/técnico: se invoca explícitamente
                 # con task_type="video".
@@ -110,6 +140,8 @@ class LLMClient:
             if task_type == "video":
                 if not tier.get("video_ok"):
                     continue
+            if task_type == "research" and not tier.get("research_ok"):
+                continue
             if task_type == "chat" and not tier["chat_ok"]:
                 continue
             try:
@@ -167,7 +199,8 @@ class LLMClient:
             "temperature": kwargs.get("temperature", 0.7),
             "max_tokens": kwargs.get("max_tokens", 4096),
         }
-        r = httpx.post(url, json=body, headers=headers, timeout=self.timeout)
+        r = httpx.post(url, json=body, headers=headers,
+                       timeout=tier.get("timeout", self.timeout))
         r.raise_for_status()
         data = r.json()
         # BUG 5 fix: loguear token usage (viene en el response, sin API key extra)
