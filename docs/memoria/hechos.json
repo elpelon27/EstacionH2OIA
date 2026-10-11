@@ -281,5 +281,11 @@
   "tema": "zootecnista",
   "hecho": "Misión nocturna desatendida OK — Aristeo, lote 1 (2026-10-10). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
   "fecha": "2026-10-10"
+ },
+ {
+  "id": 42,
+  "tema": "medico-veterinario",
+  "hecho": "Misión nocturna desatendida OK — Quirón, jornada 1 (2026-10-10). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-10"
  }
 ]

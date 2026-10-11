@@ -2,10 +2,10 @@
   "version": 1,
   "creado": "2026-10-10",
   "cola": [
-    "ingeniero-quimico",
     "ingeniero-agronomo",
     "zootecnista",
-    "medico-veterinario"
+    "medico-veterinario",
+    "ingeniero-quimico"
   ],
   "pendiente_desborde": [],
   "hermanos": {
@@ -37,7 +37,8 @@
       "workspace": "/home/skynet/.zcode/workspace/default/MEDICO-VETERINARIO",
       "mision": "/home/skynet/.zcode/workspace/default/MEDICO-VETERINARIO/misiones/2026-10-09-mision-bibliografia-veterinaria.md",
       "mapa": null,
-      "reintentos": 0
+      "reintentos": 0,
+      "jornada": 1
     }
   },
   "historial": [
@@ -57,6 +58,12 @@
       "fecha": "2026-10-10T23:52",
       "hermano": "zootecnista",
       "lote": "lote 1",
+      "resultado": "ok"
+    },
+    {
+      "fecha": "2026-10-10T23:54",
+      "hermano": "medico-veterinario",
+      "lote": "jornada 1",
       "resultado": "ok"
     }
   ]
