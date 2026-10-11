@@ -178,7 +178,10 @@ def get_unconsolidated_sessions(
     try:
         # DT-36: una sesión es elegible si tiene al menos UN mensaje de
         # conversación con id > watermark DE ESA SESIÓN. DISTINCT evita que
-        # el JOIN duplique sesiones (una fila por mensaje).
+        # el JOIN duplique sesiones (una fila por mensaje). SIN LIMIT aquí:
+        # el corte por max_sessions se aplica DESPUÉS del filtro de
+        # elegibilidad (si no, sesiones ya consolidadas al inicio de la
+        # ventana agotan el cupo y las pendientes nunca se alcanzan).
         rows = conn.execute(
             "SELECT DISTINCT s.id, s.source, s.display_name, s.message_count, "
             "s.started_at, s.ended_at "
@@ -188,12 +191,11 @@ def get_unconsolidated_sessions(
             "AND length(m.content) > 0 "
             "AND (? IS NULL OR s.started_at >= ?) "
             "AND (? IS NULL OR s.started_at <= ?) "
-            "ORDER BY s.started_at ASC LIMIT ?",
+            "ORDER BY s.started_at ASC",
             (
                 *CONVERSATION_ROLES,
                 window_start, window_start,
                 window_end, window_end,
-                max_sessions,
             ),
         ).fetchall()
         sessions: list[dict[str, Any]] = []
@@ -485,15 +487,11 @@ def run_consolidation(
         since_id = get_watermark(memory_conn)
         window_start = backfill[0] if backfill else None
         window_end = backfill[1] if backfill else None
-        # DT-36: watermarks por sesión.
+        # DT-36: watermarks por sesión. En backfill NO se fuerzan a 0: los
+        # lotes previos ya escribieron watermarks y deben respetarse (resume).
+        # Las sesiones de la ventana SIN entrada usan 0 vía el fallback en
+        # get_unconsolidated_sessions (historia completa).
         session_marks = get_session_watermarks(memory_conn)
-        if backfill:
-            # En backfill las sesiones objetivo se fuerzan a consolidar desde 0
-            ws: float = backfill[0]
-            session_marks = {
-                sid: 0 if ws <= _started(sid) else mid
-                for sid, mid in session_marks.items()
-            }
         logger.info(
             f"Consolidador iniciado (live={live}, watermark={since_id}, "
             f"watermarks_por_sesion={len(session_marks)}, "
