@@ -1,7 +1,12 @@
 {
   "version": 1,
   "creado": "2026-10-10",
-  "cola": ["ingeniero-quimico", "ingeniero-agronomo", "zootecnista", "medico-veterinario"],
+  "cola": [
+    "ingeniero-quimico",
+    "ingeniero-agronomo",
+    "zootecnista",
+    "medico-veterinario"
+  ],
   "pendiente_desborde": [],
   "hermanos": {
     "ingeniero-quimico": {
@@ -9,7 +14,7 @@
       "workspace": "/home/skynet/.zcode/workspace/default/INGENIERO-QUIMICO",
       "mision": "/home/skynet/.zcode/workspace/default/INGENIERO-QUIMICO/misiones/2026-10-10-mision-bibliografica-empedocles.md",
       "mapa": null,
-      "jornada": 0,
+      "jornada": 1,
       "reintentos": 0
     },
     "ingeniero-agronomo": {
@@ -34,5 +39,12 @@
       "reintentos": 0
     }
   },
-  "historial": []
+  "historial": [
+    {
+      "fecha": "2026-10-10T23:45",
+      "hermano": "ingeniero-quimico",
+      "lote": "jornada 1",
+      "resultado": "ok"
+    }
+  ]
 }
