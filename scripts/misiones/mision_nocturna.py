@@ -214,7 +214,7 @@ def proximo_lote(mapa_path: str | None) -> tuple[str | None, str]:
     if not mapa_path or not os.path.exists(mapa_path):
         return None, ""
     for line in open(mapa_path):
-        m = re.match(r"^\|\s*(\d+)\s*\|[^|]*\|\s*\[ \]", line)
+        m = re.match(r"^\|\s*(\d+)[^|]*\|[^|]*\|\s*\[ \]", line)
         if m:
             return m.group(1), line.rstrip("\n")
     return "COMPLETO", ""  # mapa existe y no queda ningún [ ]
@@ -491,6 +491,10 @@ def cmd_ejecutar(hermano: str) -> int:
     lote_num, _ = proximo_lote(her.get("mapa"))
     if lote_num and lote_num != "COMPLETO":
         prompt = re.sub(r"LOTE N", f"LOTE {lote_num}", prompt)
+        # garantiza el lote exacto aunque el plan no tenga placeholder "LOTE N"
+        prompt += (f"\n\n[DESPACHADOR] Ejecuta el LOTE {lote_num} de esta noche "
+                   f"(primer lote sin [x] en {os.path.basename(her['mapa'])}). "
+                   f"Orden del cronograma del plan; no adelantar lotes.")
         etiqueta = f"lote {lote_num}"
     elif lote_num == "COMPLETO":
         log(f"{hermano}: mapa ya COMPLETO — nada que ejecutar")

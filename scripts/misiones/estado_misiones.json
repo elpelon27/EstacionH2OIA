@@ -13,7 +13,7 @@
       "nombre": "Empédocles",
       "workspace": "/home/skynet/.zcode/workspace/default/INGENIERO-QUIMICO",
       "mision": "/home/skynet/.zcode/workspace/default/INGENIERO-QUIMICO/misiones/2026-10-10-mision-bibliografica-empedocles.md",
-      "mapa": null,
+      "mapa": "/home/skynet/.zcode/workspace/default/INGENIERO-QUIMICO/harvest-bibliografica/mapa-bibliografico-pensum-iq.md",
       "jornada": 1,
       "reintentos": 0
     },
@@ -36,7 +36,7 @@
       "nombre": "Quirón",
       "workspace": "/home/skynet/.zcode/workspace/default/MEDICO-VETERINARIO",
       "mision": "/home/skynet/.zcode/workspace/default/MEDICO-VETERINARIO/misiones/2026-10-09-mision-bibliografia-veterinaria.md",
-      "mapa": null,
+      "mapa": "/home/skynet/.zcode/workspace/default/MEDICO-VETERINARIO/harvest-bibliografica/mapa-bibliografico-veterinario.md",
       "reintentos": 0,
       "jornada": 1
     }
