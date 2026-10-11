@@ -177,12 +177,10 @@ def get_unconsolidated_sessions(
     conn.row_factory = sqlite3.Row
     try:
         # DT-36: una sesión es elegible si tiene al menos UN mensaje de
-        # conversación con id > watermark DE ESA SESIÓN (global como fallback
-        # para sesiones nunca consolidadas bajo el esquema nuevo... no: una
-        # sesión sin entrada en la tabla por-sesión usa since_id global como
-        # piso, EXCEPTO en modo backfill donde se fuerza a 0).
+        # conversación con id > watermark DE ESA SESIÓN. DISTINCT evita que
+        # el JOIN duplique sesiones (una fila por mensaje).
         rows = conn.execute(
-            "SELECT s.id, s.source, s.display_name, s.message_count, "
+            "SELECT DISTINCT s.id, s.source, s.display_name, s.message_count, "
             "s.started_at, s.ended_at "
             "FROM sessions s JOIN messages m ON m.session_id = s.id "
             "WHERE m.role IN (?, ?) AND m.active = 1 "
@@ -195,7 +193,7 @@ def get_unconsolidated_sessions(
                 *CONVERSATION_ROLES,
                 window_start, window_start,
                 window_end, window_end,
-                max_sessions * 4,  # margen: algunas candidatas caen por presupuesto
+                max_sessions,
             ),
         ).fetchall()
         sessions: list[dict[str, Any]] = []
