@@ -151,27 +151,52 @@ def get_unconsolidated_sessions(
     since_id: int,
     max_sessions: int,
     max_messages: int,
+    session_watermarks: dict[str, int] | None = None,
+    window_start: float | None = None,
+    window_end: float | None = None,
 ) -> tuple[list[dict[str, Any]], int]:
     """
-    Lee sesiones con mensajes nuevos (messages.id > since_id) de la Session DB.
+    Lee sesiones con mensajes nuevos (id > watermark DE ESA SESIÓN) de la
+    Session DB. DT-36: la elegibilidad se decide por sesión, no por el
+    watermark global; los mensajes antiguos de una sesión con mensajes
+    nuevos vuelven a ser elegibles.
+
+    session_watermarks: mapa session_id → last_consolidated_id (por sesión).
+    Si es None, se usa el watermark global como fallback para TODAS las
+    sesiones (comportamiento de compatibilidad con el parche anterior).
+
+    window_start/window_end (epoch float): si se pasan, solo se consideran
+    sesiones cuyo started_at cae en la ventana (usado por --backfill).
 
     Retorna (sesiones, new_max_id). Cada sesión trae sus mensajes de
     conversación (user/assistant, activos, no compactados), recortados al
     guardarraíl de mensajes. new_max_id es el mayor message.id visto.
     """
+    marks = session_watermarks if session_watermarks is not None else {}
     conn = sqlite3.connect(f"file:{SESSION_DB}?mode=ro", uri=True)
     conn.row_factory = sqlite3.Row
     try:
-        # Sesiones que tienen al menos un mensaje posterior al watermark
+        # DT-36: una sesión es elegible si tiene al menos UN mensaje de
+        # conversación con id > watermark DE ESA SESIÓN (global como fallback
+        # para sesiones nunca consolidadas bajo el esquema nuevo... no: una
+        # sesión sin entrada en la tabla por-sesión usa since_id global como
+        # piso, EXCEPTO en modo backfill donde se fuerza a 0).
         rows = conn.execute(
-            "SELECT DISTINCT s.id, s.source, s.display_name, s.message_count, "
+            "SELECT s.id, s.source, s.display_name, s.message_count, "
             "s.started_at, s.ended_at "
             "FROM sessions s JOIN messages m ON m.session_id = s.id "
-            "WHERE m.id > ? AND m.role IN (?, ?) AND m.active = 1 "
+            "WHERE m.role IN (?, ?) AND m.active = 1 "
             "AND m.compacted = 0 AND m.content IS NOT NULL "
             "AND length(m.content) > 0 "
-            "ORDER BY s.started_at DESC LIMIT ?",
-            (since_id, *CONVERSATION_ROLES, max_sessions),
+            "AND (? IS NULL OR s.started_at >= ?) "
+            "AND (? IS NULL OR s.started_at <= ?) "
+            "ORDER BY s.started_at ASC LIMIT ?",
+            (
+                *CONVERSATION_ROLES,
+                window_start, window_start,
+                window_end, window_end,
+                max_sessions * 4,  # margen: algunas candidatas caen por presupuesto
+            ),
         ).fetchall()
         sessions: list[dict[str, Any]] = []
         new_max_id = since_id
@@ -179,13 +204,20 @@ def get_unconsolidated_sessions(
         for row in rows:
             if budget <= 0:
                 break
+            session_mark = marks.get(row["id"])
+            if session_mark is None:
+                # Sin entrada por-sesión: fallback al global (o 0 si venimos
+                # de un backfill con watermark global ya avanzado).
+                session_mark = (
+                    0 if window_start is not None else since_id
+                )
             msgs = conn.execute(
                 "SELECT id, role, content, timestamp FROM messages "
                 "WHERE session_id = ? AND id > ? AND role IN (?, ?) "
                 "AND active = 1 AND compacted = 0 "
                 "AND content IS NOT NULL AND length(content) > 0 "
                 "ORDER BY timestamp ASC LIMIT ?",
-                (row["id"], since_id, *CONVERSATION_ROLES, budget),
+                (row["id"], session_mark, *CONVERSATION_ROLES, budget),
             ).fetchall()
             if not msgs:
                 continue
@@ -208,6 +240,8 @@ def get_unconsolidated_sessions(
                     ],
                 }
             )
+            if len(sessions) >= max_sessions:
+                break
         return sessions, new_max_id
     finally:
         conn.close()
@@ -420,14 +454,24 @@ def reset_failures() -> None:
 # Orquestación
 # ---------------------------------------------------------------------------
 
-def run_consolidation(live: bool, max_sessions: int, max_messages: int) -> dict[str, Any]:
+def run_consolidation(
+    live: bool,
+    max_sessions: int,
+    max_messages: int,
+    backfill: tuple[float, float] | None = None,
+) -> dict[str, Any]:
     """
     Ejecuta la consolidación completa.
 
     dry-run (live=False): lee Session DB + watermark, extrae hechos (para
     estimar), NO escribe en Qdrant/Obsidian/consolidation_log/watermark.
     live (live=True): escribe en Qdrant + Obsidian + consolidation_log y
-    actualiza el watermark.
+    actualiza el watermark (DT-36: POR SESIÓN; el global queda como máximo
+    visto).
+
+    backfill: tupla (window_start, window_end) epoch float. Si se pasa, se
+    procesan SOLO sesiones cuyo started_at cae en la ventana, forzando su
+    watermark por sesión a 0 (re-consolidación de historia, DT-36).
     """
     start = time.time()
     failures = check_failure_count()
@@ -441,13 +485,36 @@ def run_consolidation(live: bool, max_sessions: int, max_messages: int) -> dict[
     memory_conn = sqlite3.connect(MEMORY_DB)
     try:
         since_id = get_watermark(memory_conn)
+        window_start = backfill[0] if backfill else None
+        window_end = backfill[1] if backfill else None
+        # DT-36: watermarks por sesión.
+        session_marks = get_session_watermarks(memory_conn)
+        if backfill:
+            # En backfill las sesiones objetivo se fuerzan a consolidar desde 0
+            ws: float = backfill[0]
+            session_marks = {
+                sid: 0 if ws <= _started(sid) else mid
+                for sid, mid in session_marks.items()
+            }
         logger.info(
             f"Consolidador iniciado (live={live}, watermark={since_id}, "
+            f"watermarks_por_sesion={len(session_marks)}, "
+            f"backfill={'si' if backfill else 'no'}, "
             f"max_sessions={max_sessions}, max_messages={max_messages})"
         )
 
+        # En backfill se fuerza watermark por sesión = 0 para las sesiones de
+        # la ventana (get_unconsolidated_sessions aplica window_*).
+        marks_for_query = (
+            {} if backfill else session_marks
+        )
         sessions, new_max_id = get_unconsolidated_sessions(
-            since_id, max_sessions, max_messages
+            since_id,
+            max_sessions,
+            max_messages,
+            session_watermarks=marks_for_query,
+            window_start=window_start,
+            window_end=window_end,
         )
         if not sessions:
             logger.info(
@@ -503,12 +570,17 @@ def run_consolidation(live: bool, max_sessions: int, max_messages: int) -> dict[
                 errors=None,
                 duration_ms=duration_ms,
             )
-            # Watermark SIEMPRE después de persistir el log (D-5.1)
-            update_watermark(memory_conn, new_max_id, "ok")
+            # DT-36: watermark POR SESIÓN (cada sesión hasta su propio max),
+            # y el global como registro de compatibilidad (máximo visto).
+            for sess in sessions:
+                sess_max = max(m["id"] for m in sess["messages"])
+                update_session_watermark(memory_conn, sess["session_id"], sess_max)
+            update_watermark(memory_conn, max(since_id, new_max_id), "ok")
             reset_failures()
             logger.info(
                 f"LIVE: {indexed} hechos indexados en Qdrant, {written} en "
-                f"Obsidian; watermark → {new_max_id}"
+                f"Obsidian; watermarks por sesión actualizados "
+                f"({len(sessions)} sesiones); global → {max(since_id, new_max_id)}"
             )
         else:
             logger.info(
@@ -527,6 +599,18 @@ def run_consolidation(live: bool, max_sessions: int, max_messages: int) -> dict[
         }
     finally:
         memory_conn.close()
+
+
+def _started(session_id: str) -> float:
+    """Epoch de inicio de una sesión (para filtrado de backfill)."""
+    conn = sqlite3.connect(f"file:{SESSION_DB}?mode=ro", uri=True)
+    try:
+        row = conn.execute(
+            "SELECT started_at FROM sessions WHERE id = ?", (session_id,)
+        ).fetchone()
+        return row[0] if row else 0.0
+    finally:
+        conn.close()
 
 
 def main() -> None:
@@ -557,11 +641,35 @@ def main() -> None:
         default=MAX_MESSAGES_PER_RUN,
         help=f"Máximo de mensajes por corrida (default: {MAX_MESSAGES_PER_RUN})",
     )
+    parser.add_argument(
+        "--backfill",
+        metavar="START_TS,END_TS",
+        default=None,
+        help=(
+            "Ventana de fechas ISO separadas por coma (ej. "
+            "2026-08-26T00:00:00+00:00,2026-09-30T23:59:59+00:00). Fuerza "
+            "re-consolidación de las sesiones cuyo started_at cae en la "
+            "ventana (watermark por sesión = 0)."
+        ),
+    )
     args = parser.parse_args()
+
+    backfill = None
+    if args.backfill:
+        try:
+            s_str, e_str = args.backfill.split(",", 1)
+            from datetime import datetime as _dt
+            ws = _dt.fromisoformat(s_str).timestamp()
+            we = _dt.fromisoformat(e_str).timestamp()
+            backfill = (ws, we)
+        except ValueError as exc:
+            parser.error(f"--backfill mal formado: {exc}")
 
     live = args.live  # sin --live, dry-run (default)
     try:
-        result = run_consolidation(live, args.max_sessions, args.max_messages)
+        result = run_consolidation(
+            live, args.max_sessions, args.max_messages, backfill=backfill
+        )
         logger.info(f"Resultado: {json.dumps(result, default=str)}")
     except Exception as e:
         failures = increment_failure()
