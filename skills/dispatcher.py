@@ -355,9 +355,14 @@ def _pod_block(delivery_id: int, vehicle_id: int | None) -> str:
     if not pod_id:
         return "\n\n⚠️ No se pudo crear la nota digital (POD). " \
                "Reporta al administrador."
+    # 2026-10-10 fix: el PWA exige ?token= (pod_router _verify_token_query)
+    # — sin él el link del chofer abría en 401 ("nunca cargó"). Token por env
+    # (único compartido, configurado en config/.env).
+    token = os.getenv("POD_VEHICLE_TOKEN", "")
+    q = f"?token={token}" if token else ""
     return (
         f"\n\n✍️ NOTA DE ENTREGA DIGITAL:\n"
-        f"Abrí el link de firma en tu celular:\n{POD_SIGN_URL}/{delivery_id}"
+        f"Abrí el link de firma en tu celular:\n{POD_SIGN_URL}/{delivery_id}{q}"
     )
 
 
