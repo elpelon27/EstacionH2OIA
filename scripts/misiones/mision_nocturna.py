@@ -274,23 +274,18 @@ def deadline() -> dt.datetime:
     return d.replace(hour=DEADLINE_HORA, minute=0, second=0, microsecond=0)
 
 
-def main() -> int:
-    ap = argparse.ArgumentParser()
-    ap.add_argument("--dry-run", action="store_true")
-    ap.add_argument("--force", action="store_true",
-                    help="ignora validación de día/hora (pruebas)")
-    args = ap.parse_args()
-    dry = args.dry_run
-
-    # lock: una sola noche a la vez
+def noche_legacy(dry: bool, force: bool) -> int:
+    """Modo antiguo auto-ejecutado con prometeo (qwen). DEPRECATO desde el
+    11-10: qwen en un solo turno no puede investigar de verdad (no navega ni
+    descarga). El ejecutor oficial es el CLI de ZCode; este modo queda solo
+    como referencia y para --dry-run de diagnóstico."""
     lk = open(LOCK, "w")
     try:
         fcntl.flock(lk, fcntl.LOCK_EX | fcntl.LOCK_NB)
     except OSError:
         log("OTRA ejecución en curso — salgo sin tocar nada")
         return 0
-
-    if not dry and not args.force and not horario_valido():
+    if not dry and not force and not horario_valido():
         log(f"Arranque fuera de horario ({ahora():%a %H:%M}) — ignoro (cron mal configurado?)")
         return 0
 
@@ -391,6 +386,123 @@ def main() -> int:
     log(f"CIERRE: {resumen}")
     tg_enviar(resumen)
     return 0
+
+
+# ------------------------------------------------- subcomandos para el CLI --
+def cmd_turno() -> int:
+    """Imprime el plan de la noche en JSON para que el CLI de ZCode lo ejecute."""
+    est = cargar_estado()
+    orden = est["pendiente_desborde"] + [h for h in est["cola"]
+                                         if h not in est["pendiente_desborde"]]
+    plan = []
+    for h in orden:
+        her = est["hermanos"][h]
+        lote_num, _ = proximo_lote(her.get("mapa"))
+        plan.append({
+            "hermano": h, "nombre": her["nombre"], "mision": her["mision"],
+            "workspace": her["workspace"],
+            "lote": lote_num if lote_num else f"jornada {her.get('jornada', 0) + 1}",
+            "mapa": her.get("mapa"),
+        })
+    print(json.dumps({"orden": plan, "cierre_ventana": f"{DEADLINE_HORA:02d}:00"},
+                     ensure_ascii=False, indent=1))
+    return 0
+
+
+def cmd_preguntar() -> int:
+    """Consulta de aborto por telegram; rc 0 = arrancar, rc 3 = ABORTADO."""
+    est = cargar_estado()
+    abortado = tg_preguntar_abort(
+        "🌙 Investigación nocturna (CLI ZCode) lista para arrancar "
+        f"({' -> '.join(est['cola'])}). ¿Interrupción? Responde en "
+        f"{MIN_RESPUESTA_MIN} min para abortar; sin respuesta arranco solo.",
+        MIN_RESPUESTA_MIN)
+    if abortado:
+        log("ABORTADO por el humano vía telegram — turno intacto")
+        tg_enviar("🌙 Misión nocturna abortada. El turno queda intacto para la próxima noche.")
+        return 3
+    log("Sin respuesta (o confirmación) — el CLI puede arrancar la noche")
+    return 0
+
+
+def cmd_registrar(hermano: str, exito: bool, nota: str) -> int:
+    """Registra el resultado de un hermano ejecutado por el CLI de ZCode."""
+    est = cargar_estado()
+    her = est["hermanos"].get(hermano)
+    if not her:
+        print(f"ERROR: hermano desconocido {hermano}", file=sys.stderr)
+        return 2
+    lote_num, linea = proximo_lote(her.get("mapa"))
+    if lote_num and lote_num != "COMPLETO":
+        etiqueta = f"lote {lote_num}"
+        if exito:
+            marcar_lote(her.get("mapa"), linea)
+    elif lote_num == "COMPLETO":
+        etiqueta = "mapa-completo"
+    else:
+        her["jornada"] = her.get("jornada", 0) + 1
+        etiqueta = f"jornada {her['jornada']}"
+    append_historial(her["workspace"],
+                     f"**MISIÓN NOCTURNA (CLI ZCode)** {etiqueta} "
+                     f"{'COMPLETADO' if exito else 'FALLO'}. {nota}".rstrip())
+    registrar_hecho(est, hermano, her["nombre"], etiqueta, exito)
+    est["historial"].append({"fecha": ahora().isoformat(timespec="minutes"),
+                             "hermano": hermano, "lote": etiqueta,
+                             "resultado": "ok" if exito else "fallo", "nota": nota})
+    if not exito and hermano not in est["pendiente_desborde"]:
+        est["pendiente_desborde"].append(hermano)  # reintenta primero mañana
+    guardar_estado(est)
+    tg_enviar(f"{'✅' if exito else '❌'} {her['nombre']}: {etiqueta} "
+              f"{'completado' if exito else 'falló — primero mañana'}.")
+    log(f"REGISTRADO {hermano} {etiqueta} {'ok' if exito else 'fallo'}")
+    return 0
+
+
+def cmd_cierre() -> int:
+    """Cierre de la noche: rota la cola y resume por telegram."""
+    est = cargar_estado()
+    if est["cola"]:
+        primero = est["cola"][0]
+        est["cola"] = est["cola"][1:] + [primero]
+    guardar_estado(est)
+    ult = {(h["hermano"]): h for h in est["historial"] if h["fecha"].startswith(str(ahora().date()))}
+    resumen = (f"🌙 Cierre nocturno {ahora():%Y-%m-%d} (CLI ZCode): "
+               + "; ".join(f"{v['lote']} {'✓' if v['resultado'] == 'ok' else '✗'}"
+                           for v in ult.values()) or "sin registros")
+    resumen += f". Próxima cola: {' -> '.join(est['pendiente_desborde'] + est['cola'])}"
+    log(f"CIERRE: {resumen}")
+    tg_enviar(resumen)
+    return 0
+
+
+def main() -> int:
+    ap = argparse.ArgumentParser(description=__doc__)
+    ap.add_argument("--turno", action="store_true",
+                    help="imprime el plan de la noche (JSON) para el CLI")
+    ap.add_argument("--preguntar", action="store_true",
+                    help="consulta de aborto por telegram (bloquea 10 min)")
+    ap.add_argument("--registrar", metavar="HERMANO",
+                    help="registra resultado del hermano")
+    ap.add_argument("--fallo", action="store_true", help="con --registrar: resultado fallo")
+    ap.add_argument("--nota", default="", help="nota para el registro")
+    ap.add_argument("--cierre", action="store_true", help="rota cola y resume la noche")
+    ap.add_argument("--legacy-run", action="store_true",
+                    help="DEPRECADO: modo antiguo con qwen (solo diagnóstico)")
+    ap.add_argument("--dry-run", action="store_true")
+    ap.add_argument("--force", action="store_true")
+    args = ap.parse_args()
+    if args.turno:
+        return cmd_turno()
+    if args.preguntar:
+        return cmd_preguntar()
+    if args.registrar:
+        return cmd_registrar(args.registrar, not args.fallo, args.nota)
+    if args.cierre:
+        return cmd_cierre()
+    if args.legacy_run:
+        return noche_legacy(args.dry_run, args.force)
+    ap.print_help()
+    return 1
 
 
 if __name__ == "__main__":
