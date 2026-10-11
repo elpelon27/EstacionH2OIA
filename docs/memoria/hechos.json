@@ -299,5 +299,11 @@
   "tema": "infra",
   "hecho": "Estudio LLM de investigación completado e instalado (2026-10-11, docs/ESTUDIO-LLM-INVESTIGACION.md): precios verificados EN VIVO del catálogo OpenRouter. EJECUTOR de las misiones nocturnas = HERMES AGENT vía task_type=research en llm_client.py: deepseek/deepseek-v4-flash ($0.03/$1.28 por 1M, ctx 1M — fidelidad numérica de resumen VERIFICADA en vivo) con respaldo z-ai/glm-5.3-flash ($0.15/$0.50, 1M). Costo semanal 28 jornadas (4 hermanos × 7 noches): ~$1.9 carga media / $3.7 pesada (+5.5% fee). Modelo local qwen DESCARTADO como investigador de cimientos (decisión del Líder). ZCode: despacha (--ejecutar), vigila y valida (dos ojos). Bug corregido: deepseek es razonador, necesita max_tokens alto o devuelve content vacío (default research ahora 16k). Opción premium no cableada: gemini-3-flash-preview (~$9.5/sem).",
   "fecha": "2026-10-11"
+ },
+ {
+  "id": 45,
+  "tema": "infra",
+  "hecho": "Migración EXACTA de cronogramas verificada (2026-10-11): los 4 hermanos corren ahora por LOTES de sus pensum, no por jornadas genéricas. Creados los 3 mapas vivos que faltaban, extraídos textuales de sus planes: mapa-bibliografico-pensum.md (Tripólemo, 8 lotes §4), mapa-bibliografico-veterinario.md (Quirón, 8+bonus §4), mapa-bibliografico-pensum-iq.md (Empédocles, 8 lotes L1-L8). Aristeo ya tenía el suyo (9 lotes). Bug corregido: regex de lotes no reconocía números con ⭐ (saltaba al lote 3-4). El despachador inyecta 'Ejecuta el LOTE N' aunque el plan no tenga placeholder. Turno verificado: Tripólemo L1, Aristeo L2 (L1 quedó [x] por decisión del Líder noche 10-10), Quirón L1, Empédocles L1 (los L1 de los 3 nuevos marcados 'sin empezar ⚠ qwen 10-10 sin investigación real'). ZCode queda como GUARDIÁN del cumplimiento diario (despacha, vigila, valida cada 22:00).",
+  "fecha": "2026-10-11"
  }
 ]
