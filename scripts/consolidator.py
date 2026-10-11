@@ -43,6 +43,55 @@ BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 MEMORY_DB = os.path.join(BASE_DIR, "data", "hermes_memory.db")
 VAULT_DIR = os.path.join(BASE_DIR, "docs", "03-sesiones")
 
+# ---------------------------------------------------------------------------
+# Watermark POR SESIÓN (DT-36, 2026-10-11): el watermark global saltaba a
+# max(messages.id) y dejaba mensajes antiguos permanentemente inelegibles.
+# Ahora cada sesión trackea su propio último message.id consolidado en
+# consolidation_session_watermark. El watermark global se preserva como
+# registro de compatibilidad (máximo visto), pero la elegibilidad se decide
+# por sesión.
+# ---------------------------------------------------------------------------
+
+def ensure_session_watermark_table(memory_conn: sqlite3.Connection) -> None:
+    """Crea la tabla de watermarks por sesión si no existe (idempotente)."""
+    memory_conn.execute(
+        "CREATE TABLE IF NOT EXISTS consolidation_session_watermark ("
+        " session_id TEXT PRIMARY KEY,"
+        " last_consolidated_id INTEGER NOT NULL,"
+        " last_run_at TEXT NOT NULL"
+        ")"
+    )
+    memory_conn.commit()
+
+
+def get_session_watermarks(memory_conn: sqlite3.Connection) -> dict[str, int]:
+    """Lee el mapa session_id → last_consolidated_id (watermarks por sesión)."""
+    ensure_session_watermark_table(memory_conn)
+    rows = memory_conn.execute(
+        "SELECT session_id, last_consolidated_id "
+        "FROM consolidation_session_watermark"
+    ).fetchall()
+    return {r[0]: r[1] for r in rows}
+
+
+def update_session_watermark(
+    memory_conn: sqlite3.Connection,
+    session_id: str,
+    last_id: int,
+) -> None:
+    """Actualiza (upsert) el watermark de UNA sesión."""
+    ensure_session_watermark_table(memory_conn)
+    memory_conn.execute(
+        "INSERT INTO consolidation_session_watermark "
+        "(session_id, last_consolidated_id, last_run_at) "
+        "VALUES (?, ?, ?) "
+        "ON CONFLICT(session_id) DO UPDATE SET "
+        "last_consolidated_id = excluded.last_consolidated_id, "
+        "last_run_at = excluded.last_run_at",
+        (session_id, last_id, datetime.now(UTC).isoformat()),
+    )
+    memory_conn.commit()
+
 # D-5.2: Session DB de Hermes (validada en vivo: 38 sesiones, 25k mensajes).
 # No es conversations.db (esa era fs_audit_log y no es la fuente correcta).
 # FIX 2026-10-02 (revinculación del alma): el default apuntaba a la instalación
