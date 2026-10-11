@@ -293,5 +293,11 @@
   "tema": "infra",
   "hecho": "CAMBIO DE EJECUTOR de la misión nocturna (2026-10-11, decisión del Líder): las misiones las ejecuta el CLI de ZCode (agéntico: web, descargas, apuntes, ingest a Qdrant) y vigila su resultado; mision_nocturna.py deja de ejecutar qwen (la noche del 10-10 demostró que qwen en un turno solo produce borradores conversacionales, sin investigación real) y queda como REGISTRO: subcomandos --turno/--preguntar/--registrar/--cierre (turno, aborto Telegram 10 min, marcas en mapas/hechos/estado, rotación de cola). Crontab del host retirado; dispara una automatización diaria 22:00 en sesión ZCode que además valida la noche anterior (dos ojos). Los registros 39-42 del 10-10 se conservan como historial (borradores qwen, lotes marcados por decisión del Líder). Fuente de verdad sin cambios: scripts/misiones/estado_misiones.json.",
   "fecha": "2026-10-11"
+ },
+ {
+  "id": 44,
+  "tema": "infra",
+  "hecho": "Estudio LLM de investigación completado e instalado (2026-10-11, docs/ESTUDIO-LLM-INVESTIGACION.md): precios verificados EN VIVO del catálogo OpenRouter. EJECUTOR de las misiones nocturnas = HERMES AGENT vía task_type=research en llm_client.py: deepseek/deepseek-v4-flash ($0.03/$1.28 por 1M, ctx 1M — fidelidad numérica de resumen VERIFICADA en vivo) con respaldo z-ai/glm-5.3-flash ($0.15/$0.50, 1M). Costo semanal 28 jornadas (4 hermanos × 7 noches): ~$1.9 carga media / $3.7 pesada (+5.5% fee). Modelo local qwen DESCARTADO como investigador de cimientos (decisión del Líder). ZCode: despacha (--ejecutar), vigila y valida (dos ojos). Bug corregido: deepseek es razonador, necesita max_tokens alto o devuelve content vacío (default research ahora 16k). Opción premium no cableada: gemini-3-flash-preview (~$9.5/sem).",
+  "fecha": "2026-10-11"
  }
 ]

@@ -84,6 +84,7 @@ class LLMClient:
                 "chat_ok": False,
                 "research_ok": True,
                 "timeout": 600,
+                "max_tokens_default": 16000,
             },
             {
                 # Respaldo research: proveedor de la casa (z-ai), 1M ctx.
@@ -97,6 +98,7 @@ class LLMClient:
                 "chat_ok": False,
                 "research_ok": True,
                 "timeout": 600,
+                "max_tokens_default": 16000,
             },
             {
                 # Tier dedicado a análisis de video (claude-watch).
@@ -197,7 +199,9 @@ class LLMClient:
             "model": tier["model"],
             "messages": messages,
             "temperature": kwargs.get("temperature", 0.7),
-            "max_tokens": kwargs.get("max_tokens", 4096),
+            # Los modelos research son razonadores: el thinking consume
+            # completion tokens, así que su default de salida es alto.
+            "max_tokens": kwargs.get("max_tokens", tier.get("max_tokens_default", 4096)),
         }
         r = httpx.post(url, json=body, headers=headers,
                        timeout=tier.get("timeout", self.timeout))
