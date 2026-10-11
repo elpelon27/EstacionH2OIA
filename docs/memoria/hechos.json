@@ -257,5 +257,11 @@
   "hecho": "Instalada skill ingeniero-quimico v1.0.0 (EMPÉDOCLES, 4º hermano: UCV IQ 177 UC, electivas agua+alimentos): dueño de la TRANSFORMACIÓN (procesos, energía, estabilidad, calidad). Poder procesos.py (cloro/dureza/TDS/RO/liofilización/compost/ensilaje, stdlib). Handoffs espejo: agronomo 1.0.5, zootecnista 1.0.2, medico-veterinario 1.0.1. SkillRegistry 17 OK, E2E 2 vías OK (Qdrant 0,809 biofertilizante). Regla de territorio: animal→Aristeo, enfermo/prescripción→Quirón, suelo/agua-recurso→Tripólemo, PROCESO/agua-producto→Empédocles. Bitácoras docs/quimico/ al primer uso. Reporte 2026-10-10-ingeniero-quimico-empedocles.md",
   "confianza": "certain",
   "fecha": "2026-10-10"
+ },
+ {
+  "id": 38,
+  "tema": "infra",
+  "hecho": "Sistema de MISIÓN NOCTURNA DESATENDIDA de los 4 hermanos instalado y probado E2E (2026-10-10): cada noche (Lun-Vie 22:00 / Sáb 01:00 / Dom 21:00) una cola rotante ejecuta un lote de investigación por hermano (Empédocles/Tripólemo/Aristeo/Quirón) con prometeo_nocturno qwen3.6:35b local ($0 API). Guard de CLI (espera si hay código corriendo + vuelve a preguntar), consulta de aborto por Telegram 10 min (sin respuesta arranca solo), fallo reintenta al MISMO hermano (turno no avanza), desborde de ventana 06:00 queda primero la noche siguiente. Fuente de verdad del turno: scripts/misiones/estado_misiones.json; bitácora: scripts/misiones/bitacora-nocturna.log; crontab vía cron_with_memory. Validación matutina ZCode 08:00 (dos ojos ven mejor — puede degradar marcas sin respaldo). Reporte: docs/reportes-zcode/2026-10-10-sistema-mision-nocturna.md. Primera noche real: lun 12-oct 22:00.",
+  "fecha": "2026-10-10"
  }
 ]
