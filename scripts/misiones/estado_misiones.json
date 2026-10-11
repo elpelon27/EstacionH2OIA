@@ -22,7 +22,8 @@
       "workspace": "/home/skynet/.zcode/workspace/default/INGENIERO-AGRONOMO",
       "mision": "/home/skynet/.zcode/workspace/default/INGENIERO-AGRONOMO/misiones/2026-10-09-mision-nutricion-bibliografica-pensum.md",
       "mapa": "/home/skynet/.zcode/workspace/default/INGENIERO-AGRONOMO/harvest-bibliografica/mapa-bibliografico-pensum.md",
-      "reintentos": 0
+      "reintentos": 0,
+      "jornada": 1
     },
     "zootecnista": {
       "nombre": "Aristeo",
@@ -43,6 +44,12 @@
     {
       "fecha": "2026-10-10T23:45",
       "hermano": "ingeniero-quimico",
+      "lote": "jornada 1",
+      "resultado": "ok"
+    },
+    {
+      "fecha": "2026-10-10T23:49",
+      "hermano": "ingeniero-agronomo",
       "lote": "jornada 1",
       "resultado": "ok"
     }
