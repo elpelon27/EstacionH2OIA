@@ -31,6 +31,9 @@ import mision_nocturna as mn
 
 DEADLINE_H = 6
 REINTENTOS = 1
+# Fecha de toma de posesión: la noche del 12-oct la ejecuta ZCode (transición
+# ordenada); desde el 13-oct-2026 Hermes es el dueño de todas las noches.
+ACTIVO_DESDE = dt.date(2026, 10, 13)
 
 
 def _en_ventana() -> bool:
@@ -38,6 +41,10 @@ def _en_ventana() -> bool:
 
 
 def main() -> int:
+    if dt.date.today() < ACTIVO_DESDE:
+        mn.log("[HERMES] Guard de entrega: ZCode ejecuta hoy; Hermes toma "
+               f"posesión el {ACTIVO_DESDE} — salgo sin tocar nada")
+        return 0
     test = "--test" in sys.argv
     est = mn.cargar_estado()
     orden = est["pendiente_desborde"] + [h for h in est["cola"]
