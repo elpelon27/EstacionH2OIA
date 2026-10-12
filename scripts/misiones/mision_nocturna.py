@@ -531,8 +531,7 @@ def cmd_ejecutar(hermano: str) -> int:
     try:
         r = cliente.complete(
             [{"role": "user", "content": prompt}],
-            task_type="research", max_tokens=16000, temperature=0.4,
-            plugins=[{"id": "web_search", "max_results": 8}])
+            task_type="research", max_tokens=16000, temperature=0.4)
     except Exception as e:
         log(f"ERROR research {hermano}: {e}")
         return 1
