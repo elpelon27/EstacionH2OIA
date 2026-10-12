@@ -2,10 +2,10 @@
   "version": 1,
   "creado": "2026-10-10",
   "cola": [
-    "ingeniero-agronomo",
     "zootecnista",
     "medico-veterinario",
-    "ingeniero-quimico"
+    "ingeniero-quimico",
+    "ingeniero-agronomo"
   ],
   "pendiente_desborde": [],
   "hermanos": {
@@ -79,6 +79,20 @@
       "lote": "lote 2",
       "resultado": "ok",
       "nota": "L2 razas Bos indicus+Jersey tropical: 8 refs verificadas (embrapa/ABCZ/scielo), apuntes por asignatura"
+    },
+    {
+      "fecha": "2026-10-11T22:24",
+      "hermano": "medico-veterinario",
+      "lote": "lote 1",
+      "resultado": "ok",
+      "nota": "L1 semiologia y patologia clinica (su poder): refs verificadas + apuntes con datos cuantitativos"
+    },
+    {
+      "fecha": "2026-10-11T22:24",
+      "hermano": "ingeniero-quimico",
+      "lote": "lote 1",
+      "resultado": "ok",
+      "nota": "L1 balances/termodinamica: 8 refs verificadas + apuntes con idea nuclear por asignatura"
     }
   ]
 }
