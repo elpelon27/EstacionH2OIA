@@ -65,6 +65,13 @@
       "hermano": "medico-veterinario",
       "lote": "jornada 1",
       "resultado": "ok"
+    },
+    {
+      "fecha": "2026-10-11T22:21",
+      "hermano": "ingeniero-agronomo",
+      "lote": "lote 1",
+      "resultado": "ok",
+      "nota": "L1 suelo vivo: 10 refs verificadas (scielo/embrapa/fao), apuntes por asignatura; PDFs para descargar en validación"
     }
   ]
 }
