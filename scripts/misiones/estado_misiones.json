@@ -72,6 +72,13 @@
       "lote": "lote 1",
       "resultado": "ok",
       "nota": "L1 suelo vivo: 10 refs verificadas (scielo/embrapa/fao), apuntes por asignatura; PDFs para descargar en validación"
+    },
+    {
+      "fecha": "2026-10-11T22:22",
+      "hermano": "zootecnista",
+      "lote": "lote 2",
+      "resultado": "ok",
+      "nota": "L2 razas Bos indicus+Jersey tropical: 8 refs verificadas (embrapa/ABCZ/scielo), apuntes por asignatura"
     }
   ]
 }
