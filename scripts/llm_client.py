@@ -69,14 +69,56 @@ class LLMClient:
                 "chat_ok": True,
             },
             {
-                # Tier de INVESTIGACIÓN de los 4 hermanos (misiones nocturnas).
-                # Estudio 2026-10-11 (docs/ESTUDIO-LLM-INVESTIGACION.md).
-                # Gemini 3 Flash: ÚNICO que soporta el plugin web de OpenRouter
-                # (deepseek/glm devuelven 500 con plugins) — búsqueda real,
-                # 1M ctx. NO entra en la cadena de chat/técnico.
+                # ═══ TIER DE INVESTIGACIÓN de los 4 hermanos (misiones
+                # nocturnas). RECTIFICACIÓN del Líder 12-oct: preferencia
+                # flash ABIERTOS (GLM → Qwen → DeepSeek) sobre cerrados.
+                # Grounding: scripts/misiones/buscar_web.py (DDG local) —
+                # NO dependemos del plugin web (solo Gemini cerrado lo
+                # soporta). NO entra en cadena chat/técnico.
+                "name": "glm-5.3-flash-research",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_RESEARCH", "z-ai/glm-5.3-flash"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": False,
+                "chat_ok": False,
+                "research_ok": True,
+                "timeout": 600,
+                "max_tokens_default": 16000,
+            },
+            {
+                "name": "qwen3.8-flash-research",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_RESEARCH_2", "qwen/qwen3.8-flash"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": False,
+                "chat_ok": False,
+                "research_ok": True,
+                "timeout": 600,
+                "max_tokens_default": 16000,
+            },
+            {
+                "name": "deepseek-v4-flash-research",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_RESEARCH_3", "deepseek/deepseek-v4-flash"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": False,
+                "chat_ok": False,
+                "research_ok": True,
+                "timeout": 600,
+                "max_tokens_default": 16000,
+            },
+            {
+                # ÚLTIMO RECURSO (cerrado): único con plugin web nativo, por
+                # si los abiertos y la búsqueda local no alcanzan.
                 "name": "gemini-3-flash-research",
                 "model": os.getenv(
-                    "OPENROUTER_MODEL_RESEARCH", "google/gemini-3-flash-preview"
+                    "OPENROUTER_MODEL_RESEARCH_LAST", "google/gemini-3-flash-preview"
                 ),
                 "base_url": "https://openrouter.ai/api/v1",
                 "api_key": os.getenv("OPENROUTER_API_KEY", ""),
@@ -86,34 +128,6 @@ class LLMClient:
                 "timeout": 600,
                 "max_tokens_default": 16000,
                 "plugins": [{"id": "web", "max_results": 8}],
-            },
-            {
-                # Respaldo research (SIN plugin web: su host no lo soporta).
-                "name": "deepseek-v4-flash-research",
-                "model": os.getenv(
-                    "OPENROUTER_MODEL_RESEARCH_BACKUP", "deepseek/deepseek-v4-flash"
-                ),
-                "base_url": "https://openrouter.ai/api/v1",
-                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
-                "technical_ok": False,
-                "chat_ok": False,
-                "research_ok": True,
-                "timeout": 600,
-                "max_tokens_default": 16000,
-            },
-            {
-                # Respaldo research: proveedor de la casa (z-ai), 1M ctx.
-                "name": "glm-5.3-flash-research",
-                "model": os.getenv(
-                    "OPENROUTER_MODEL_RESEARCH_BACKUP", "z-ai/glm-5.3-flash"
-                ),
-                "base_url": "https://openrouter.ai/api/v1",
-                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
-                "technical_ok": False,
-                "chat_ok": False,
-                "research_ok": True,
-                "timeout": 600,
-                "max_tokens_default": 16000,
             },
             {
                 # Tier dedicado a análisis de video (claude-watch).

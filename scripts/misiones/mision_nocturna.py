@@ -514,6 +514,27 @@ def cmd_ejecutar(hermano: str) -> int:
                    f"técnico (las descargas e ingesta a Qdrant las hace el día "
                    f"siguiente la validación).")
         etiqueta = f"lote {lote_num}"
+        # GROUNDING LOCAL: resultados web reales inyectados al prompt para
+        # que los flash ABIERTOS citen sin inventar (plugin web = solo Gemini).
+        try:
+            sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+            from buscar_web import buscar  # noqa: E402
+            dominio = linea.split("|")[2].strip() if linea.count("|") >= 3 else etiqueta
+            dominio = re.sub(r"[⭐]", "", dominio).strip() or etiqueta
+            contexto = []
+            for q in (f"{dominio} pdf embrapa scielo",
+                      f"{dominio} tesis bdtd ibict",
+                      f"{dominio} fao who guia"):
+                contexto += buscar(q, 4)
+            if contexto:
+                prompt += ("\n\n[RESULTADOS DE BÚSQUEDA WEB REALES de esta noche "
+                           "— úsalos como punto de partida; cita solo lo que "
+                           "verifiques aquí o conozcas con certeza]:\n"
+                           + "\n".join(f"- {c['titulo']}\n  {c['url']}\n  {c['snippet']}"
+                                       for c in contexto[:12]))
+                log(f"GROUNDING {hermano}: {len(contexto[:12])} resultados inyectados")
+        except Exception as e:
+            log(f"WARN grounding {hermano}: {e} (sigo sin contexto web)")
     elif lote_num == "COMPLETO":
         log(f"{hermano}: mapa ya COMPLETO — nada que ejecutar")
         return 0
