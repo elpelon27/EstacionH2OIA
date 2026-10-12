@@ -203,6 +203,9 @@ class LLMClient:
             # completion tokens, así que su default de salida es alto.
             "max_tokens": kwargs.get("max_tokens", tier.get("max_tokens_default", 4096)),
         }
+        # Plugins OpenRouter (p.ej. web_search para el tier research)
+        if kwargs.get("plugins"):
+            body["plugins"] = kwargs["plugins"]
         r = httpx.post(url, json=body, headers=headers,
                        timeout=tier.get("timeout", self.timeout))
         r.raise_for_status()
