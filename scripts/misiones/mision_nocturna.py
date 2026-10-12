@@ -488,13 +488,31 @@ def cmd_ejecutar(hermano: str) -> int:
         print(f"ERROR: hermano desconocido {hermano}", file=sys.stderr)
         return 2
     prompt = extraer_prompt(her["mision"])
-    lote_num, _ = proximo_lote(her.get("mapa"))
+    lote_num, linea = proximo_lote(her.get("mapa"))
     if lote_num and lote_num != "COMPLETO":
         prompt = re.sub(r"LOTE N", f"LOTE {lote_num}", prompt)
-        # garantiza el lote exacto aunque el plan no tenga placeholder "LOTE N"
-        prompt += (f"\n\n[DESPACHADOR] Ejecuta el LOTE {lote_num} de esta noche "
-                   f"(primer lote sin [x] en {os.path.basename(her['mapa'])}). "
-                   f"Orden del cronograma del plan; no adelantar lotes.")
+        # prompt AUTONOMO y autocontenido: el modelo no tiene archivos ni
+        # humano al otro lado — se le inyecta el mapa y el lote exacto.
+        mapa_txt = open(her["mapa"]).read() if os.path.exists(her.get("mapa") or "") else ""
+        prompt += (f"\n\n[DESPACHADOR — LEE ESTO PRIMERO]\n"
+                   f"Ejecuta el LOTE {lote_num} de esta noche. Trabajo AUTÓNOMO: "
+                   f"no hay humano que responda preguntas y no tienes acceso a "
+                   f"archivos — todo el contexto que necesitas está en este prompt "
+                   f"(usa la búsqueda web de la que dispones para verificar).\n\n"
+                   f"MAPA DE CAMPAÑA (estado de lotes):\n{mapa_txt}\n\n"
+                   f"ENTREGA OBLIGATORIA en tu respuesta (markdown):\n"
+                   f"1. ## Candidatos del lote {lote_num} — por asignatura: 2-4 "
+                   f"referencias con AUTOR, AÑO, TÍTULO y URL viva (solo fuentes de "
+                   f"la casa: scielo.br, embrapa.br, bdtd.ibict.br, lrrd.org, fao.org, "
+                   f"iris.paho.org, who.int, PubMed Central, saber.ucv.ve, Merck Vet "
+                   f"Manual, brcorte.com.br). REGLA ANTI-INVENTO: solo URLs que "
+                   f"encontraste con la búsqueda; si no hay, decláralo.\n"
+                   f"2. ## Apuntes de estudio por asignatura — con sección "
+                   f"'Resultados cuantitativos que debo poder citar' (datos con "
+                   f"fuente+página/URL de los documentos encontrados).\n"
+                   f"3. ## PDFs a descargar mañana — lista con URL exacta para el "
+                   f"técnico (las descargas e ingesta a Qdrant las hace el día "
+                   f"siguiente la validación).")
         etiqueta = f"lote {lote_num}"
     elif lote_num == "COMPLETO":
         log(f"{hermano}: mapa ya COMPLETO — nada que ejecutar")
@@ -513,7 +531,8 @@ def cmd_ejecutar(hermano: str) -> int:
     try:
         r = cliente.complete(
             [{"role": "user", "content": prompt}],
-            task_type="research", max_tokens=16000, temperature=0.4)
+            task_type="research", max_tokens=16000, temperature=0.4,
+            plugins=[{"id": "web_search", "max_results": 8}])
     except Exception as e:
         log(f"ERROR research {hermano}: {e}")
         return 1
