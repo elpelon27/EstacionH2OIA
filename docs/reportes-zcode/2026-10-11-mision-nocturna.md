@@ -22,3 +22,9 @@ Outputs en harvest-bibliografica/lotes/2026-10-11-*.log de cada workspace.
 **Costo de la noche:** ~4 jornadas Gemini-3-Flash+web ≈ $0.12-0.20 total (vs $7.6 presupuesto). Muy por debajo del 30% de desviación — sin alerta.
 
 **Pendiente para la validación de mañana (22:00):** descargar los PDFs de las listas "PDFs a descargar" de cada lote → pdfs/inbox/ → ingest_pdf.py; ingestar apuntes consolidados (<hermano>_apuntes_lote<N>); actualizar secciones de mapa con referencias.
+
+# Noche 2026-10-12 (transición ZCode→Hermes) — RESULTADO
+- 4/4: Aristeo L3 (1ª pasada OK), Quirón L2, Empédocles L2 (LIOFILIZACIÓN), Tripólemo L2 (los 3 re-hechos tras fallo de grounding DDG).
+- Ejecutor: glm-5.3-flash (abierto, $0.15/$0.50) con grounding OpenAlex/Crossref.
+- Incidente y reparación: DDG rate-limiteó → 3 lotes salieron "NO VERIFICADA" (modelos honestos, anti-invento funcionó) → degradación + grounding re-arquitecturado a APIs científicas + re-ejecución exitosa.
+- Entrega a Hermes completada: cronjob host activo desde 13-oct, guard de fecha, manual docs/MISION-NOCTURNA-ENTREGA-HERMES.md, ZCode → guardián 08:00.

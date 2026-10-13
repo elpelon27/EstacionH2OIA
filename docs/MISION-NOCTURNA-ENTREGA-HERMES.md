@@ -32,8 +32,12 @@ CRONJOB DEL HOST (Lun-Vie 22:00 · Sáb 01:00 · Dom 21:00)
        ├─ 3. Por hermano: mision_nocturna.py --ejecutar <id>
        │      ├─ Prompt autónomo autocontenido (mapa + lote exacto + fuentes
        │      │  de la casa + formato de entrega obligatorio)
-       │      ├─ GROUNDING: buscar_web.py (DDG, stdlib) inyecta resultados
-       │      │  reales → los flash abiertos citan sin inventar
+       │      ├─ GROUNDING: buscar_web.py — APIs científicas
+       │      │  OpenAlex → Crossref (refs con DOI/PDF verificables por
+       │      │  construcción; gratis y estables). Último recurso DDG-lite.
+       │      │  (Lección 12-oct: los buscadores HTML sirven basura sin JS
+       │      │  y DDG rate-limitea — las APIs son el grounding correcto
+       │      │  para una misión bibliográfica.)
        │      └─ llm_client.py task_type="research":
        │           glm-5.3-flash → qwen3.8-flash → deepseek-v4-flash
        │           → (último recurso cerrado) gemini-3-flash-preview+web
