@@ -522,10 +522,14 @@ def cmd_ejecutar(hermano: str) -> int:
             dominio = linea.split("|")[2].strip() if linea.count("|") >= 3 else etiqueta
             dominio = re.sub(r"[⭐]", "", dominio).strip() or etiqueta
             contexto = []
+            import time as _t
             for q in (f"{dominio} pdf embrapa scielo",
                       f"{dominio} tesis bdtd ibict",
                       f"{dominio} fao who guia"):
                 contexto += buscar(q, 4)
+                _t.sleep(3)
+            if not contexto:
+                log(f"WARN grounding {hermano}: busqueda vacia (DDG limita?) — el modelo dira NO VERIFICADA")
             if contexto:
                 prompt += ("\n\n[RESULTADOS DE BÚSQUEDA WEB REALES de esta noche "
                            "— úsalos como punto de partida; cita solo lo que "
