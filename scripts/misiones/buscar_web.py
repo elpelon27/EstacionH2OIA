@@ -1,102 +1,121 @@
 #!/usr/bin/env python3
-"""buscar_web.py — Búsqueda web de grounding para las misiones nocturnas.
-stdlib puro (urllib + regex). Devuelve resultados título+URL.
+"""buscar_web.py — Grounding de referencias para las misiones nocturnas.
+stdlib puro. Para una misión BIBLIOGRÁFICA el grounding correcto son las
+APIs científicas (refs con DOI verificable por construcción), no el
+scraping de buscadores (lección 12-oct: Bing/Mojeek/DDG sirven basura o
+vacio sin JS desde esta IP).
 
-Por qué existe: el plugin web de OpenRouter solo lo soporta Gemini (cerrado).
-Con esto, los flash ABIERTOS (GLM/DeepSeek/Qwen) reciben resultados reales
-inyectados en el prompt — regla anti-invento preservada sin modelo cerrado.
-
-Multi-buscador con fallback (lección 12-oct: DDG limita ráfagas por IP y
-devuelve páginas vacías → nunca depender de un solo endpoint):
-  Bing HTML → Mojeek → DDG (html/lite).
+Cadena: OpenAlex (500k req/día gratis) → Crossref (gratis).
+Solo si ambas fallan → busca general DDG/lite (último recurso).
 
 Uso:
   python3 buscar_web.py "consulta" [n]
 """
-import html
+import json
 import re
 import sys
 import time
 import urllib.parse
 import urllib.request
 
-UA = ("Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 "
-      "(KHTML, like Gecko) Chrome/120.0 Safari/537.36")
+UA = {"User-Agent": "hermes-agent/1.0 (investigacion.bibliografica; mailto:hermes@estacion-h2o.local)"}
 
 
-def _fetch(url: str) -> str:
-    req = urllib.request.Request(url, headers={
-        "User-Agent": UA, "Accept-Language": "es,pt,en;q=0.8"})
-    with urllib.request.urlopen(req, timeout=25) as r:
-        return r.read().decode("utf-8", "replace")
-
-
-def _limpiar(t: str) -> str:
-    return html.unescape(re.sub(r"<[^>]+>", "", t)).strip()
-
-
-def _bing(q: str, n: int) -> list[dict]:
-    pagina = _fetch("https://www.bing.com/search?q="
-                    + urllib.parse.quote(q) + "&count=15")
-    out = []
-    for m in re.finditer(
-            r'<h2><a href="(https?://[^"]+)"[^>]*>(.*?)</a></h2>', pagina, re.S):
-        url, titulo = m.group(1), _limpiar(m.group(2))
-        if "bing.com" in url or "microsoft" in url or not titulo:
-            continue
-        out.append({"titulo": titulo, "url": url, "snippet": ""})
-        if len(out) >= n:
-            break
-    return out
-
-
-def _mojeek(q: str, n: int) -> list[dict]:
-    pagina = _fetch("https://www.mojeek.com/search?q=" + urllib.parse.quote(q))
-    out = []
-    for m in re.finditer(
-            r'<a class="title[^"]*" href="(https?://[^"]+)"[^>]*>(.*?)</a>',
-            pagina, re.S):
-        out.append({"titulo": _limpiar(m.group(2)), "url": m.group(1), "snippet": ""})
-        if len(out) >= n:
-            break
-    return out
-
-
-def _ddg(q: str, n: int) -> list[dict]:
-    out = []
-    for endpoint in ("https://html.duckduckgo.com/html/?q=",
-                     "https://lite.duckduckgo.com/lite/?q="):
+def _get_json(url: str, tries: int = 2) -> dict:
+    for i in range(tries):
         try:
-            pagina = _fetch(endpoint + urllib.parse.quote(q))
-        except Exception:  # noqa: BLE001 (fallback)
+            req = urllib.request.Request(url, headers=UA)
+            with urllib.request.urlopen(req, timeout=30) as r:
+                return json.loads(r.read())
+        except Exception:  # noqa: BLE001 (reintento)
+            if i == tries - 1:
+                raise
+            time.sleep(3)
+
+
+def _openalex(q: str, n: int) -> list[dict]:
+    url = ("https://api.openalex.org/works?search=" + urllib.parse.quote(q)
+           + f"&per-page={min(n, 25)}&mailto=hermes@estacion-h2o.local"
+             "&filter=is_oa:true")
+    d = _get_json(url)
+    out = []
+    for w in d.get("results", []):
+        doi = (w.get("doi") or "").replace("https://doi.org/", "")
+        url_final = None
+        for loc in (w.get("best_oa_location") or {}, w.get("primary_location") or {}):
+            if loc.get("pdf_url"):
+                url_final = loc["pdf_url"]
+                break
+            if loc.get("landing_page_url"):
+                url_final = url_final or loc["landing_page_url"]
+        if not url_final and doi:
+            url_final = f"https://doi.org/{doi}"
+        if not url_final:
             continue
-        items = re.findall(
-            r'class="result__a"[^>]*href="([^"]+)"[^>]*>(.*?)</a>', pagina, re.S)
-        for href, titulo in items[:n]:
-            m = re.search(r"[?&]uddg=([^&]+)", href)
-            real = urllib.parse.unquote(m.group(1)) if m else href
-            if "duckduckgo.com" in real:
-                continue
-            out.append({"titulo": _limpiar(titulo), "url": real, "snippet": ""})
-        if out:
-            return out
+        fuente = ((w.get("primary_location") or {}).get("source") or {}).get("display_name") or ""
+        out.append({
+            "titulo": re.sub(r"<[^>]+>", "", w.get("display_name") or "")[:200],
+            "url": url_final,
+            "snippet": (f"{w.get('publication_year')} · {fuente} · autores: "
+                        + ", ".join(a["author"]["display_name"]
+                                    for a in (w.get("authorships") or [])[:3])
+                        + (f" · DOI:{doi}" if doi else "") + " · OA")[:280],
+        })
+        if len(out) >= n:
+            break
+    return out
+
+
+def _crossref(q: str, n: int) -> list[dict]:
+    url = ("https://api.crossref.org/works?query.bibliographic="
+           + urllib.parse.quote(q) + f"&rows={n}&select=DOI,title,URL,issued,container-title")
+    d = _get_json(url)
+    out = []
+    for it in d.get("message", {}).get("items", []):
+        titulo = (it.get("title") or [""])[0]
+        año = (it.get("issued", {}).get("date-parts") or [[None]])[0][0]
+        rev = (it.get("container-title") or [""])[0]
+        out.append({
+            "titulo": titulo[:200],
+            "url": f"https://doi.org/{it['DOI']}",
+            "snippet": f"{año} · {rev} · DOI:{it['DOI']}"[:280],
+        })
+        if len(out) >= n:
+            break
+    return out
+
+
+def _ddg_lite(q: str, n: int) -> list[dict]:
+    req = urllib.request.Request(
+        "https://lite.duckduckgo.com/lite/?q=" + urllib.parse.quote(q),
+        headers={"User-Agent": "Mozilla/5.0 (X11; Linux x86_64) Chrome/120.0"})
+    with urllib.request.urlopen(req, timeout=25) as r:
+        pagina = r.read().decode("utf-8", "replace")
+    out = []
+    for m in re.finditer(r'href="(https?://[^"]+)"[^>]*class="result-link"',
+                         pagina):
+        if "duckduckgo.com" not in m.group(1):
+            out.append({"titulo": m.group(1)[:120], "url": m.group(1), "snippet": ""})
+        if len(out) >= n:
+            break
     return out
 
 
 def buscar(consulta: str, n: int = 6) -> list[dict]:
-    """Bing → Mojeek → DDG. Lanza RuntimeError si todos fallan (nada
-    silencioso: el despachador lo registra y el modelo declara NO VERIFICADA)."""
+    """OpenAlex → Crossref → DDG-lite. RuntimeError si todo falla (nada
+    silencioso: el modelo deberá declarar NO VERIFICADA y el despachador
+    lo registra)."""
     errores = []
-    for motor in (_bing, _mojeek, _ddg):
+    for motor in (_openalex, _crossref, _ddg_lite):
         try:
             r = motor(consulta, n)
             if r:
                 return r
-            errores.append(f"{motor.__name__}: 0 resultados")
+            errores.append(f"{motor.__name__}: 0")
         except Exception as e:  # noqa: BLE001 (fallback explícito)
             errores.append(f"{motor.__name__}: {type(e).__name__}")
-        time.sleep(2)
-    raise RuntimeError("búsqueda vacía en todos los motores: " + "; ".join(errores))
+        time.sleep(1)
+    raise RuntimeError("grounding vacío: " + "; ".join(errores))
 
 
 def main() -> int:
@@ -105,7 +124,7 @@ def main() -> int:
         return 1
     n = int(sys.argv[2]) if len(sys.argv) > 2 else 6
     for r in buscar(sys.argv[1], n):
-        print(f"- {r['titulo']}\n  {r['url']}")
+        print(f"- {r['titulo']}\n  {r['url']}\n  {r['snippet']}")
     return 0
 
 
