@@ -93,6 +93,20 @@
       "lote": "lote 1",
       "resultado": "ok",
       "nota": "L1 balances/termodinamica: 8 refs verificadas + apuntes con idea nuclear por asignatura"
+    },
+    {
+      "fecha": "2026-10-12T20:07",
+      "hermano": "zootecnista",
+      "lote": "lote 3",
+      "resultado": "ok",
+      "nota": "L3 nutricion rumiantes: refs verificadas + apuntes cuantitativos (glm-5.3-flash + grounding local)"
+    },
+    {
+      "fecha": "2026-10-12T20:07",
+      "hermano": "medico-veterinario",
+      "lote": "lote 2",
+      "resultado": "ok",
+      "nota": "L2 agentes tropicales: refs + apuntes (glm-5.3-flash + grounding local)"
     }
   ]
 }

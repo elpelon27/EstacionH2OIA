@@ -340,5 +340,17 @@
   "tema": "infra",
   "fecha": "2026-10-11",
   "hecho": "PRIMERA NOCHE REAL completada (11-oct, 4/4 lotes con sustancia: agronomo L1, zootecnista L2, vet L1, quimico L1; ~30 URLs verificadas + apuntes por asignatura). Ejecutor final: google/gemini-3-flash-preview con plugin web de OpenRouter (ÚNICO que lo soporta: deepseek/glm devuelven 500), respaldo deepseek-v4-flash sin web. Despachador v2: prompt autónomo autocontenido (mapa+lote+fuentes casa+entrega obligatoria). Costo ~$0.15/noche. ALERTA créditos OpenRouter: quedan ~$17 de $253 — recargar pronto. Pendiente validación 12-oct 22:00: descargar PDFs de las listas, ingestar apuntes, actualizar mapas."
+ },
+ {
+  "id": 52,
+  "tema": "zootecnista",
+  "hecho": "Misión nocturna desatendida OK — Aristeo, lote 3 (2026-10-12). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-12"
+ },
+ {
+  "id": 53,
+  "tema": "medico-veterinario",
+  "hecho": "Misión nocturna desatendida OK — Quirón, lote 2 (2026-10-12). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-12"
  }
 ]
