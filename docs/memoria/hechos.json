@@ -382,5 +382,11 @@
   "tema": "medico-veterinario",
   "hecho": "Misión nocturna desatendida OK — Quirón, lote 3 (2026-10-13). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
   "fecha": "2026-10-13"
+ },
+ {
+  "id": 59,
+  "tema": "ingeniero-quimico",
+  "hecho": "Misión nocturna desatendida OK — Empédocles, lote 3 (2026-10-13). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-13"
  }
 ]
