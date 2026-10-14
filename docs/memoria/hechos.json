@@ -388,5 +388,11 @@
   "tema": "ingeniero-quimico",
   "hecho": "Misión nocturna desatendida OK — Empédocles, lote 3 (2026-10-13). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
   "fecha": "2026-10-13"
+ },
+ {
+  "id": 60,
+  "tema": "ingeniero-agronomo",
+  "hecho": "Misión nocturna desatendida OK — Tripólemo, lote 3 (2026-10-13). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-13"
  }
 ]
