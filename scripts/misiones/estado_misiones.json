@@ -128,6 +128,13 @@
       "lote": "lote 2",
       "resultado": "ok",
       "nota": "L2 microbiologia aplicada con grounding cientifico (glm-5.3-flash)"
+    },
+    {
+      "fecha": "2026-10-13T22:14",
+      "hermano": "medico-veterinario",
+      "lote": "lote 3",
+      "resultado": "ok",
+      "nota": "autónomo Hermes (flash abierto + grounding local)"
     }
   ]
 }

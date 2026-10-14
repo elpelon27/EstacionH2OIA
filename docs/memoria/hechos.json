@@ -376,5 +376,11 @@
   "tema": "infra",
   "fecha": "2026-10-12",
   "hecho": "ENTREGA FORMAL A HERMES del sistema de misión nocturna (docs/MISION-NOCTURNA-ENTREGA-HERMES.md): desde el 13-oct Hermes es el EJECUTOR dueño de las noches vía cronjob del host (Lun-Vie 22:00/Sáb 01:00/Dom 21:00 → scripts/misiones/noche_hermes.py, con guard de toma de posesión). ZCode queda GUARDIÁN (validación 08:00, dos ojos). RECTIFICACIÓN DE MODELOS (decisión del Líder): flash ABIERTOS primero — glm-5.3-flash → qwen3.8-flash → deepseek-v4-flash; gemini-3-flash-preview (cerrado) SOLO último recurso. Grounding re-arquitecturado a APIs científicas OpenAlex→Crossref (DOI verificable por construcción) tras probar que los buscadores HTML fallan (DDG rate-limit, Bing/Mojeek basura sin JS) — lección de la noche del 12-oct donde 3 lotes salieron 'NO VERIFICADA' y fueron re-hechos. Noche 12-oct (ejecutó ZCode como transición): 4/4 — Aristeo L3, Quirón L2 (re-hecho), Empédocles L2 (LIOFILIZACIÓN, re-hecho), Tripólemo L2 (re-hecho). Costo noche ~$0.10 con flash abiertos."
+ },
+ {
+  "id": 58,
+  "tema": "medico-veterinario",
+  "hecho": "Misión nocturna desatendida OK — Quirón, lote 3 (2026-10-13). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-13"
  }
 ]
