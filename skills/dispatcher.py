@@ -690,16 +690,32 @@ async def callback_accion(update: Update, ctx: ContextTypes.DEFAULT_TYPE) -> Non
             await query.edit_message_text("❌ Datos del botón inválidos.")
             return
 
-        # Buscar último delivery pendiente de este vehículo
+        # Buscar delivery de este vehículo. 2026-10-13 fix: tras [📍 Llegué]
+        # la entrega queda 'arrived' — si del_/no_ siguiera buscando solo
+        # 'pending', nunca encontraría nada (incidente 10:12 "ack sin delivery
+        # asociado" = Entregado sin nota POD). arr_ busca pendientes; del_/no_
+        # buscan arrived PRIMERO (la entrega en curso), luego pendientes.
         conn = get_dispatch_db()
-        delivery = conn.execute(
-            """
-            SELECT id FROM deliveries
-            WHERE vehicle_id = ? AND status = 'pending'
-            ORDER BY order_sequence ASC LIMIT 1
-            """,
-            (vehicle_id,),
-        ).fetchone()
+        if action_kind == "arr":
+            delivery = conn.execute(
+                """
+                SELECT id FROM deliveries
+                WHERE vehicle_id = ? AND status = 'pending'
+                ORDER BY order_sequence ASC LIMIT 1
+                """,
+                (vehicle_id,),
+            ).fetchone()
+        else:
+            delivery = conn.execute(
+                """
+                SELECT id FROM deliveries
+                WHERE vehicle_id = ? AND status IN ('arrived', 'pending')
+                ORDER BY CASE status WHEN 'arrived' THEN 0 ELSE 1 END,
+                         order_sequence ASC
+                LIMIT 1
+                """,
+                (vehicle_id,),
+            ).fetchone()
         conn.close()
 
         if not delivery:

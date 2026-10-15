@@ -2460,6 +2460,27 @@ async def _handle_deterministic(
         if first_lat is not None and first_lng is not None:
             return _geofence_gate(ph_hash, from_phone, float(first_lat), float(first_lng))
 
+        # 2026-10-13 fix (Ley de Oro 1 — incidente loop hielo): el cliente que
+        # acaba de completar un pedido conserva el menú interactivo en pantalla
+        # y puede re-tocarlo. Opción de menú sin estado = NUEVO pedido: se arma
+        # gps_required (mismo camino GPS-primero del saludo) reconociendo el
+        # producto — NUNCA se delega al LLM un dígito de menú.
+        _menu_opt = text_body.strip()
+        if _menu_opt in ("1", "2", "3"):
+            _prod = {
+                "1": "su recarga de botellones 💧",
+                "2": "su pedido de hielo 🧊",
+                "3": "su pedido combinado 💧🧊",
+            }[_menu_opt]
+            _set_state(ph_hash, {"state": "gps_required"})
+            return {
+                "answer": (
+                    f"¡Perfecto! Tomo {_prod}.\n\n"
+                    "📍 Confírmenos su ubicación de entrega: toque el clip 📎 → "
+                    "Ubicación → Ubicación actual. 💧"
+                )
+            }
+
         # Detectar saludo
         # 2026-10-10 R1 (cerebro único): Causa raíz del incidente 08:33 —
         # la lista histórica NO tenía tildes ("buenos dias") y el cliente real
@@ -4219,9 +4240,17 @@ async def meta_webhook(request: Request) -> JSONResponse:
 
     # Bug 2 fix: GUARD DE MÍNIMOS — si cliente ESCRIBE número < 3 como cantidad
     # NO aplicar si viene de botón interactivo (list_reply o button_reply)
-    # porque "1" puede ser selección del menú, no cantidad
+    # porque "1" puede ser selección del menú, no cantidad.
+    # 2026-10-13 fix (incidente loop hielo): el guard SOLO aplica cuando se
+    # espera una cantidad (awaiting_qty_*/awaiting_custom_*). Sin estado, un
+    # dígito es opción de MENÚ (1=agua 2=hielo 3=combo) — rechazarlo con
+    # "mínimo 3" rompía el arranque de pedidos nuevos.
     is_from_interactive = msg.get("type") == "interactive" or msg.get("_was_interactive", False)
-    if not is_from_interactive:
+    _cur_st_qty = (_get_state(ph_short_full) or {}).get("state") or ""
+    if (
+        not is_from_interactive
+        and (_cur_st_qty.startswith("awaiting_qty") or _cur_st_qty.startswith("awaiting_custom"))
+    ):
         qty_match = re.match(r"^(\d+)$", text_body.strip())
         if qty_match:
             qty_num = int(qty_match.group(1))
