@@ -214,7 +214,7 @@ def proximo_lote(mapa_path: str | None) -> tuple[str | None, str]:
     if not mapa_path or not os.path.exists(mapa_path):
         return None, ""
     for line in open(mapa_path):
-        m = re.match(r"^\|\s*(\d+)[^|]*\|[^|]*\|\s*\[ \]", line)
+        m = re.match(r"^\|\s*(\d+)[^|]*\|[^|]*\|\s*\[[ r]\]", line)
         if m:
             return m.group(1), line.rstrip("\n")
     return "COMPLETO", ""  # mapa existe y no queda ningún [ ]
@@ -224,7 +224,7 @@ def marcar_lote(mapa_path: str | None, linea: str) -> None:
     if not mapa_path or not linea:
         return
     fecha = ahora().date().isoformat()
-    nueva = re.sub(r"\[ \][^|]*", f"[x] nocturna {fecha} ", linea, count=1)
+    nueva = re.sub(r"\[[ r]\][^|]*", f"[x] nocturna {fecha} ", linea, count=1)
     texto = open(mapa_path).read()
     open(mapa_path, "w").write(texto.replace(linea, nueva, 1))
 
@@ -523,9 +523,13 @@ def cmd_ejecutar(hermano: str) -> int:
             dominio = re.sub(r"[⭐]", "", dominio).strip() or etiqueta
             contexto = []
             import time as _t
-            for q in (f"{dominio} pdf embrapa scielo",
-                      f"{dominio} tesis bdtd ibict",
-                      f"{dominio} fao who guia"):
+            _en = {"medico-veterinario": "veterinary medicine cattle",
+                   "zootecnista": "animal science cattle tropical",
+                   "ingeniero-agronomo": "agronomy soil crop",
+                   "ingeniero-quimico": "chemical engineering"}.get(hermano, "")
+            for q in (f"{dominio} {_en}",
+                      f"{dominio} pdf embrapa scielo",
+                      f"{dominio} tesis bdtd ibict"):
                 contexto += buscar(q, 4)
                 _t.sleep(3)
             if not contexto:
