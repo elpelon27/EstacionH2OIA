@@ -69,7 +69,11 @@ def main() -> int:
             break
         rc = 1
         for intento in range(REINTENTOS + 1):
-            rc = mn.cmd_ejecutar(h)
+            try:
+                rc = mn.cmd_ejecutar(h)
+            except Exception as e:  # noqa: BLE001 — NADA mata la noche en silencio
+                mn.log(f"[HERMES] EXCEPCION en {h}: {type(e).__name__}: {e}")
+                rc = 1
             if rc == 0:
                 break
             mn.log(f"[HERMES] fallo {h} intento {intento + 1}")

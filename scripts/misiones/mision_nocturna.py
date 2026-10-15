@@ -563,10 +563,11 @@ def cmd_ejecutar(hermano: str) -> int:
     if r.get("error"):
         log(f"ERROR research {hermano}: {r['error']}")
         return 1
+    contenido = r.get("content") or ""  # None = razonador quemó el presupuesto en thinking
     with open(salida, "w") as f:
         f.write(f"<!-- tier={r.get('tier')} model={r.get('model')} "
-                f"{etiqueta} {ahora().isoformat()} -->\n\n{r['content']}\n")
-    tam = len(r.get("content", ""))
+                f"{etiqueta} {ahora().isoformat()} -->\n\n{contenido}\n")
+    tam = len(contenido)
     log(f"OK research {hermano} {etiqueta}: tier={r.get('tier')} "
         f"caracteres={tam} -> {salida}")
     return 0 if tam > 2000 else 1

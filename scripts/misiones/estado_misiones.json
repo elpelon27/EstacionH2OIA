@@ -7,7 +7,11 @@
     "ingeniero-agronomo",
     "zootecnista"
   ],
-  "pendiente_desborde": [],
+  "pendiente_desborde": [
+    "zootecnista",
+    "medico-veterinario",
+    "ingeniero-quimico"
+  ],
   "hermanos": {
     "ingeniero-quimico": {
       "nombre": "Empédocles",
