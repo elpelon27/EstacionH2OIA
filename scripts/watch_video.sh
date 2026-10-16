@@ -5,6 +5,7 @@ set -euo pipefail
 URL=$1
 TEMA=${2:-auto}  # auto = Gemini decide el tema
 cd /mnt/ssd_trabajo/hermes-agent
+export PATH="$PWD/venv/bin:$PATH"  # yt-dlp vive en el venv; el servicio systemd no lo tiene en PATH
 exec venv/bin/python skills/claude-watch/watch.py "$URL" \
   --output-dir docs/videos \
   --obsidian-dir obsidian-vault/videos \
