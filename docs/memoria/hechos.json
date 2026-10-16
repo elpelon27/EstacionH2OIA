@@ -406,5 +406,11 @@
   "tema": "infra",
   "fecha": "2026-10-15",
   "hecho": "Incidente nocturno 13/14-oct REPARADO por guardián ZCode: noche_hermes moría en silencio cuando glm-5.3-flash (razonador) devolvía content=None → len(None) sin capturar; cron_with_memory tragaba el traceback (privacidad) = doble silencio. Fixes: manejo de None→rc=1, try/except por hermano en el orquestador (nada mata la noche), estados [r] reintentar en lotes, calificadores EN en queries de grounding (causa del grounding irrelevante de Quirón L4, degradado). Turnos perdidos recuperados como pendiente_desborde (Aristeo L4, Quirón L4, Empédocles L4 primeros el 15-oct). Lotes válidos del 13-oct validados 3/3 (16-26 URLs c/u). Créditos OR $16.91."
+ },
+ {
+  "id": 63,
+  "tema": "zootecnista",
+  "hecho": "Misión nocturna desatendida FALLO — Aristeo, lote 4 (2026-10-15). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-15"
  }
 ]
