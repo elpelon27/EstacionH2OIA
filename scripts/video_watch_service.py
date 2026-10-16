@@ -33,7 +33,7 @@ from typing import Any
 REPO = Path("/mnt/ssd_trabajo/hermes-agent")
 sys.path.insert(0, str(REPO))
 
-WATCH_SCRIPT = "/home/skynet/watch_video.sh"
+WATCH_SCRIPT = str(REPO / "scripts" / "watch_video.sh")
 USAGE_LOG = REPO / "logs" / "video_usage.log"
 QDRANT_URL = "http://localhost:6333"
 COLLECTION = "videos_h2o"
