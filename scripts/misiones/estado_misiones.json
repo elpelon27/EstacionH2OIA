@@ -167,6 +167,13 @@
       "lote": "lote 4",
       "resultado": "fallo",
       "nota": "fallo tras reintentos"
+    },
+    {
+      "fecha": "2026-10-15T22:34",
+      "hermano": "medico-veterinario",
+      "lote": "lote 4",
+      "resultado": "fallo",
+      "nota": "fallo tras reintentos"
     }
   ]
 }
