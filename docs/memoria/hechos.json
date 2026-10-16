@@ -418,5 +418,11 @@
   "tema": "medico-veterinario",
   "hecho": "Misión nocturna desatendida FALLO — Quirón, lote 4 (2026-10-15). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
   "fecha": "2026-10-15"
+ },
+ {
+  "id": 65,
+  "tema": "ingeniero-quimico",
+  "hecho": "Misión nocturna desatendida FALLO — Empédocles, lote 4 (2026-10-15). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-15"
  }
 ]
