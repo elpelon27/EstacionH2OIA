@@ -144,6 +144,35 @@ class LLMClient:
                 "video_ok": True,
             },
             {
+                # RESPALDO VIDEO (directiva Líder 16-oct): si Gemini falla
+                # (429/5xx/indisponibilidad), caer a flashes por criterio
+                # precio/rendimiento. NO en cadena chat/técnico.
+                "name": "glm-5.3-flash-video",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_VIDEO_2", "z-ai/glm-5.3-flash"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": False,
+                "chat_ok": False,
+                "video_ok": True,
+                "timeout": 600,
+                "max_tokens_default": 16000,
+            },
+            {
+                "name": "deepseek-v4-flash-video",
+                "model": os.getenv(
+                    "OPENROUTER_MODEL_VIDEO_3", "deepseek/deepseek-v4-flash"
+                ),
+                "base_url": "https://openrouter.ai/api/v1",
+                "api_key": os.getenv("OPENROUTER_API_KEY", ""),
+                "technical_ok": False,
+                "chat_ok": False,
+                "video_ok": True,
+                "timeout": 600,
+                "max_tokens_default": 16000,
+            },
+            {
                 "name": "ollama-local",
                 "model": os.getenv("OLLAMA_MODEL", "qwen2.5:7b"),
                 "base_url": os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1"),
@@ -246,8 +275,24 @@ class LLMClient:
         plugins = kwargs.get("plugins") or tier.get("plugins")
         if plugins:
             body["plugins"] = plugins
-        r = httpx.post(url, json=body, headers=headers,
-                       timeout=tier.get("timeout", self.timeout))
+        # 429/5xx transitorios: reintentar con backoff ANTES de tumbar el
+        # pipeline completo (lección 16-oct: un 429 mataba videos enteros).
+        max_retries = 3
+        r: httpx.Response | None = None
+        for attempt in range(max_retries + 1):
+            r = httpx.post(url, json=body, headers=headers,
+                           timeout=tier.get("timeout", self.timeout))
+            if r.status_code in (429, 500, 502, 503, 504) and attempt < max_retries:
+                wait_s = 2 ** (attempt + 1)  # 2s, 4s, 8s
+                logger.warning(
+                    "LLM %s HTTP %d (intento %d/%d) — reintento en %ds",
+                    tier["name"], r.status_code, attempt + 1, max_retries + 1,
+                    wait_s,
+                )
+                time.sleep(wait_s)
+                continue
+            break
+        assert r is not None  # el loop siempre ejecuta >= 1 vez
         r.raise_for_status()
         data = r.json()
         # BUG 5 fix: loguear token usage (viene en el response, sin API key extra)
