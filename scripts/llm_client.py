@@ -88,9 +88,9 @@ class LLMClient:
                 "max_tokens_default": 16000,
             },
             {
-                "name": "qwen3.8-flash-research",
+                "name": "deepseek-v4-flash-research",
                 "model": os.getenv(
-                    "OPENROUTER_MODEL_RESEARCH_2", "qwen/qwen3.8-flash"
+                    "OPENROUTER_MODEL_RESEARCH_2", "deepseek/deepseek-v4-flash"
                 ),
                 "base_url": "https://openrouter.ai/api/v1",
                 "api_key": os.getenv("OPENROUTER_API_KEY", ""),
@@ -101,9 +101,9 @@ class LLMClient:
                 "max_tokens_default": 16000,
             },
             {
-                "name": "deepseek-v4-flash-research",
+                "name": "qwen-flash-research",
                 "model": os.getenv(
-                    "OPENROUTER_MODEL_RESEARCH_3", "deepseek/deepseek-v4-flash"
+                    "OPENROUTER_MODEL_RESEARCH_3", "qwen/qwen3.7-flash"
                 ),
                 "base_url": "https://openrouter.ai/api/v1",
                 "api_key": os.getenv("OPENROUTER_API_KEY", ""),
