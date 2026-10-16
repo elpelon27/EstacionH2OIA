@@ -179,6 +179,16 @@ class LLMClient:
                 t0 = time.monotonic()
                 resp = self._call(tier, messages, **kwargs)  # type: ignore[arg-type]
                 latency = time.monotonic() - t0
+                # Resiliencia research (lección 15-oct): un razonador puede
+                # devolver content vacío (proveedor transitorio o thinking que
+                # quemó el presupuesto). Vacío = fallo de tier → SIGUIENTE.
+                if task_type == "research" and not (resp.get("content") or "").strip():
+                    logger.warning(
+                        "LLM VACÍO via %s (razonador/proveedor) — caigo al siguiente tier",
+                        tier["name"])
+                    self._fail_counts[tier["name"]] += 1
+                    last_error = RuntimeError(f"{tier['name']}: contenido vacío")
+                    continue
                 self._fail_counts[tier["name"]] = 0
                 logger.info(
                     "LLM OK via %s model=%s task_type=%s latency=%.2fs",
