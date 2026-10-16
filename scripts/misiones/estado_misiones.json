@@ -2,15 +2,16 @@
   "version": 1,
   "creado": "2026-10-10",
   "cola": [
-    "medico-veterinario",
     "ingeniero-quimico",
     "ingeniero-agronomo",
-    "zootecnista"
+    "zootecnista",
+    "medico-veterinario"
   ],
   "pendiente_desborde": [
     "zootecnista",
     "medico-veterinario",
-    "ingeniero-quimico"
+    "ingeniero-quimico",
+    "ingeniero-agronomo"
   ],
   "hermanos": {
     "ingeniero-quimico": {
@@ -178,6 +179,13 @@
     {
       "fecha": "2026-10-15T22:58",
       "hermano": "ingeniero-quimico",
+      "lote": "lote 4",
+      "resultado": "fallo",
+      "nota": "fallo tras reintentos"
+    },
+    {
+      "fecha": "2026-10-15T23:17",
+      "hermano": "ingeniero-agronomo",
       "lote": "lote 4",
       "resultado": "fallo",
       "nota": "fallo tras reintentos"
