@@ -162,7 +162,9 @@ class LLMClient:
             {
                 "name": "deepseek-v4-flash-video",
                 "model": os.getenv(
-                    "OPENROUTER_MODEL_VIDEO_3", "deepseek/deepseek-v4-flash"
+                    # v4-flash es text-only (404 con imágenes); v4.1-flash
+                    # es multimodal — verificado contra /api/v1/models 16-oct.
+                    "OPENROUTER_MODEL_VIDEO_3", "deepseek/deepseek-v4.1-flash"
                 ),
                 "base_url": "https://openrouter.ai/api/v1",
                 "api_key": os.getenv("OPENROUTER_API_KEY", ""),
@@ -208,10 +210,15 @@ class LLMClient:
                 t0 = time.monotonic()
                 resp = self._call(tier, messages, **kwargs)  # type: ignore[arg-type]
                 latency = time.monotonic() - t0
-                # Resiliencia research (lección 15-oct): un razonador puede
+                # Resiliencia research/video (lección 15-oct): un razonador puede
                 # devolver content vacío (proveedor transitorio o thinking que
                 # quemó el presupuesto). Vacío = fallo de tier → SIGUIENTE.
-                if task_type == "research" and not (resp.get("content") or "").strip():
+                # 16-oct: también video — Gemini 3.1 Pro devolvió content=None
+                # con max_tokens bajo (razonamiento se comió el margen).
+                if task_type in ("research", "video") and not (
+                    (resp.get("content") or "") if isinstance(resp.get("content"), str)
+                    else ""
+                ).strip():
                     logger.warning(
                         "LLM VACÍO via %s (razonador/proveedor) — caigo al siguiente tier",
                         tier["name"])
