@@ -178,7 +178,7 @@ def analyze(frames: list[dict], transcript: str, intent: str,
     )
     resp = llm.complete(
         [{"role": "user", "content": [{"type": "text", "text": consolid_prompt}]}],
-        task_type="video", temperature=0.2, max_tokens=4096)
+        task_type="video", temperature=0.2, max_tokens=16000)
     return _parse_json_resp(resp)
 
 
