@@ -484,5 +484,11 @@
   "tema": "ingeniero-agronomo",
   "hecho": "Misión nocturna desatendida OK — Tripólemo, lote 5 (2026-10-17). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
   "fecha": "2026-10-17"
+ },
+ {
+  "id": 76,
+  "tema": "infra",
+  "fecha": "2026-10-17",
+  "hecho": "Doble noche 16/17-oct (Vie 22:00 + Sáb 01:00, 8 lotes, 5 válidos). VICTORIA: la cadena de caída automática funcionó en producción (deepseek-v4-flash tomó Aristeo L5 cuando glm devolvió vacío). Reparaciones: extractor de dominio limpio (arrastraba 'D7 —' y códigos a las queries = causa de groundings irrelevantes), éxito liquida pendiente_desborde (bug de rotación congelada), queries de grounding EN pura + PT. Degradados [r]: Quirón L4/L5, Tripólemo L4/L5 (sin URL viva). Créditos OR $13.34 (umbral $10 cerca)."
  }
 ]

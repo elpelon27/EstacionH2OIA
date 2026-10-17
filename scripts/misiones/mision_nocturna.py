@@ -536,8 +536,9 @@ def cmd_ejecutar(hermano: str) -> int:
                    "ingeniero-agronomo": "agronomy soil crop",
                    "ingeniero-quimico": "chemical engineering"}.get(hermano, "")
             for q in (f"{dominio} {_en}",
+                      f"{_en} review",
                       f"{dominio} pdf embrapa scielo",
-                      f"{dominio} tesis bdtd ibict"):
+                      f"{dominio} tese dissertacao pdf"):
                 contexto += buscar(q, 4)
                 _t.sleep(3)
             if not contexto:
