@@ -189,6 +189,13 @@
       "lote": "lote 4",
       "resultado": "fallo",
       "nota": "fallo tras reintentos"
+    },
+    {
+      "fecha": "2026-10-16T22:12",
+      "hermano": "zootecnista",
+      "lote": "lote 4",
+      "resultado": "ok",
+      "nota": "autónomo Hermes (flash abierto + grounding local)"
     }
   ]
 }

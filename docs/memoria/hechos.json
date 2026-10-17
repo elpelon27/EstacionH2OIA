@@ -436,5 +436,11 @@
   "tema": "infra",
   "fecha": "2026-10-16",
   "hecho": "Noche 15-oct 0/4: glm-5.3-flash devolvió content vacío toda la noche (transitorio z-ai; verificado operativo al día siguiente). VICTORIA del parche anti-muerte: orquestador sobrevivió, reintentó, registró 4 fallos y cerró — cero silencio. Reparación de resiliencia: content vacío en research = fallo de tier → cadena cae al siguiente modelo (glm→deepseek→gemini; qwen-flash LATENTE, 404 en OpenRouter desde esta cuenta). Los 4 hermanos recuperados como pendiente_desborde el 16-oct. Backlog: ingest_pdf.py no ingiere .md (apuntes quedan archivados en apuntes/ sin Qdrant)."
+ },
+ {
+  "id": 68,
+  "tema": "zootecnista",
+  "hecho": "Misión nocturna desatendida OK — Aristeo, lote 4 (2026-10-16). Ejecutor: prometeo_nocturno (qwen3.6:35b). Registro: scripts/misiones/estado_misiones.json.",
+  "fecha": "2026-10-16"
  }
 ]
