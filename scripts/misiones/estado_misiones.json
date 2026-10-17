@@ -2,10 +2,10 @@
   "version": 1,
   "creado": "2026-10-10",
   "cola": [
-    "ingeniero-quimico",
     "ingeniero-agronomo",
     "zootecnista",
-    "medico-veterinario"
+    "medico-veterinario",
+    "ingeniero-quimico"
   ],
   "pendiente_desborde": [
     "zootecnista",
@@ -207,6 +207,13 @@
     {
       "fecha": "2026-10-16T22:20",
       "hermano": "ingeniero-quimico",
+      "lote": "lote 4",
+      "resultado": "ok",
+      "nota": "autónomo Hermes (flash abierto + grounding local)"
+    },
+    {
+      "fecha": "2026-10-16T22:24",
+      "hermano": "ingeniero-agronomo",
       "lote": "lote 4",
       "resultado": "ok",
       "nota": "autónomo Hermes (flash abierto + grounding local)"
