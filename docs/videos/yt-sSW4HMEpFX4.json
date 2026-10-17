@@ -1,0 +1,332 @@
+{
+  "video_id": "yt-sSW4HMEpFX4",
+  "url": "https://www.youtube.com/watch?v=sSW4HMEpFX4",
+  "title": "SILAGEM DE CAPIM BUFFEL",
+  "duration_sec": 2048,
+  "transcript": "",
+  "key_frames": [
+    {
+      "timestamp": 0,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0001.jpg"
+    },
+    {
+      "timestamp": 30,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0002.jpg"
+    },
+    {
+      "timestamp": 60,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0003.jpg"
+    },
+    {
+      "timestamp": 90,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0004.jpg"
+    },
+    {
+      "timestamp": 120,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0005.jpg"
+    },
+    {
+      "timestamp": 150,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0006.jpg"
+    },
+    {
+      "timestamp": 180,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0007.jpg"
+    },
+    {
+      "timestamp": 210,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0008.jpg"
+    },
+    {
+      "timestamp": 240,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0009.jpg"
+    },
+    {
+      "timestamp": 270,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0010.jpg"
+    },
+    {
+      "timestamp": 300,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0011.jpg"
+    },
+    {
+      "timestamp": 330,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0012.jpg"
+    },
+    {
+      "timestamp": 360,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0013.jpg"
+    },
+    {
+      "timestamp": 390,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0014.jpg"
+    },
+    {
+      "timestamp": 420,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0015.jpg"
+    },
+    {
+      "timestamp": 450,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0016.jpg"
+    },
+    {
+      "timestamp": 480,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0017.jpg"
+    },
+    {
+      "timestamp": 510,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0018.jpg"
+    },
+    {
+      "timestamp": 540,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0019.jpg"
+    },
+    {
+      "timestamp": 570,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0020.jpg"
+    },
+    {
+      "timestamp": 600,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0021.jpg"
+    },
+    {
+      "timestamp": 630,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0022.jpg"
+    },
+    {
+      "timestamp": 660,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0023.jpg"
+    },
+    {
+      "timestamp": 690,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0024.jpg"
+    },
+    {
+      "timestamp": 720,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0025.jpg"
+    },
+    {
+      "timestamp": 750,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0026.jpg"
+    },
+    {
+      "timestamp": 780,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0027.jpg"
+    },
+    {
+      "timestamp": 810,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0028.jpg"
+    },
+    {
+      "timestamp": 840,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0029.jpg"
+    },
+    {
+      "timestamp": 870,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0030.jpg"
+    },
+    {
+      "timestamp": 900,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0031.jpg"
+    },
+    {
+      "timestamp": 930,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0032.jpg"
+    },
+    {
+      "timestamp": 960,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0033.jpg"
+    },
+    {
+      "timestamp": 990,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0034.jpg"
+    },
+    {
+      "timestamp": 1020,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0035.jpg"
+    },
+    {
+      "timestamp": 1050,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0036.jpg"
+    },
+    {
+      "timestamp": 1080,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0037.jpg"
+    },
+    {
+      "timestamp": 1110,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0038.jpg"
+    },
+    {
+      "timestamp": 1140,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0039.jpg"
+    },
+    {
+      "timestamp": 1170,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0040.jpg"
+    },
+    {
+      "timestamp": 1200,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0041.jpg"
+    },
+    {
+      "timestamp": 1230,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0042.jpg"
+    },
+    {
+      "timestamp": 1260,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0043.jpg"
+    },
+    {
+      "timestamp": 1290,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0044.jpg"
+    },
+    {
+      "timestamp": 1320,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0045.jpg"
+    },
+    {
+      "timestamp": 1350,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0046.jpg"
+    },
+    {
+      "timestamp": 1380,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0047.jpg"
+    },
+    {
+      "timestamp": 1410,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0048.jpg"
+    },
+    {
+      "timestamp": 1440,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0049.jpg"
+    },
+    {
+      "timestamp": 1470,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0050.jpg"
+    },
+    {
+      "timestamp": 1500,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0051.jpg"
+    },
+    {
+      "timestamp": 1530,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0052.jpg"
+    },
+    {
+      "timestamp": 1560,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0053.jpg"
+    },
+    {
+      "timestamp": 1590,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0054.jpg"
+    },
+    {
+      "timestamp": 1620,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0055.jpg"
+    },
+    {
+      "timestamp": 1650,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0056.jpg"
+    },
+    {
+      "timestamp": 1680,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0057.jpg"
+    },
+    {
+      "timestamp": 1710,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0058.jpg"
+    },
+    {
+      "timestamp": 1740,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0059.jpg"
+    },
+    {
+      "timestamp": 1770,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0060.jpg"
+    },
+    {
+      "timestamp": 1800,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0061.jpg"
+    },
+    {
+      "timestamp": 1830,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0062.jpg"
+    },
+    {
+      "timestamp": 1860,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0063.jpg"
+    },
+    {
+      "timestamp": 1890,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0064.jpg"
+    },
+    {
+      "timestamp": 1920,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0065.jpg"
+    },
+    {
+      "timestamp": 1950,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0066.jpg"
+    },
+    {
+      "timestamp": 1980,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0067.jpg"
+    },
+    {
+      "timestamp": 2010,
+      "frame_path": "/tmp/claude-watch-4z5bgti6/frames/frame_0068.jpg"
+    }
+  ],
+  "analysis": {
+    "tldr": [
+      "Proceso de cosecha mecánica de forraje verde utilizando un tractor equipado con una picadora.",
+      "Transporte del material vegetal picado mediante acoplados forrajeros.",
+      "Descarga y distribución del forraje en un silo tipo trinchera para su almacenamiento y conservación."
+    ],
+    "key_moments": [
+      {
+        "timestamp": "00:06:00",
+        "desc": "El tractor con la picadora de arrastre comienza a cortar y recolectar el pasto alto en el lote."
+      },
+      {
+        "timestamp": "00:09:00",
+        "desc": "Plano detalle que muestra la textura y el tamaño del forraje verde recién picado."
+      },
+      {
+        "timestamp": "00:23:30",
+        "desc": "Operarios descargan manualmente el forraje desde los acoplados hacia el silo trinchera."
+      },
+      {
+        "timestamp": "00:33:30",
+        "desc": "Toma aérea que ilustra la escala de la operación de cosecha en el campo."
+      }
+    ],
+    "key_facts": [
+      "La recolección se realiza con maquinaria agrícola especializada (picadora de forraje de arrastre).",
+      "El forraje se almacena a nivel del suelo en una estructura de silo trinchera.",
+      "La operación requiere una logística combinada de corte mecanizado, transporte en acoplados y descarga manual/mecanizada en el lugar de almacenaje."
+    ],
+    "quotable": [],
+    "entities": [
+      "Tractor",
+      "Picadora de forraje",
+      "Acoplado forrajero",
+      "Silo trinchera"
+    ],
+    "concepts": [
+      "Cosecha de forraje",
+      "Ensilado",
+      "Mecanización agrícola",
+      "Gestión de reservas forrajeras"
+    ],
+    "tema_sugerido": "agropecuario",
+    "skill_proposal": "confeccion-de-silo-forrajero"
+  },
+  "tema": "agropecuario",
+  "llm_model": "google/gemini-3.1-pro-preview",
+  "analyzed_at": "2026-10-17T02:00:52.940731+00:00",
+  "indexed_in_qdrant": false,
+  "qdrant_points": 0,
+  "obsidian_path": "obsidian-vault/videos/yt-sSW4HMEpFX4.md"
+}
