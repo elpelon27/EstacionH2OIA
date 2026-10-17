@@ -449,8 +449,11 @@ def cmd_registrar(hermano: str, exito: bool, nota: str) -> int:
     est["historial"].append({"fecha": ahora().isoformat(timespec="minutes"),
                              "hermano": hermano, "lote": etiqueta,
                              "resultado": "ok" if exito else "fallo", "nota": nota})
-    if not exito and hermano not in est["pendiente_desborde"]:
-        est["pendiente_desborde"].append(hermano)  # reintenta primero mañana
+    if not exito:
+        if hermano not in est["pendiente_desborde"]:
+            est["pendiente_desborde"].append(hermano)  # reintenta primero mañana
+    elif hermano in est["pendiente_desborde"]:
+        est["pendiente_desborde"].remove(hermano)  # éxito liquida la deuda
     guardar_estado(est)
     tg_enviar(f"{'✅' if exito else '❌'} {her['nombre']}: {etiqueta} "
               f"{'completado' if exito else 'falló — primero mañana'}.")
@@ -520,7 +523,12 @@ def cmd_ejecutar(hermano: str) -> int:
             sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
             from buscar_web import buscar  # noqa: E402
             dominio = linea.split("|")[2].strip() if linea.count("|") >= 3 else etiqueta
-            dominio = re.sub(r"[⭐]", "", dominio).strip() or etiqueta
+            # limpiar basura que envenena la query: "D7 —", codigos de
+            # asignatura "(9460, 9676...)", estrellas
+            dominio = re.sub(r"D\d+\s*[\u2014\-]\s*", "", dominio)
+            dominio = re.sub(r"\([^)]*\d[^)]*\)", "", dominio)
+            dominio = re.sub(r"[\u2b50+\d]", " ", dominio)
+            dominio = re.sub(r"\s{2,}", " ", dominio).strip(" \u2014-") or etiqueta
             contexto = []
             import time as _t
             _en = {"medico-veterinario": "veterinary medicine cattle",
