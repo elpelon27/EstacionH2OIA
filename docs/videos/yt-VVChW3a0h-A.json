@@ -1,0 +1,763 @@
+{
+  "video_id": "yt-VVChW3a0h-A",
+  "url": "https://www.youtube.com/watch?v=VVChW3a0h-A",
+  "title": "Hablemos de evaluaciones genómicas con el Dr Matías Bermann",
+  "duration_sec": 1543,
+  "transcript": "[00:00:02] Saludos, bienvenidos al canal de Estadística para Adultos, donde vemos\n[00:00:04] Estadística para Adultos, donde vemos diferentes metodologías estadísticas\n[00:00:07] diferentes metodologías estadísticas utilizadas en investigación agropecuaria\n[00:00:10] utilizadas en investigación agropecuaria con especial énfasis en el mejoramiento\n[00:00:12] con especial énfasis en el mejoramiento genético animal. En esta oportunidad\n[00:00:15] genético animal. En esta oportunidad vamos a compartir experiencias,\n[00:00:17] vamos a compartir experiencias, anécdotas, muchas cosas interesantes con\n[00:00:20] anécdotas, muchas cosas interesantes con un personaje de muchísima trayectoria.\n[00:00:23] un personaje de muchísima trayectoria. Yo considero una persona muy inteligente\n[00:00:25] Yo considero una persona muy inteligente a la cual yo leo mucho, que es el\n[00:00:28] a la cual yo leo mucho, que es el doctor, aunque no le gusta que le digan\n[00:00:29] doctor, aunque no le gusta que le digan doctor, pero a César lo que es del sexa,\n[00:00:32] doctor, pero a César lo que es del sexa, el doctor Matías Berman. Bienvenido,\n[00:00:35] el doctor Matías Berman. Bienvenido, doctor, un placer tenerte aquí en el\n[00:00:37] doctor, un placer tenerte aquí en el canal.\n[00:00:38] canal. Muchas [risas] gracias, muchísimas\n[00:00:39] Muchas [risas] gracias, muchísimas gracias. Super contento de estar acá.\n[00:00:42] gracias. Super contento de estar acá. El doctor Matías Berman es uno de los\n[00:00:44] El doctor Matías Berman es uno de los que está implicado en el programa BL\n[00:00:46] que está implicado en el programa BL F90, un conocido programa de evaluación\n[00:00:49] F90, un conocido programa de evaluación genética que se desarrolló en la\n[00:00:51] genética que se desarrolló en la Universidad de Georgia con puro genio\n[00:00:54] Universidad de Georgia con puro genio Ignaci Mictal, Daniela Laurenco, aquí\n[00:00:57] Ignaci Mictal, Daniela Laurenco, aquí Matías presente,\n[00:00:59] Matías presente, creo que también estaba ahí Andrés\n[00:01:00] creo que también estaba ahí Andrés Legarra, Ignacio Aguilar, un poco de\n[00:01:03] Legarra, Ignacio Aguilar, un poco de superdotados de genio que están ahí.\n[00:01:06] superdotados de genio que están ahí. Bueno, y aquí tenemos uno de los\n[00:01:09] Bueno, y aquí tenemos uno de los implicados en ese programa de evaluación\n[00:01:11] implicados en ese programa de evaluación genética y hoy venimos a hablar un poco\n[00:01:14] genética y hoy venimos a hablar un poco de evaluaciones genéticas y evaluaciones\n[00:01:16] de evaluaciones genéticas y evaluaciones genómicas. Sé que en el canal hemos\n[00:01:18] genómicas. Sé que en el canal hemos hablado poco de evaluación genómica. Si\n[00:01:20] hablado poco de evaluación genómica. Si tenemos algunos videos con algunas\n[00:01:22] tenemos algunos videos con algunas personas hablando del tema, pero hoy\n[00:01:24] personas hablando del tema, pero hoy toca otra vez ese tema que tanto me lo\n[00:01:26] toca otra vez ese tema que tanto me lo han pedido ustedes mis seguidores. Así\n[00:01:28] han pedido ustedes mis seguidores. Así que volvemos a hablar de de estos\n[00:01:29] que volvemos a hablar de de estos tópicos. Doctor, para comenzar este,\n[00:01:32] tópicos. Doctor, para comenzar este, ¿qué me puede decir de las evaluaciones\n[00:01:34] ¿qué me puede decir de las evaluaciones genéticas? las evaluaciones genómicas,\n[00:01:36] genéticas? las evaluaciones genómicas, ¿qué sirven? ¿En qué se diferencian?\n[00:01:38] ¿qué sirven? ¿En qué se diferencian? ¿Cuál es el punto crítico en ese aspecto\n[00:01:40] ¿Cuál es el punto crítico en ese aspecto de las evaluaciones genéticas y\n[00:01:42] de las evaluaciones genéticas y genómicas?\n[00:01:42] genómicas? Eh, antes de responderte, quiero\n[00:01:44] Eh, antes de responderte, quiero completar, por favor, la lista de\n[00:01:46] completar, por favor, la lista de nombres que contribuyeron al BLF90\n[00:01:49] nombres que contribuyeron al BLF90 porque somos muchos más que esos. Está\n[00:01:51] porque somos muchos más que esos. Está Yogo Zuruta, Yutakaca Masuda, Miguel\n[00:01:54] Yogo Zuruta, Yutakaca Masuda, Miguel Pérez Encicio, Mauricio Elso, Juan Pablo\n[00:01:57] Pérez Encicio, Mauricio Elso, Juan Pablo Sánchez, creo que Olga Rabañolo tuvo\n[00:01:59] Sánchez, creo que Olga Rabañolo tuvo algo, Vincent Taruá, eh Nicolas Gengler\n[00:02:04] algo, Vincent Taruá, eh Nicolas Gengler puede ser. Entonces es una colaboración\n[00:02:06] puede ser. Entonces es una colaboración Tom Druet muy muy larga y y me gustaría\n[00:02:09] Tom Druet muy muy larga y y me gustaría mencionarlos también. Si puede repetir\n[00:02:12] mencionarlos también. Si puede repetir la pregunta. Vamos a hablar de qué son\n[00:02:14] la pregunta. Vamos a hablar de qué son las evaluaciones genéticas y las\n[00:02:16] las evaluaciones genéticas y las evaluaciones genúmicas, para qué sirven,\n[00:02:18] evaluaciones genúmicas, para qué sirven, qué se diferencia. Quiero un aspecto\n[00:02:20] qué se diferencia. Quiero un aspecto general de de esos puntos, esos tópicos.\n[00:02:22] general de de esos puntos, esos tópicos. Eh, todo lo que es el mejoramiento\n[00:02:23] Eh, todo lo que es el mejoramiento genético sabemos que arrancó con el\n[00:02:26] genético sabemos que arrancó con el paper de de Fisher a principios del año\n[00:02:29] paper de de Fisher a principios del año 20 del siglo XX, perdón, cuando\n[00:02:33] 20 del siglo XX, perdón, cuando cuando sentó las bases de lo que es el\n[00:02:35] cuando sentó las bases de lo que es el mejoramiento de caracteres poligénicos y\n[00:02:37] mejoramiento de caracteres poligénicos y después con muchas contribuciones, sobre\n[00:02:39] después con muchas contribuciones, sobre todo el L de WR, eh se utilizó\n[00:02:42] todo el L de WR, eh se utilizó información no solo de registro, sino de\n[00:02:45] información no solo de registro, sino de genealogías para predecir eh lo que es\n[00:02:49] genealogías para predecir eh lo que es el valor de cría, que el valor de cría\n[00:02:51] el valor de cría, que el valor de cría es básicamente el mérito genético de los\n[00:02:54] es básicamente el mérito genético de los animales.\n[00:02:55] animales. Y después con varias metodologías\n[00:02:58] Y después con varias metodologías estadísticas, BLAP, reml, muchas\n[00:03:00] estadísticas, BLAP, reml, muchas contribuciones, se fueron armando lo que\n[00:03:03] contribuciones, se fueron armando lo que fueron las evaluaciones genéticas, que\n[00:03:05] fueron las evaluaciones genéticas, que es básicamente un sistema muy grande de\n[00:03:09] es básicamente un sistema muy grande de eh de registro de datos, ¿sí? en el cual\n[00:03:12] eh de registro de datos, ¿sí? en el cual esos datos se usan junto con información\n[00:03:16] esos datos se usan junto con información de granja, de año, de estación, de\n[00:03:19] de granja, de año, de estación, de ambiente y genealógica para producir ese\n[00:03:22] ambiente y genealógica para producir ese valor de cría.\n[00:03:24] valor de cría. Eh, en el año 2001, un paper muy\n[00:03:26] Eh, en el año 2001, un paper muy importante de Mewisen, eh\n[00:03:31] importante de Mewisen, eh hipotetizó que el uso de marcadores\n[00:03:34] hipotetizó que el uso de marcadores genéticos podría aumentar muchísimo la\n[00:03:37] genéticos podría aumentar muchísimo la precisión de esas evaluaciones genéticas\n[00:03:40] precisión de esas evaluaciones genéticas eh y revolucionó eh lo que es la\n[00:03:43] eh y revolucionó eh lo que es la disciplina porque todo el mundo intentó\n[00:03:45] disciplina porque todo el mundo intentó ver cómo se pueden aplicar esos esa\n[00:03:49] ver cómo se pueden aplicar esos esa información genómica para predecir\n[00:03:51] información genómica para predecir valores de cría y después de más o menos\n[00:03:53] valores de cría y después de más o menos 10, 20 años de investigación se llegó a\n[00:03:56] 10, 20 años de investigación se llegó a una madurez en el cual lo las\n[00:03:58] una madurez en el cual lo las evaluaciones genéticas clásicas que\n[00:04:00] evaluaciones genéticas clásicas que consideran eh genealogía\n[00:04:04] consideran eh genealogía y registros se le incorpora la genómica,\n[00:04:08] y registros se le incorpora la genómica, ¿sí?, para predecir las relaciones entre\n[00:04:11] ¿sí?, para predecir las relaciones entre los animales de una manera más precisa y\n[00:04:12] los animales de una manera más precisa y de esa manera obtener evaluaciones\n[00:04:15] de esa manera obtener evaluaciones mucho más e precisas.\n[00:04:18] mucho más e precisas. Excelente, excelente, doctor. Hay unos\n[00:04:20] Excelente, excelente, doctor. Hay unos puntos ahí que me gustaría discutir que\n[00:04:22] puntos ahí que me gustaría discutir que estoy seguro que a todos los seguidores\n[00:04:24] estoy seguro que a todos los seguidores les gustaría escuchar. Hay una parte\n[00:04:27] les gustaría escuchar. Hay una parte fundamentada en la teoría de de modelos\n[00:04:29] fundamentada en la teoría de de modelos mixto desarrollado por el doctor, creo\n[00:04:31] mixto desarrollado por el doctor, creo que aquí todo el que trabaja en genética\n[00:04:33] que aquí todo el que trabaja en genética lo conoce, el doctor Charles Royce\n[00:04:34] lo conoce, el doctor Charles Royce Henderson, padre de la cría y\n[00:04:36] Henderson, padre de la cría y mejoramiento genético animal moderno,\n[00:04:39] mejoramiento genético animal moderno, que fue en la en el desarrollo de la\n[00:04:42] que fue en la en el desarrollo de la matriz de parentesco, como tú muy bien\n[00:04:43] matriz de parentesco, como tú muy bien dijiste, solo integraba el pedigri, es\n[00:04:46] dijiste, solo integraba el pedigri, es decir, información genealógica. Después\n[00:04:48] decir, información genealógica. Después cuando pasamos a evaluaciones genéticas,\n[00:04:50] cuando pasamos a evaluaciones genéticas, creo que se llamaban, y usted me\n[00:04:52] creo que se llamaban, y usted me corregirá, evaluaciones genéticas en\n[00:04:53] corregirá, evaluaciones genéticas en múltiples pasos genómicas, perdón,\n[00:04:55] múltiples pasos genómicas, perdón, evaluaciones genómica en múltiples\n[00:04:57] evaluaciones genómica en múltiples pasos. Sí, que creo que en esa\n[00:04:59] pasos. Sí, que creo que en esa metodología teníamos que genotipar a\n[00:05:02] metodología teníamos que genotipar a todos los individuos del rebán, si no me\n[00:05:05] todos los individuos del rebán, si no me equivoco. el salto fundamental de de esa\n[00:05:09] equivoco. el salto fundamental de de esa evaluación genómica a una evaluación\n[00:05:10] evaluación genómica a una evaluación genómica de un solo paso, que es el que\n[00:05:13] genómica de un solo paso, que es el que todos conocemos, el single step, cómo se\n[00:05:16] todos conocemos, el single step, cómo se dio, cómo se desarrolló, cuál es esa\n[00:05:18] dio, cómo se desarrolló, cuál es esa diferenciación que se hizo para\n[00:05:20] diferenciación que se hizo para diferenciar esas dos metodologías y para\n[00:05:23] diferenciar esas dos metodologías y para poder optimizar costo en el caso de la\n[00:05:24] poder optimizar costo en el caso de la evaluación genómica porque podíamos\n[00:05:27] evaluación genómica porque podíamos tener evaluación genómica de animales\n[00:05:29] tener evaluación genómica de animales que en verdad no están genotipeados,\n[00:05:31] que en verdad no están genotipeados, simplemente conjugando esa información\n[00:05:33] simplemente conjugando esa información de pedigri y genotipo. ¿Qué nos puede\n[00:05:35] de pedigri y genotipo. ¿Qué nos puede decir un poco de eso?\n[00:05:37] decir un poco de eso? Bien, es una buena pregunta. Las\n[00:05:38] Bien, es una buena pregunta. Las evaluaciones de de múltiples pasos\n[00:05:41] evaluaciones de de múltiples pasos básicamente lo que hacían era uno tenía\n[00:05:44] básicamente lo que hacían era uno tenía una evaluación sin genómica para todos\n[00:05:46] una evaluación sin genómica para todos los animales, obtenía información de esa\n[00:05:49] los animales, obtenía información de esa evaluación que utilizaba como\n[00:05:51] evaluación que utilizaba como pseudoregistros,\n[00:05:53] pseudoregistros, ¿sí?, en una evaluación más reducida que\n[00:05:55] ¿sí?, en una evaluación más reducida que era solo para los animales genotipados.\n[00:05:58] era solo para los animales genotipados. Eh, eso tenía distintas desventajas,\n[00:06:02] Eh, eso tenía distintas desventajas, ¿sí? sobre todo en eh modelos complejos.\n[00:06:06] ¿sí? sobre todo en eh modelos complejos. ¿Por qué? Porque cómo crear un pseudoor\n[00:06:09] ¿Por qué? Porque cómo crear un pseudoor registro para efectos maternos,\n[00:06:11] registro para efectos maternos, regresiones aleatorias, etcétera,\n[00:06:13] regresiones aleatorias, etcétera, etcétera, etcétera. Y que aparte la\n[00:06:15] etcétera, etcétera. Y que aparte la información de los genotipados no se\n[00:06:17] información de los genotipados no se propagaba a los no genotipados. Sí. Eh,\n[00:06:21] propagaba a los no genotipados. Sí. Eh, sumado a dificultades técnicas que que\n[00:06:23] sumado a dificultades técnicas que que hacían muy engorrosa la aplicación de de\n[00:06:26] hacían muy engorrosa la aplicación de de esos métodos. Eh, y si bien yo en ese\n[00:06:30] esos métodos. Eh, y si bien yo en ese momento claramente no estaba trabajando\n[00:06:33] momento claramente no estaba trabajando porque en el 2009 tenía 14 años, eh,\n[00:06:39] porque en el 2009 tenía 14 años, eh, dos grupos independientemente, el de\n[00:06:41] dos grupos independientemente, el de Georgia con Ignacio Mistal, Andrés\n[00:06:44] Georgia con Ignacio Mistal, Andrés Legarra, Nacho Aguilar y en Dinamarca,\n[00:06:47] Legarra, Nacho Aguilar y en Dinamarca, Ole Christensen, desarrollaron\n[00:06:50] Ole Christensen, desarrollaron eh\n[00:06:51] eh o aplicaron una metodología estadística\n[00:06:54] o aplicaron una metodología estadística para\n[00:06:55] para que ambas fuentes de formación, tanto la\n[00:06:58] que ambas fuentes de formación, tanto la genealógica como la genómica, puedan\n[00:07:00] genealógica como la genómica, puedan combinarse en una única matriz de\n[00:07:03] combinarse en una única matriz de parentesco. Sí. Eh, y por lo menos, a\n[00:07:06] parentesco. Sí. Eh, y por lo menos, a ver, yo acá hablo como lector porque no\n[00:07:08] ver, yo acá hablo como lector porque no participé de los desarrollos y cuando yo\n[00:07:11] participé de los desarrollos y cuando yo empecé en el 2018 en este campo ya eso\n[00:07:15] empecé en el 2018 en este campo ya eso estaba desarrollado.\n[00:07:17] estaba desarrollado. Eh,\n[00:07:19] Eh, quizás lo lindo, lo valioso de esta\n[00:07:21] quizás lo lindo, lo valioso de esta metodología es que fue desarrollada por\n[00:07:23] metodología es que fue desarrollada por dos grupos completamente separados y\n[00:07:26] dos grupos completamente separados y siempre cuenta Andrés Ignaci\n[00:07:30] siempre cuenta Andrés Ignaci fue una Gordon Conference o alguna\n[00:07:32] fue una Gordon Conference o alguna conferencia o una Interv.\n[00:07:34] conferencia o una Interv. que\n[00:07:36] que iban a presentar lo mismo y no lo sabían\n[00:07:38] iban a presentar lo mismo y no lo sabían y nada, debió haber sido una situación\n[00:07:40] y nada, debió haber sido una situación muy divertida. Entonces, eh\n[00:07:44] muy divertida. Entonces, eh siempre que se citan ambos trabajos se\n[00:07:46] siempre que se citan ambos trabajos se citan juntos porque realmente\n[00:07:48] citan juntos porque realmente se desarrollaron el mismo año, tienen\n[00:07:51] se desarrollaron el mismo año, tienen casi la misma información. George ya lo\n[00:07:53] casi la misma información. George ya lo desarrolló en dos papers separados. Sí,\n[00:07:56] desarrolló en dos papers separados. Sí, porque como vos dijiste en en la matriz\n[00:07:59] porque como vos dijiste en en la matriz de modelos mixtos se necesita la inversa\n[00:08:01] de modelos mixtos se necesita la inversa de las relaciones, ¿no? No las\n[00:08:03] de las relaciones, ¿no? No las relaciones per sé. Eh, Georgia lo hizo\n[00:08:07] relaciones per sé. Eh, Georgia lo hizo en dos publicaciones en el 2009 y 2010 y\n[00:08:10] en dos publicaciones en el 2009 y 2010 y Ole Christensen y y Morgens Lund lo\n[00:08:12] Ole Christensen y y Morgens Lund lo hicieron en una sola en el 2010. Eh,\n[00:08:15] hicieron en una sola en el 2010. Eh, pero el resto, esa yo creo que es la\n[00:08:17] pero el resto, esa yo creo que es la historia. Hubieron muchos otros\n[00:08:19] historia. Hubieron muchos otros desarrollos, ¿sí? Para poder aplicar\n[00:08:22] desarrollos, ¿sí? Para poder aplicar esto al a los datos. eh\n[00:08:25] esto al a los datos. eh a a datos reales y se siguen\n[00:08:27] a a datos reales y se siguen desarrollando todavía cosas como\n[00:08:30] desarrollando todavía cosas como metafundadores,\n[00:08:32] metafundadores, eh cosas como modelos no lineales, aún\n[00:08:34] eh cosas como modelos no lineales, aún todavía están en desarrollo, pero la la\n[00:08:36] todavía están en desarrollo, pero la la tecnología ya está muy madura.\n[00:08:37] tecnología ya está muy madura. Excelente, excelente. Sí, creo que es\n[00:08:39] Excelente, excelente. Sí, creo que es una historia interesante. Creo que en\n[00:08:41] una historia interesante. Creo que en algún momento escuché algo de eso del\n[00:08:43] algún momento escuché algo de eso del doctor Andrés Legarra en una entrevista\n[00:08:45] doctor Andrés Legarra en una entrevista que le hizo a Agustín Blasco en su\n[00:08:46] que le hizo a Agustín Blasco en su programa. Creo que lo vi, creo que por\n[00:08:49] programa. Creo que lo vi, creo que por encima nombró esa esa cuestión. Creo que\n[00:08:52] encima nombró esa esa cuestión. Creo que también una ventaja del single, creo que\n[00:08:54] también una ventaja del single, creo que estaremos de acuerdo este Matías, es que\n[00:08:57] estaremos de acuerdo este Matías, es que es que se ahorran costos, ¿no? Porque si\n[00:09:00] es que se ahorran costos, ¿no? Porque si no no tendríamos que genotipiar todo el\n[00:09:03] no no tendríamos que genotipiar todo el rebaño completo, toda la población, sino\n[00:09:06] rebaño completo, toda la población, sino solo una parte y usar la información de\n[00:09:08] solo una parte y usar la información de pedir como información a priori para la\n[00:09:10] pedir como información a priori para la información genómica o no es así\n[00:09:13] información genómica o no es así en el múltiples pasos. Es decir, si en\n[00:09:17] en el múltiples pasos. Es decir, si en el en la metodología de múltiples pasos\n[00:09:20] el en la metodología de múltiples pasos uno quiere un valor de cría genómico\n[00:09:22] uno quiere un valor de cría genómico para todos los animales, sí tienen que\n[00:09:25] para todos los animales, sí tienen que estar eh genotipados porque no existe\n[00:09:28] estar eh genotipados porque no existe esa propagación. Ahora bien, por\n[00:09:30] esa propagación. Ahora bien, por ejemplo, en cuando en Estados Unidos se\n[00:09:33] ejemplo, en cuando en Estados Unidos se desarrolló esto, eh el ganado lechero\n[00:09:36] desarrolló esto, eh el ganado lechero tenía\n[00:09:38] tenía millones de animales y solo unos pocos\n[00:09:41] millones de animales y solo unos pocos miles genotipados al principio y igual\n[00:09:44] miles genotipados al principio y igual se podía hacer. la evaluación. La\n[00:09:47] se podía hacer. la evaluación. La ventaja del single step es propagación,\n[00:09:50] ventaja del single step es propagación, ¿sí? y\n[00:09:53] ¿sí? y la facilidad que tiene eh para ser\n[00:09:57] la facilidad que tiene eh para ser aplicado a modelos más complejos, como\n[00:09:59] aplicado a modelos más complejos, como ya mencioné, efectos maternos, eh\n[00:10:01] ya mencioné, efectos maternos, eh modelos no lineales, eh regresiones\n[00:10:04] modelos no lineales, eh regresiones aleatorias,\n[00:10:06] aleatorias, eh\n[00:10:08] eh y que aparte es mucho más fácil de\n[00:10:09] y que aparte es mucho más fácil de programar, de aplicar, de explicar\n[00:10:13] programar, de aplicar, de explicar también.\n[00:10:15] también. Excelente, excelente. Hay una cuestión\n[00:10:17] Excelente, excelente. Hay una cuestión que que siempre pregunto, pero no por\n[00:10:19] que que siempre pregunto, pero no por cuestión de debates, porque siempre aquí\n[00:10:21] cuestión de debates, porque siempre aquí los seguidores me lo han preguntado en\n[00:10:22] los seguidores me lo han preguntado en algunos casos, es sobre el yo sé que el\n[00:10:25] algunos casos, es sobre el yo sé que el single est entendido que estas\n[00:10:27] single est entendido que estas evaluaciones genómicas nacieron desde un\n[00:10:29] evaluaciones genómicas nacieron desde un punto de vista valleciano porque\n[00:10:30] punto de vista valleciano porque anteriormente era lo que se podía hacer,\n[00:10:33] anteriormente era lo que se podía hacer, pero hoy en día ya se puede hacer desde\n[00:10:35] pero hoy en día ya se puede hacer desde un punto de vista entre comillas\n[00:10:37] un punto de vista entre comillas frecuentista usando el remel. Bueno, en\n[00:10:39] frecuentista usando el remel. Bueno, en este caso sería un CCG REMEL, este, y ya\n[00:10:43] este caso sería un CCG REMEL, este, y ya se pueden hacer de las dos maneras.\n[00:10:46] se pueden hacer de las dos maneras. Hablamos de evaluaciones genómicas\n[00:10:47] Hablamos de evaluaciones genómicas porque sabemos que las evaluaciones\n[00:10:48] porque sabemos que las evaluaciones genéticas con Pedri sí se pueden hacer\n[00:10:50] genéticas con Pedri sí se pueden hacer de las dos formas de hace mucho tiempo.\n[00:10:53] de las dos formas de hace mucho tiempo. Desde estos puntos de vista, ¿cuál es la\n[00:10:56] Desde estos puntos de vista, ¿cuál es la más eficiente, digamos, en modelos de\n[00:10:57] más eficiente, digamos, en modelos de evaluación genética convencionales?\n[00:10:59] evaluación genética convencionales? ¿Cuál es la que ahorra más cómputo?\n[00:11:01] ¿Cuál es la que ahorra más cómputo? Porque yo tengo entendido, aunque nunca\n[00:11:04] Porque yo tengo entendido, aunque nunca lo he corrido este en evaluación, nunca\n[00:11:06] lo he corrido este en evaluación, nunca las he hecho, que si en como en genética\n[00:11:09] las he hecho, que si en como en genética tenemos muchos datos, o sea, tenemos\n[00:11:11] tenemos muchos datos, o sea, tenemos este grandes, masivas cantidades de\n[00:11:13] este grandes, masivas cantidades de datos, los parámetros están por ahí.\n[00:11:15] datos, los parámetros están por ahí. Incluso hay unos paper que indican que\n[00:11:18] Incluso hay unos paper que indican que si tú tienes muchos muchos datos,\n[00:11:20] si tú tienes muchos muchos datos, incluso las evaluaciones genéticas con\n[00:11:21] incluso las evaluaciones genéticas con pedigri estarán por ahí, se van a\n[00:11:23] pedigri estarán por ahí, se van a aparecer los parámetros. Entonces,\n[00:11:25] aparecer los parámetros. Entonces, quiero que me digas, o sea, más o menos\n[00:11:28] quiero que me digas, o sea, más o menos desde un punto de vista valleciano, un\n[00:11:30] desde un punto de vista valleciano, un punto de vista frecuentista, o sea, ¿qué\n[00:11:31] punto de vista frecuentista, o sea, ¿qué es lo que conviene más? Yo sé que el\n[00:11:33] es lo que conviene más? Yo sé que el valleismo tiene algunas ventajadas, pero\n[00:11:34] valleismo tiene algunas ventajadas, pero sería bueno que que usted nos explicara\n[00:11:36] sería bueno que que usted nos explicara eso.\n[00:11:38] eso. Eh,\n[00:11:39] Eh, bien, primero, las evaluaciones\n[00:11:40] bien, primero, las evaluaciones genéticas tienen muchos pasos o muchas\n[00:11:43] genéticas tienen muchos pasos o muchas cosas que necesitan eh ser llevadas a\n[00:11:46] cosas que necesitan eh ser llevadas a cabo. Sí. Eh, por lo general, en la gran\n[00:11:50] cabo. Sí. Eh, por lo general, en la gran mayoría de los casos, eh, durante un\n[00:11:53] mayoría de los casos, eh, durante un cierto periodo de tiempo se asumen\n[00:11:54] cierto periodo de tiempo se asumen componentes de varianzas fijos, ¿sí? Y\n[00:11:58] componentes de varianzas fijos, ¿sí? Y solamente se calculan valores de cría y\n[00:12:01] solamente se calculan valores de cría y eh desde el punto de vista frecuentista\n[00:12:04] eh desde el punto de vista frecuentista efectos fijos. Desde el punto de vista\n[00:12:06] efectos fijos. Desde el punto de vista valleciano lo que serían es el ectos\n[00:12:11] valleciano lo que serían es el ectos con una prior plana. Sí, flat prior. Eh,\n[00:12:18] con una prior plana. Sí, flat prior. Eh, bien, para la parte de componentes de\n[00:12:19] bien, para la parte de componentes de varianzas depende mucho del modelo, ¿sí?\n[00:12:23] varianzas depende mucho del modelo, ¿sí? Eh, un modelo complejo\n[00:12:26] Eh, un modelo complejo siempre quizás la estimación valleciana\n[00:12:28] siempre quizás la estimación valleciana ayuda mucho, sí,\n[00:12:32] ayuda mucho, sí, pero la estimación frecuentista mediante\n[00:12:34] pero la estimación frecuentista mediante REML es mucho más rápida y requiere\n[00:12:37] REML es mucho más rápida y requiere menos conocimiento, menos experiencia eh\n[00:12:40] menos conocimiento, menos experiencia eh y menos input del usuario. ¿Por qué?\n[00:12:43] y menos input del usuario. ¿Por qué? Porque uno corre un remel, converge y\n[00:12:44] Porque uno corre un remel, converge y está. Eh, con un GIF sampler, por\n[00:12:47] está. Eh, con un GIF sampler, por ejemplo, uno tiene que ver, okay,\n[00:12:48] ejemplo, uno tiene que ver, okay, cuántas muestras, si convirgió la cadena\n[00:12:51] cuántas muestras, si convirgió la cadena para todos los parámetros que tengo, eh,\n[00:12:54] para todos los parámetros que tengo, eh, voy a usar la moda, voy a usar la media,\n[00:12:57] voy a usar la moda, voy a usar la media, qué vernin voy a usar, es más casero,\n[00:13:00] qué vernin voy a usar, es más casero, sí, pero en un modelo muy complejo, el\n[00:13:04] sí, pero en un modelo muy complejo, el remil puede funcionar peor que el GISBS.\n[00:13:06] remil puede funcionar peor que el GISBS. Entonces, en ese caso, quizás uno\n[00:13:07] Entonces, en ese caso, quizás uno prefiere algo valleciano. Sí.\n[00:13:11] prefiere algo valleciano. Sí. Eh,\n[00:13:12] Eh, después hay ventajas o ventajas\n[00:13:14] después hay ventajas o ventajas computacionales. Sí, para modelos muy\n[00:13:16] computacionales. Sí, para modelos muy grandes, los vallecianos por la cantidad\n[00:13:18] grandes, los vallecianos por la cantidad de muestras y autocorrelación entre\n[00:13:20] de muestras y autocorrelación entre muestras pueden necesitar muchas\n[00:13:21] muestras pueden necesitar muchas muestras. Sí, lo cual puede llevar meses\n[00:13:25] muestras. Sí, lo cual puede llevar meses quizás. eh y desarrollos recientes en\n[00:13:29] quizás. eh y desarrollos recientes en métodos frecuentistas, como por ejemplo\n[00:13:31] métodos frecuentistas, como por ejemplo el Montecarlo REML, que es un REML donde\n[00:13:35] el Montecarlo REML, que es un REML donde la inversión de de la matriz de\n[00:13:38] la inversión de de la matriz de coeficientes es reemplazada por una\n[00:13:40] coeficientes es reemplazada por una serie de simulaciones,\n[00:13:42] serie de simulaciones, puede pasar ese tiempo de cómputo de\n[00:13:44] puede pasar ese tiempo de cómputo de semanas a un par de horas\n[00:13:47] semanas a un par de horas y entonces es una cuestión de tiempos.\n[00:13:50] y entonces es una cuestión de tiempos. Ahora bien, ¿qué pasa cuando uno ya\n[00:13:51] Ahora bien, ¿qué pasa cuando uno ya tiene los componentes de varianza y los\n[00:13:54] tiene los componentes de varianza y los pasa a utilizar rutinariamente?\n[00:13:57] pasa a utilizar rutinariamente? Ahí las evaluaciones genéticas utilizan\n[00:14:00] Ahí las evaluaciones genéticas utilizan blap frecuentista.\n[00:14:02] blap frecuentista. Sí. Eh, ¿por qué utilizan blap\n[00:14:05] Sí. Eh, ¿por qué utilizan blap frecuentista? Primero, por velocidad.\n[00:14:09] frecuentista? Primero, por velocidad. Sí, es mucho más rápido. Eh,\n[00:14:13] Sí, es mucho más rápido. Eh, segundo,\n[00:14:15] segundo, porque\n[00:14:17] porque uno toca una tecla y siempre obtiene\n[00:14:18] uno toca una tecla y siempre obtiene casi el mismo resultado con los métodos\n[00:14:20] casi el mismo resultado con los métodos vallecianos, no siempre, porque depende\n[00:14:22] vallecianos, no siempre, porque depende del generador de números aleatorios, de\n[00:14:24] del generador de números aleatorios, de la cantidad de muestras, eh del burning\n[00:14:27] la cantidad de muestras, eh del burning que usemos. Entonces, uno en las\n[00:14:30] que usemos. Entonces, uno en las evaluaciones genéticas requiere una\n[00:14:31] evaluaciones genéticas requiere una cierta estabilidad numérica,\n[00:14:34] cierta estabilidad numérica, ¿sí?, eh y temporal que te la suelen dar\n[00:14:38] ¿sí?, eh y temporal que te la suelen dar más esos métodos eh frecuentistas.\n[00:14:43] más esos métodos eh frecuentistas. Sumado a eso, sí, eh\n[00:14:47] Sumado a eso, sí, eh el uso de métodos frecuentistas\n[00:14:49] el uso de métodos frecuentistas optimizados, por ejemplo, iteración en\n[00:14:50] optimizados, por ejemplo, iteración en datos, donde no se construye la matriz\n[00:14:52] datos, donde no se construye la matriz de modelos mixtos, sino que se hacen\n[00:14:54] de modelos mixtos, sino que se hacen multiplicaciones\n[00:14:56] multiplicaciones sucesivas, eh solamente leyendo los\n[00:14:59] sucesivas, eh solamente leyendo los datos y y el pedigri, bueno, hacen que\n[00:15:03] datos y y el pedigri, bueno, hacen que los requerimientos de memoria sean mucho\n[00:15:04] los requerimientos de memoria sean mucho menor que para los métodos vallecianos.\n[00:15:08] menor que para los métodos vallecianos. Ahora bien, si nos podemos ponemos una\n[00:15:10] Ahora bien, si nos podemos ponemos una interpretación estadística, el blap es\n[00:15:12] interpretación estadística, el blap es un máxima un máximo posteriori, ¿no?,\n[00:15:16] un máxima un máximo posteriori, ¿no?, con determinadas priors. Entonces, a fin\n[00:15:18] con determinadas priors. Entonces, a fin de cuentas, la interpretación de los\n[00:15:20] de cuentas, la interpretación de los galeros de cría es muy similar,\n[00:15:22] galeros de cría es muy similar, pero desde el punto de vista práctico,\n[00:15:24] pero desde el punto de vista práctico, para para la rutina se prefieren en\n[00:15:26] para para la rutina se prefieren en general los métodos frecuentistas\n[00:15:28] general los métodos frecuentistas basados en blap y el método iterativo\n[00:15:32] basados en blap y el método iterativo que se llama de solución de sistemas que\n[00:15:34] que se llama de solución de sistemas que se llama eh de gradientes preconjugados.\n[00:15:42] Excelente, excelente. Eso que dijiste de último gradiente es preconjugado. Me\n[00:15:43] último gradiente es preconjugado. Me acuerdo cuando me hiciste\n[00:15:46] acuerdo cuando me hiciste dar ese infierno. Bueno, [risas]\n[00:15:49] dar ese infierno. Bueno, [risas] ya eso quedó en el pasado.\n[00:15:52] ya eso quedó en el pasado. Matías, a veces tengo, se me olvida que\n[00:15:54] Matías, a veces tengo, se me olvida que no puedo llamarte do no te gusta, pero\n[00:15:57] no puedo llamarte do no te gusta, pero se me quedan a mí\n[00:15:59] se me quedan a mí y\n[00:16:00] y no pasa nada.\n[00:16:02] no pasa nada. En fin, es interesante esto que que\n[00:16:04] En fin, es interesante esto que que mencionaste sobre B y Rel. Bueno, al\n[00:16:07] mencionaste sobre B y Rel. Bueno, al final yo siempre creo que si si si\n[00:16:10] final yo siempre creo que si si si tienes la capacidad de correrlo y un\n[00:16:13] tienes la capacidad de correrlo y un modelo no tan complejo, no un modelo\n[00:16:15] modelo no tan complejo, no un modelo lineal generalizado, un tresor o una\n[00:16:17] lineal generalizado, un tresor o una cosa de estas pues con variable no\n[00:16:20] cosa de estas pues con variable no normal, o sea, no gauciana, creo que\n[00:16:22] normal, o sea, no gauciana, creo que podré usar el que tú quieras en en el\n[00:16:24] podré usar el que tú quieras en en el canal de estadísticas,\n[00:16:26] canal de estadísticas, este siempre explicamos los métodos\n[00:16:27] este siempre explicamos los métodos frecuentistos, pero si tocamos algunos\n[00:16:29] frecuentistos, pero si tocamos algunos casos, los vallecianos no son\n[00:16:31] casos, los vallecianos no son desconocidos para mí, no, pero no los\n[00:16:33] desconocidos para mí, no, pero no los hemos abordado este en profundidad. Y\n[00:16:37] hemos abordado este en profundidad. Y siempre me lo han preguntado algunos\n[00:16:39] siempre me lo han preguntado algunos seguidores que me escriben este al\n[00:16:41] seguidores que me escriben este al privado, pues, ¿y para cuándo lo de los\n[00:16:43] privado, pues, ¿y para cuándo lo de los valleciños? Bueno, pronto, todavía no.\n[00:16:46] valleciños? Bueno, pronto, todavía no. Hay una cuestión también que es\n[00:16:49] Hay una cuestión también que es interesante que esa es una pregunta, no\n[00:16:51] interesante que esa es una pregunta, no de los seguidores, voy a confesar que es\n[00:16:52] de los seguidores, voy a confesar que es mía. El proceso de inversión de la\n[00:16:55] mía. El proceso de inversión de la matriz conjugada, o sea, de la matriz H,\n[00:16:57] matriz conjugada, o sea, de la matriz H, para mí eso debía haber sido un reto\n[00:16:59] para mí eso debía haber sido un reto porque como tú bien dijiste, no\n[00:17:02] porque como tú bien dijiste, no necesitamos la matriz, sino su inversa.\n[00:17:04] necesitamos la matriz, sino su inversa. Y creo que ese proceso es\n[00:17:05] Y creo que ese proceso es computacionalmente costoso y lo sé por\n[00:17:08] computacionalmente costoso y lo sé por experiencia, o sea, porque y no hablando\n[00:17:10] experiencia, o sea, porque y no hablando de H, sino hablando de una matriz de\n[00:17:11] de H, sino hablando de una matriz de parentesco, una matriz A clásica.\n[00:17:14] parentesco, una matriz A clásica. Entonces, bueno, tuvimos que programar\n[00:17:15] Entonces, bueno, tuvimos que programar esos métodos de gender sin usar ninguna\n[00:17:17] esos métodos de gender sin usar ninguna librería, pues desde cero, pero bueno,\n[00:17:20] librería, pues desde cero, pero bueno, no fue bien. Ahora en H cuando veo la\n[00:17:21] no fue bien. Ahora en H cuando veo la estructura, este, veo que obviamente fue\n[00:17:24] estructura, este, veo que obviamente fue un reto, o sea, más o menos, ¿cómo cómo\n[00:17:26] un reto, o sea, más o menos, ¿cómo cómo se maneja ese procedimiento?\n[00:17:29] se maneja ese procedimiento? Eh, bien, de vuelta, la parte histórica\n[00:17:31] Eh, bien, de vuelta, la parte histórica yo la puedo contar porque me la\n[00:17:33] yo la puedo contar porque me la contaron. No la viví y porque veo código\n[00:17:35] contaron. No la viví y porque veo código y leo papers. Eh, en 2009,\n[00:17:40] y leo papers. Eh, en 2009, Andrés, Ignaci y Ignacio\n[00:17:44] Andrés, Ignaci y Ignacio derivaron H, pero como vos dijiste se\n[00:17:47] derivaron H, pero como vos dijiste se necesita H inversa. Sí,\n[00:17:51] necesita H inversa. Sí, para estos iteraciones en datos,\n[00:17:53] para estos iteraciones en datos, entonces ellos propusieron utilizar H\n[00:17:55] entonces ellos propusieron utilizar H con unas ecuaciones de modelo mixto\n[00:17:57] con unas ecuaciones de modelo mixto especiales y un solver especial que\n[00:17:59] especiales y un solver especial que funcionaba bastante mal. Sí.\n[00:18:02] funcionaba bastante mal. Sí. Una vez que se descubrió la estructura\n[00:18:04] Una vez que se descubrió la estructura de H inversa, que es mucho más sencilla\n[00:18:06] de H inversa, que es mucho más sencilla que la de H, ¿sí? H inversa se compone\n[00:18:09] que la de H, ¿sí? H inversa se compone básicamente de tres cosas, ¿sí? La\n[00:18:11] básicamente de tres cosas, ¿sí? La inversa del pedigrí, de la relación de\n[00:18:14] inversa del pedigrí, de la relación de pedigrí que se obtiene con las reglas de\n[00:18:16] pedigrí que se obtiene con las reglas de Henderson, como vos dijiste, la inversa\n[00:18:19] Henderson, como vos dijiste, la inversa de las relaciones genómicas de G y la\n[00:18:22] de las relaciones genómicas de G y la inversa de la relación de pedigrí entre\n[00:18:25] inversa de la relación de pedigrí entre los animales genotipados, que eso sería\n[00:18:28] los animales genotipados, que eso sería A2 inversa. ¿Sí?\n[00:18:30] A2 inversa. ¿Sí? Y de vuelta hago distinción en eh\n[00:18:36] Y de vuelta hago distinción en eh de dos procesos. ¿Qué pasa para\n[00:18:37] de dos procesos. ¿Qué pasa para componentes de varianza en remel?\n[00:18:39] componentes de varianza en remel? Nosotros necesitamos invertir la matriz\n[00:18:41] Nosotros necesitamos invertir la matriz de ecuaciones de modelo mixto. Entonces,\n[00:18:44] de ecuaciones de modelo mixto. Entonces, en ese caso, H inversa se crea\n[00:18:46] en ese caso, H inversa se crea explícitamente, ¿sí?, con esos tres\n[00:18:49] explícitamente, ¿sí?, con esos tres bloques, eh, y después se manda todo a\n[00:18:53] bloques, eh, y después se manda todo a una inversión rala. ¿Sí? ¿Qué quiere\n[00:18:55] una inversión rala. ¿Sí? ¿Qué quiere decir rala? Que tiene muchos ceros y\n[00:18:58] decir rala? Que tiene muchos ceros y bloques de no ceros. Sí. Las relaciones\n[00:19:00] bloques de no ceros. Sí. Las relaciones de pedigrí en su inversa son ralas, las\n[00:19:03] de pedigrí en su inversa son ralas, las genómicas no. Eh,\n[00:19:07] genómicas no. Eh, eso es en componentes de variancia, o\n[00:19:08] eso es en componentes de variancia, o sea, en componentes de varianza la\n[00:19:10] sea, en componentes de varianza la inversión tiene que ser a fuerza bruta y\n[00:19:12] inversión tiene que ser a fuerza bruta y y\n[00:19:14] y hay otras maneras, pero bueno, se está\n[00:19:16] hay otras maneras, pero bueno, se está limitado por eso. Ahora, si lo único que\n[00:19:18] limitado por eso. Ahora, si lo único que nos interesa son valores de cría,\n[00:19:21] nos interesa son valores de cría, eh\n[00:19:23] eh utilizamos solvers iterativos, ¿sí? Y el\n[00:19:27] utilizamos solvers iterativos, ¿sí? Y el solve iterativo no requiere invertir una\n[00:19:29] solve iterativo no requiere invertir una matriz de modelos mixtos, sino requiere\n[00:19:31] matriz de modelos mixtos, sino requiere multiplicar esa matriz por un vector.\n[00:19:35] multiplicar esa matriz por un vector. Entonces, tenemos los tres componentes\n[00:19:36] Entonces, tenemos los tres componentes de H inversa, que son A inversa, las de\n[00:19:39] de H inversa, que son A inversa, las de pedigri. Bueno, multiplicarlos por un\n[00:19:41] pedigri. Bueno, multiplicarlos por un vector es muy fácil, es una inversa\n[00:19:42] vector es muy fácil, es una inversa rara. Tenemos\n[00:19:46] rara. Tenemos G inversa. Bueno, si tenemos pocos\n[00:19:47] G inversa. Bueno, si tenemos pocos animales, por ejemplo, 30.000, 50.000,\n[00:19:50] animales, por ejemplo, 30.000, 50.000, podemos invertir G y multiplicarlas. Sí.\n[00:19:53] podemos invertir G y multiplicarlas. Sí. Eh, ¿qué pasa si tenemos más? Hay\n[00:19:55] Eh, ¿qué pasa si tenemos más? Hay distintas metodologías. Eh, en Georgia\n[00:19:58] distintas metodologías. Eh, en Georgia se usa mucho lo que se llama el\n[00:20:00] se usa mucho lo que se llama el algoritmo de, lo oigo en inglés,\n[00:20:02] algoritmo de, lo oigo en inglés, algoritm for proven, APY.\n[00:20:05] algoritm for proven, APY. Eh, esa amantisari en en Finlandia\n[00:20:08] Eh, esa amantisari en en Finlandia desarrolló algo que llama GT Blue que\n[00:20:11] desarrolló algo que llama GT Blue que utiliza la identidad de Woodbury, una\n[00:20:14] utiliza la identidad de Woodbury, una multiplicación de matrices y Sentin Leu\n[00:20:17] multiplicación de matrices y Sentin Leu y bueno, los investigadores de Holanda\n[00:20:20] y bueno, los investigadores de Holanda desarrollaron el single step snipab que\n[00:20:23] desarrollaron el single step snipab que evita la inversión de G expandiendo el\n[00:20:25] evita la inversión de G expandiendo el sistema, estimando al mismo tiempo\n[00:20:27] sistema, estimando al mismo tiempo valores de cría y efectos de marcadores.\n[00:20:31] valores de cría y efectos de marcadores. Y nos queda una partecita que es la de\n[00:20:32] Y nos queda una partecita que es la de A2 inversa que eh por reglas de matrices\n[00:20:35] A2 inversa que eh por reglas de matrices particionadas puede ser multiplicada muy\n[00:20:37] particionadas puede ser multiplicada muy fácil. Entonces, si tenemos componentes\n[00:20:39] fácil. Entonces, si tenemos componentes de varianza, tenemos que invertir\n[00:20:42] de varianza, tenemos que invertir eh salvo que usemos lo que mencioné\n[00:20:45] eh salvo que usemos lo que mencioné antes el Montecarlos Renel, pero tenemos\n[00:20:47] antes el Montecarlos Renel, pero tenemos que invertir. Si tenemos que calcular\n[00:20:49] que invertir. Si tenemos que calcular valores de cría, tenemos que multiplicar\n[00:20:50] valores de cría, tenemos que multiplicar por un vector y eso lo podemos hacer\n[00:20:52] por un vector y eso lo podemos hacer para millones y millones de animales\n[00:20:54] para millones y millones de animales genotipados\n[00:20:56] genotipados e con básicamente tres metodologías.\n[00:21:01] e con básicamente tres metodologías. Excelente, excelente. Menos mal que me\n[00:21:03] Excelente, excelente. Menos mal que me calaste la inquietud porque lo dejé si\n[00:21:05] calaste la inquietud porque lo dejé si me parecía difícil, ¿no? Porque la\n[00:21:09] me parecía difícil, ¿no? Porque la inversión creo que tiene antes, bueno,\n[00:21:12] inversión creo que tiene antes, bueno, yo tengo una computadora viejita, no\n[00:21:14] yo tengo una computadora viejita, no quiero engañar aquí\n[00:21:16] quiero engañar aquí que tenemos, bueno, por lo menos de mi\n[00:21:18] que tenemos, bueno, por lo menos de mi parte una supercutadora ni ni nada de\n[00:21:20] parte una supercutadora ni ni nada de eso, ¿no? Pero bueno, sé más o menos, no\n[00:21:23] eso, ¿no? Pero bueno, sé más o menos, no como el doctor aquí porque ya otra liga\n[00:21:26] como el doctor aquí porque ya otra liga nivel, pero sé algo de programar blop y\n[00:21:29] nivel, pero sé algo de programar blop y componentes de varianza y remel y cosas\n[00:21:30] componentes de varianza y remel y cosas de estas, ¿no? Entonces sí me tenía esa\n[00:21:34] de estas, ¿no? Entonces sí me tenía esa duda importante. Doctor, para terminar\n[00:21:36] duda importante. Doctor, para terminar hay un punto importante en en quiero que\n[00:21:39] hay un punto importante en en quiero que nos cuentes en qué estás trabajando hoy\n[00:21:41] nos cuentes en qué estás trabajando hoy en día, lo más reciente, qué es lo que\n[00:21:43] en día, lo más reciente, qué es lo que se viene en la investigación de\n[00:21:45] se viene en la investigación de mejoramiento genético animal en genética\n[00:21:46] mejoramiento genético animal en genética cuantitativa. ¿Qué nos puedes hablar de\n[00:21:48] cuantitativa. ¿Qué nos puedes hablar de de tus últimos hallazgos, tus últimas\n[00:21:50] de tus últimos hallazgos, tus últimas investigaciones?\n[00:21:52] investigaciones? Yo creo que lo lindo de este campo es\n[00:21:54] Yo creo que lo lindo de este campo es que hay mucho para hacer y mucho\n[00:21:56] que hay mucho para hacer y mucho distinto. Sí. Eh,\n[00:22:02] distinto. Sí. Eh, tenemos desde investigación puramente\n[00:22:04] tenemos desde investigación puramente estadística o o computacional o o de\n[00:22:07] estadística o o computacional o o de desarrollo de modelos, que es más lo que\n[00:22:09] desarrollo de modelos, que es más lo que yo hago, hasta cosas muy biológicas como\n[00:22:13] yo hago, hasta cosas muy biológicas como eh utilización de ómica,\n[00:22:15] eh utilización de ómica, transcriptómica,\n[00:22:17] transcriptómica, eh o anotación de genomas. eh\n[00:22:21] eh o anotación de genomas. eh construcción de genomas, también de\n[00:22:23] construcción de genomas, también de genomas de referencia,\n[00:22:25] genomas de referencia, eh cosas para evaluaciones genéticas muy\n[00:22:28] eh cosas para evaluaciones genéticas muy aplicadas. Entonces, hay un abanico muy\n[00:22:30] aplicadas. Entonces, hay un abanico muy muy amplio. Lo que yo me dedico más es a\n[00:22:32] muy amplio. Lo que yo me dedico más es a la metodología y lo último que hicimos\n[00:22:35] la metodología y lo último que hicimos fue extender el modelo de umbral, que es\n[00:22:38] fue extender el modelo de umbral, que es para caracteres categóricos, a múltiples\n[00:22:42] para caracteres categóricos, a múltiples características. hace antes no se podía,\n[00:22:46] características. hace antes no se podía, no existía una contraparte, entre\n[00:22:48] no existía una contraparte, entre comillas, frecuentista del del GIF\n[00:22:50] comillas, frecuentista del del GIF Sampler para tener eh modelos\n[00:22:52] Sampler para tener eh modelos multicácteres para carácteres\n[00:22:54] multicácteres para carácteres categóricos. Eh, entonces no se podía\n[00:22:56] categóricos. Eh, entonces no se podía usar en evaluación porque por motivos\n[00:22:59] usar en evaluación porque por motivos computacionales. Y entonces lo que yo\n[00:23:01] computacionales. Y entonces lo que yo hice junto con Andrés, con Daniela, con\n[00:23:03] hice junto con Andrés, con Daniela, con Ignacia también es desarrollar,\n[00:23:05] Ignacia también es desarrollar, extenderlo para que sea múltiples\n[00:23:07] extenderlo para que sea múltiples características.\n[00:23:09] características. Esto se publicó hace poquito, hace una\n[00:23:11] Esto se publicó hace poquito, hace una semana más o menos.\n[00:23:13] semana más o menos. Y yo no lo he leído. Tenemos que estar\n[00:23:15] Y yo no lo he leído. Tenemos que estar pendiente [risas] en la revista. No sé\n[00:23:18] pendiente [risas] en la revista. No sé dónde está. En el\n[00:23:20] dónde está. En el Mucho en dónde?\n[00:23:22] Mucho en dónde? En Genetics.\n[00:23:23] En Genetics. Ah, en Genetic. Ah, no, sí lo vi. Sí lo\n[00:23:25] Ah, en Genetic. Ah, no, sí lo vi. Sí lo vi, pero no lo he leído. Correcto. Sí,\n[00:23:27] vi, pero no lo he leído. Correcto. Sí, se salió hace poquito. Tiene razón. El\n[00:23:30] se salió hace poquito. Tiene razón. El el último que leí fue uno que es\n[00:23:33] el último que leí fue uno que es presidente sobre remer usado en\n[00:23:36] presidente sobre remer usado en evaluaciones genómicas masivas, ¿no?\n[00:23:38] evaluaciones genómicas masivas, ¿no? Sí, eso es lo que yo mencioné, que es el\n[00:23:41] Sí, eso es lo que yo mencioné, que es el Montecarlo Remi,\n[00:23:43] Montecarlo Remi, eh, que en realidad el desarrollo se\n[00:23:45] eh, que en realidad el desarrollo se remonta, creo que sí, a los 90 con\n[00:23:49] remonta, creo que sí, a los 90 con Alberto García Cortés, eh,\n[00:23:52] Alberto García Cortés, eh, también tratando de evitar esta inversa,\n[00:23:55] también tratando de evitar esta inversa, fue retomado por Robin Thompson.\n[00:24:00] fue retomado por Robin Thompson. y no me acuerdo que otros autores en\n[00:24:02] y no me acuerdo que otros autores en 2012, 2013, 2018.\n[00:24:05] 2012, 2013, 2018. Sí. Eh, pero era solo para evaluaciones\n[00:24:09] Sí. Eh, pero era solo para evaluaciones sin genómica. Entonces lo que hicimos\n[00:24:11] sin genómica. Entonces lo que hicimos fue justamente meterle genómica a eso y\n[00:24:14] fue justamente meterle genómica a eso y aparte agregarle unas cositas más, por\n[00:24:16] aparte agregarle unas cositas más, por ejemplo, no no se podía aproximar la\n[00:24:19] ejemplo, no no se podía aproximar la verosimilitud, el valor de la\n[00:24:21] verosimilitud, el valor de la verosimilitud. Bueno, también le\n[00:24:22] verosimilitud. Bueno, también le agregamos eso, eh, le agregamos un\n[00:24:26] agregamos eso, eh, le agregamos un average information remil más eficiente.\n[00:24:29] average information remil más eficiente. Pero sí, es esa es una alternativa eh\n[00:24:32] Pero sí, es esa es una alternativa eh que funciona tanto para datos grandes\n[00:24:34] que funciona tanto para datos grandes como también para evitar esta inversión\n[00:24:35] como también para evitar esta inversión que vos decías en\n[00:24:38] que vos decías en una computadora más personal o un\n[00:24:40] una computadora más personal o un ambiente computacional más restringido.\n[00:24:44] ambiente computacional más restringido. Seguramente todo lo que trabajamos aquí\n[00:24:45] Seguramente todo lo que trabajamos aquí en estadística y mi bello hermoso país\n[00:24:48] en estadística y mi bello hermoso país Venezuela lo agradeceremos.\n[00:24:51] Venezuela lo agradeceremos. Doctor, este es muy agradecido de poder\n[00:24:55] Doctor, este es muy agradecido de poder compartir contigo, incluso he aprendido\n[00:24:57] compartir contigo, incluso he aprendido muchísimo yo. Ya hay mucho más que leer,\n[00:24:59] muchísimo yo. Ya hay mucho más que leer, mucho más que investigar. Muy ansioso\n[00:25:01] mucho más que investigar. Muy ansioso para empezar esta lectura y nada más que\n[00:25:03] para empezar esta lectura y nada más que darte las gracias y decirte que te\n[00:25:05] darte las gracias y decirte que te despidas de de los seguidores y que des\n[00:25:06] despidas de de los seguidores y que des tus palabras finales.\n[00:25:09] tus palabras finales. No, agradezco mucho esta oportunidad.\n[00:25:11] No, agradezco mucho esta oportunidad. Como como le decía antes a José, no\n[00:25:14] Como como le decía antes a José, no conocía el canal, eh, pero la verdad que\n[00:25:17] conocía el canal, eh, pero la verdad que tiene información muy buena y y bueno,\n[00:25:19] tiene información muy buena y y bueno, esperemos que que se difunda mucho y y\n[00:25:22] esperemos que que se difunda mucho y y que en Venezuela tengan más oportunidad\n[00:25:24] que en Venezuela tengan más oportunidad de de salir al mundo, de interactuar con\n[00:25:27] de de salir al mundo, de interactuar con el resto de los investigadores y y de\n[00:25:29] el resto de los investigadores y y de seguir formándose también como lo hacen.\n[00:25:32] seguir formándose también como lo hacen. Excelente, Matías, excelente. Bueno,\n[00:25:34] Excelente, Matías, excelente. Bueno, muchas gracias y recuerden suscribirse\n[00:25:36] muchas gracias y recuerden suscribirse al canal, darle like, compartir para más\n[00:25:38] al canal, darle like, compartir para más videos y apoyar este canal de\n[00:25:40] videos y apoyar este canal de estadísticas para adultos. Hasta la\n[00:25:42] estadísticas para adultos. Hasta la próxima y saludos.",
+  "key_frames": [
+    {
+      "timestamp": 0,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0001.jpg"
+    },
+    {
+      "timestamp": 10,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0002.jpg"
+    },
+    {
+      "timestamp": 20,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0003.jpg"
+    },
+    {
+      "timestamp": 30,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0004.jpg"
+    },
+    {
+      "timestamp": 40,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0005.jpg"
+    },
+    {
+      "timestamp": 50,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0006.jpg"
+    },
+    {
+      "timestamp": 60,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0007.jpg"
+    },
+    {
+      "timestamp": 70,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0008.jpg"
+    },
+    {
+      "timestamp": 80,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0009.jpg"
+    },
+    {
+      "timestamp": 90,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0010.jpg"
+    },
+    {
+      "timestamp": 100,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0011.jpg"
+    },
+    {
+      "timestamp": 110,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0012.jpg"
+    },
+    {
+      "timestamp": 120,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0013.jpg"
+    },
+    {
+      "timestamp": 130,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0014.jpg"
+    },
+    {
+      "timestamp": 140,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0015.jpg"
+    },
+    {
+      "timestamp": 150,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0016.jpg"
+    },
+    {
+      "timestamp": 160,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0017.jpg"
+    },
+    {
+      "timestamp": 170,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0018.jpg"
+    },
+    {
+      "timestamp": 180,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0019.jpg"
+    },
+    {
+      "timestamp": 190,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0020.jpg"
+    },
+    {
+      "timestamp": 200,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0021.jpg"
+    },
+    {
+      "timestamp": 210,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0022.jpg"
+    },
+    {
+      "timestamp": 220,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0023.jpg"
+    },
+    {
+      "timestamp": 230,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0024.jpg"
+    },
+    {
+      "timestamp": 240,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0025.jpg"
+    },
+    {
+      "timestamp": 250,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0026.jpg"
+    },
+    {
+      "timestamp": 260,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0027.jpg"
+    },
+    {
+      "timestamp": 270,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0028.jpg"
+    },
+    {
+      "timestamp": 280,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0029.jpg"
+    },
+    {
+      "timestamp": 290,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0030.jpg"
+    },
+    {
+      "timestamp": 300,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0031.jpg"
+    },
+    {
+      "timestamp": 310,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0032.jpg"
+    },
+    {
+      "timestamp": 320,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0033.jpg"
+    },
+    {
+      "timestamp": 330,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0034.jpg"
+    },
+    {
+      "timestamp": 340,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0035.jpg"
+    },
+    {
+      "timestamp": 350,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0036.jpg"
+    },
+    {
+      "timestamp": 360,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0037.jpg"
+    },
+    {
+      "timestamp": 370,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0038.jpg"
+    },
+    {
+      "timestamp": 380,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0039.jpg"
+    },
+    {
+      "timestamp": 390,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0040.jpg"
+    },
+    {
+      "timestamp": 400,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0041.jpg"
+    },
+    {
+      "timestamp": 410,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0042.jpg"
+    },
+    {
+      "timestamp": 420,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0043.jpg"
+    },
+    {
+      "timestamp": 430,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0044.jpg"
+    },
+    {
+      "timestamp": 440,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0045.jpg"
+    },
+    {
+      "timestamp": 450,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0046.jpg"
+    },
+    {
+      "timestamp": 460,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0047.jpg"
+    },
+    {
+      "timestamp": 470,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0048.jpg"
+    },
+    {
+      "timestamp": 480,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0049.jpg"
+    },
+    {
+      "timestamp": 490,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0050.jpg"
+    },
+    {
+      "timestamp": 500,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0051.jpg"
+    },
+    {
+      "timestamp": 510,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0052.jpg"
+    },
+    {
+      "timestamp": 520,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0053.jpg"
+    },
+    {
+      "timestamp": 530,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0054.jpg"
+    },
+    {
+      "timestamp": 540,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0055.jpg"
+    },
+    {
+      "timestamp": 550,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0056.jpg"
+    },
+    {
+      "timestamp": 560,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0057.jpg"
+    },
+    {
+      "timestamp": 570,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0058.jpg"
+    },
+    {
+      "timestamp": 580,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0059.jpg"
+    },
+    {
+      "timestamp": 590,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0060.jpg"
+    },
+    {
+      "timestamp": 600,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0061.jpg"
+    },
+    {
+      "timestamp": 610,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0062.jpg"
+    },
+    {
+      "timestamp": 620,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0063.jpg"
+    },
+    {
+      "timestamp": 630,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0064.jpg"
+    },
+    {
+      "timestamp": 640,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0065.jpg"
+    },
+    {
+      "timestamp": 650,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0066.jpg"
+    },
+    {
+      "timestamp": 660,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0067.jpg"
+    },
+    {
+      "timestamp": 670,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0068.jpg"
+    },
+    {
+      "timestamp": 680,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0069.jpg"
+    },
+    {
+      "timestamp": 690,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0070.jpg"
+    },
+    {
+      "timestamp": 700,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0071.jpg"
+    },
+    {
+      "timestamp": 710,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0072.jpg"
+    },
+    {
+      "timestamp": 720,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0073.jpg"
+    },
+    {
+      "timestamp": 730,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0074.jpg"
+    },
+    {
+      "timestamp": 740,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0075.jpg"
+    },
+    {
+      "timestamp": 750,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0076.jpg"
+    },
+    {
+      "timestamp": 760,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0077.jpg"
+    },
+    {
+      "timestamp": 770,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0078.jpg"
+    },
+    {
+      "timestamp": 780,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0079.jpg"
+    },
+    {
+      "timestamp": 790,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0080.jpg"
+    },
+    {
+      "timestamp": 800,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0081.jpg"
+    },
+    {
+      "timestamp": 810,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0082.jpg"
+    },
+    {
+      "timestamp": 820,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0083.jpg"
+    },
+    {
+      "timestamp": 830,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0084.jpg"
+    },
+    {
+      "timestamp": 840,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0085.jpg"
+    },
+    {
+      "timestamp": 850,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0086.jpg"
+    },
+    {
+      "timestamp": 860,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0087.jpg"
+    },
+    {
+      "timestamp": 870,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0088.jpg"
+    },
+    {
+      "timestamp": 880,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0089.jpg"
+    },
+    {
+      "timestamp": 890,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0090.jpg"
+    },
+    {
+      "timestamp": 900,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0091.jpg"
+    },
+    {
+      "timestamp": 910,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0092.jpg"
+    },
+    {
+      "timestamp": 920,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0093.jpg"
+    },
+    {
+      "timestamp": 930,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0094.jpg"
+    },
+    {
+      "timestamp": 940,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0095.jpg"
+    },
+    {
+      "timestamp": 950,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0096.jpg"
+    },
+    {
+      "timestamp": 960,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0097.jpg"
+    },
+    {
+      "timestamp": 970,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0098.jpg"
+    },
+    {
+      "timestamp": 980,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0099.jpg"
+    },
+    {
+      "timestamp": 990,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0100.jpg"
+    },
+    {
+      "timestamp": 1000,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0101.jpg"
+    },
+    {
+      "timestamp": 1010,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0102.jpg"
+    },
+    {
+      "timestamp": 1020,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0103.jpg"
+    },
+    {
+      "timestamp": 1030,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0104.jpg"
+    },
+    {
+      "timestamp": 1040,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0105.jpg"
+    },
+    {
+      "timestamp": 1050,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0106.jpg"
+    },
+    {
+      "timestamp": 1060,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0107.jpg"
+    },
+    {
+      "timestamp": 1070,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0108.jpg"
+    },
+    {
+      "timestamp": 1080,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0109.jpg"
+    },
+    {
+      "timestamp": 1090,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0110.jpg"
+    },
+    {
+      "timestamp": 1100,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0111.jpg"
+    },
+    {
+      "timestamp": 1110,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0112.jpg"
+    },
+    {
+      "timestamp": 1120,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0113.jpg"
+    },
+    {
+      "timestamp": 1130,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0114.jpg"
+    },
+    {
+      "timestamp": 1140,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0115.jpg"
+    },
+    {
+      "timestamp": 1150,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0116.jpg"
+    },
+    {
+      "timestamp": 1160,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0117.jpg"
+    },
+    {
+      "timestamp": 1170,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0118.jpg"
+    },
+    {
+      "timestamp": 1180,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0119.jpg"
+    },
+    {
+      "timestamp": 1190,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0120.jpg"
+    },
+    {
+      "timestamp": 1200,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0121.jpg"
+    },
+    {
+      "timestamp": 1210,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0122.jpg"
+    },
+    {
+      "timestamp": 1220,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0123.jpg"
+    },
+    {
+      "timestamp": 1230,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0124.jpg"
+    },
+    {
+      "timestamp": 1240,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0125.jpg"
+    },
+    {
+      "timestamp": 1250,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0126.jpg"
+    },
+    {
+      "timestamp": 1260,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0127.jpg"
+    },
+    {
+      "timestamp": 1270,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0128.jpg"
+    },
+    {
+      "timestamp": 1280,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0129.jpg"
+    },
+    {
+      "timestamp": 1290,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0130.jpg"
+    },
+    {
+      "timestamp": 1300,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0131.jpg"
+    },
+    {
+      "timestamp": 1310,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0132.jpg"
+    },
+    {
+      "timestamp": 1320,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0133.jpg"
+    },
+    {
+      "timestamp": 1330,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0134.jpg"
+    },
+    {
+      "timestamp": 1340,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0135.jpg"
+    },
+    {
+      "timestamp": 1350,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0136.jpg"
+    },
+    {
+      "timestamp": 1360,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0137.jpg"
+    },
+    {
+      "timestamp": 1370,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0138.jpg"
+    },
+    {
+      "timestamp": 1380,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0139.jpg"
+    },
+    {
+      "timestamp": 1390,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0140.jpg"
+    },
+    {
+      "timestamp": 1400,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0141.jpg"
+    },
+    {
+      "timestamp": 1410,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0142.jpg"
+    },
+    {
+      "timestamp": 1420,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0143.jpg"
+    },
+    {
+      "timestamp": 1430,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0144.jpg"
+    },
+    {
+      "timestamp": 1440,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0145.jpg"
+    },
+    {
+      "timestamp": 1450,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0146.jpg"
+    },
+    {
+      "timestamp": 1460,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0147.jpg"
+    },
+    {
+      "timestamp": 1470,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0148.jpg"
+    },
+    {
+      "timestamp": 1480,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0149.jpg"
+    },
+    {
+      "timestamp": 1490,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0150.jpg"
+    },
+    {
+      "timestamp": 1500,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0151.jpg"
+    },
+    {
+      "timestamp": 1510,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0152.jpg"
+    },
+    {
+      "timestamp": 1520,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0153.jpg"
+    },
+    {
+      "timestamp": 1530,
+      "frame_path": "/tmp/claude-watch-lm0j6mth/frames/frame_0154.jpg"
+    }
+  ],
+  "analysis": {
+    "tldr": [
+      "Entrevista con el Dr. Matías Bermann sobre la evolución de las evaluaciones genéticas y genómicas en el mejoramiento animal, destacando el desarrollo del 'single step'.",
+      "Comparación detallada entre enfoques bayesianos (Gibbs sampler) y frecuentistas (REML, BLUP), explicando por qué estos últimos son preferidos en evaluaciones rutinarias por su velocidad y estabilidad.",
+      "Análisis de los desafíos computacionales en poblaciones masivas al invertir matrices complejas (como las matrices H y G).",
+      "Descripción de metodologías avanzadas para optimizar el cómputo, como Monte Carlo REML, el algoritmo APY y single-step SNP-BLUP.",
+      "Presentación de avances recientes en la extensión de modelos de umbral frecuentistas para múltiples características categóricas."
+    ],
+    "key_moments": [
+      {
+        "timestamp": "00:00:23",
+        "desc": "Presentación del invitado: Dr. Matías Bermann, implicado en el programa BLUPF90 de la Universidad de Georgia."
+      },
+      {
+        "timestamp": "00:01:44",
+        "desc": "Bermann menciona a los colaboradores clave del BLUPF90 (Misztal, Legarra, Aguilar, Tsuruta, Masuda, entre otros)."
+      },
+      {
+        "timestamp": "00:02:23",
+        "desc": "Historia del mejoramiento genético: paper de Fisher (años 1920), bases de caracteres poligénicos y valor de cría."
+      },
+      {
+        "timestamp": "00:03:26",
+        "desc": "Paper de 2001 de Meuwissen: hipótesis de que los marcadores genéticos aumentarían la precisión de las evaluaciones."
+      },
+      {
+        "timestamp": "00:05:38",
+        "desc": "Explicación de las evaluaciones genómicas de múltiples pasos y sus desventajas (pseudoregistros, falta de propagación)."
+      },
+      {
+        "timestamp": "00:06:41",
+        "desc": "Historia del single step: desarrollo independiente y simultáneo por dos grupos (Georgia y Dinamarca)."
+      },
+      {
+        "timestamp": "00:09:30",
+        "desc": "Ventaja del single step: propagación de información genómica a animales no genotipados, clave en poblaciones masivas."
+      },
+      {
+        "timestamp": "00:11:39",
+        "desc": "Comparación bayesiano vs frecuentista: REML es más rápido y requiere menos input; Gibbs sampler exige verificar convergencia."
+      },
+      {
+        "timestamp": "00:12:32",
+        "desc": "Profundización en la comparación práctica entre la estimación bayesiana y la frecuentista."
+      },
+      {
+        "timestamp": "00:13:29",
+        "desc": "Monte Carlo REML: reemplaza la inversión de la matriz de coeficientes por simulaciones, reduciendo tiempos drásticamente."
+      },
+      {
+        "timestamp": "00:13:57",
+        "desc": "Razones por las que se utiliza BLUP frecuentista en evaluaciones genéticas de rutina (velocidad y estabilidad numérica)."
+      },
+      {
+        "timestamp": "00:16:51",
+        "desc": "Planteamiento del reto computacional que supone la inversión de la matriz conjugada (matriz H)."
+      },
+      {
+        "timestamp": "00:18:04",
+        "desc": "Desglose de los tres componentes principales que conforman la matriz H inversa."
+      },
+      {
+        "timestamp": "00:19:55",
+        "desc": "Explicación de métodos alternativos (APY, GT BLUP, single-step SNP-BLUP) para manejar la inversión de la matriz G."
+      },
+      {
+        "timestamp": "00:21:52",
+        "desc": "Bermann comparte su investigación reciente sobre la extensión del modelo de umbral a múltiples características categóricas."
+      }
+    ],
+    "key_facts": [
+      "El mejoramiento genético de caracteres poligénicos inició con el paper de Fisher en los años 1920, y en 2001 Meuwissen hipotetizó el impacto de los marcadores genéticos.",
+      "El método 'single step' fue desarrollado independientemente en 2009-2010 por el grupo de Georgia (Misztal, Legarra, Aguilar) y el de Dinamarca (Christensen, Lund).",
+      "En las evaluaciones de múltiples pasos, no había propagación de datos genómicos a animales no genotipados, un problema crítico en poblaciones como el ganado lechero de EE.UU.",
+      "La estimación frecuentista mediante REML es más rápida, requiere menos configuración manual y garantiza mayor estabilidad numérica que los métodos bayesianos (Gibbs sampler).",
+      "Monte Carlo REML permite reducir el tiempo de cómputo de semanas a un par de horas al evitar inversiones matriciales complejas.",
+      "La matriz H inversa es estructuralmente más sencilla de construir que la matriz H original, componiéndose de la inversa del pedigrí, la inversa genómica y la inversa del pedigrí de genotipados.",
+      "Para poblaciones con millones de animales, se utilizan métodos como el algoritmo APY o single-step SNP-BLUP para evitar la inversión directa y costosa de la matriz G.",
+      "Recientemente se desarrolló una metodología que permite usar modelos frecuentistas multicaracteres para variables categóricas (modelo de umbral), superando limitaciones de costo computacional."
+    ],
+    "quotable": [
+      "La ventaja del single step es propagación, y la facilidad que tiene para ser aplicado a modelos más complejos.",
+      "Fue desarrollada por dos grupos completamente separados... iban a presentar lo mismo y no lo sabían.",
+      "La estimación frecuentista mediante REML es mucho más rápida y requiere menos conocimiento, menos experiencia y menos input del usuario.",
+      "Uno en las evaluaciones genéticas requiere una cierta estabilidad numérica y temporal que te la suelen dar más esos métodos frecuentistas.",
+      "El valor de cría es básicamente el mérito genético de los animales.",
+      "Lo que yo me dedico más es a la metodología y lo último que hicimos fue extender el modelo de umbral, que es para caracteres categóricos, a múltiples características."
+    ],
+    "entities": [
+      "Matías Bermann",
+      "BLUPF90",
+      "Universidad de Georgia",
+      "Ignacio Misztal",
+      "Andrés Legarra",
+      "Ignacio Aguilar",
+      "Daniela Lourenco",
+      "Ole Christensen",
+      "Mogens Lund",
+      "Fisher",
+      "C.R. Henderson",
+      "Meuwissen",
+      "Agustín Blasco",
+      "Jose Pérez González",
+      "Alberto García Cortés",
+      "Robin Thompson",
+      "Estadística para Adultos (canal)",
+      "byols",
+      "Genetics",
+      "Finlandia",
+      "Holanda",
+      "Venezuela"
+    ],
+    "concepts": [
+      "Evaluación genética vs evaluación genómica",
+      "Valor de cría (mérito genético)",
+      "BLUP y REML",
+      "Modelos mixtos (C.R. Henderson)",
+      "Matriz de parentesco / matriz de relaciones",
+      "Matriz H, Matriz G y Matriz A",
+      "Evaluación genómica de múltiples pasos (pseudoregistros)",
+      "Single step / Single-step SNP-BLUP",
+      "Enfoque bayesiano (Gibbs sampler) vs frecuentista",
+      "Monte Carlo REML",
+      "Algoritmo APY",
+      "GT BLUP",
+      "Iteración en datos (optimización de memoria)",
+      "Modelo de umbral (caracteres categóricos)",
+      "Metafundadores y modelos no lineales"
+    ],
+    "tema_sugerido": "agropecuario",
+    "skill_proposal": null
+  },
+  "tema": "agropecuario",
+  "llm_model": "google/gemini-3.1-pro-preview",
+  "analyzed_at": "2026-10-17T00:23:55.737698+00:00",
+  "indexed_in_qdrant": true,
+  "qdrant_points": 43,
+  "obsidian_path": "obsidian-vault/videos/yt-VVChW3a0h-A.md"
+}
