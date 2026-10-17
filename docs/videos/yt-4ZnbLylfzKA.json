@@ -1,0 +1,569 @@
+{
+  "video_id": "yt-4ZnbLylfzKA",
+  "url": "https://www.youtube.com/watch?v=4ZnbLylfzKA",
+  "title": "Semiárido Produtivo - Pastejo direto em palma forrageira",
+  "duration_sec": 1272,
+  "transcript": "",
+  "key_frames": [
+    {
+      "timestamp": 0,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0001.jpg"
+    },
+    {
+      "timestamp": 10,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0002.jpg"
+    },
+    {
+      "timestamp": 20,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0003.jpg"
+    },
+    {
+      "timestamp": 30,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0004.jpg"
+    },
+    {
+      "timestamp": 40,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0005.jpg"
+    },
+    {
+      "timestamp": 50,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0006.jpg"
+    },
+    {
+      "timestamp": 60,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0007.jpg"
+    },
+    {
+      "timestamp": 70,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0008.jpg"
+    },
+    {
+      "timestamp": 80,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0009.jpg"
+    },
+    {
+      "timestamp": 90,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0010.jpg"
+    },
+    {
+      "timestamp": 100,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0011.jpg"
+    },
+    {
+      "timestamp": 110,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0012.jpg"
+    },
+    {
+      "timestamp": 120,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0013.jpg"
+    },
+    {
+      "timestamp": 130,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0014.jpg"
+    },
+    {
+      "timestamp": 140,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0015.jpg"
+    },
+    {
+      "timestamp": 150,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0016.jpg"
+    },
+    {
+      "timestamp": 160,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0017.jpg"
+    },
+    {
+      "timestamp": 170,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0018.jpg"
+    },
+    {
+      "timestamp": 180,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0019.jpg"
+    },
+    {
+      "timestamp": 190,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0020.jpg"
+    },
+    {
+      "timestamp": 200,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0021.jpg"
+    },
+    {
+      "timestamp": 210,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0022.jpg"
+    },
+    {
+      "timestamp": 220,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0023.jpg"
+    },
+    {
+      "timestamp": 230,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0024.jpg"
+    },
+    {
+      "timestamp": 240,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0025.jpg"
+    },
+    {
+      "timestamp": 250,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0026.jpg"
+    },
+    {
+      "timestamp": 260,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0027.jpg"
+    },
+    {
+      "timestamp": 270,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0028.jpg"
+    },
+    {
+      "timestamp": 280,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0029.jpg"
+    },
+    {
+      "timestamp": 290,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0030.jpg"
+    },
+    {
+      "timestamp": 300,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0031.jpg"
+    },
+    {
+      "timestamp": 310,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0032.jpg"
+    },
+    {
+      "timestamp": 320,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0033.jpg"
+    },
+    {
+      "timestamp": 330,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0034.jpg"
+    },
+    {
+      "timestamp": 340,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0035.jpg"
+    },
+    {
+      "timestamp": 350,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0036.jpg"
+    },
+    {
+      "timestamp": 360,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0037.jpg"
+    },
+    {
+      "timestamp": 370,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0038.jpg"
+    },
+    {
+      "timestamp": 380,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0039.jpg"
+    },
+    {
+      "timestamp": 390,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0040.jpg"
+    },
+    {
+      "timestamp": 400,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0041.jpg"
+    },
+    {
+      "timestamp": 410,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0042.jpg"
+    },
+    {
+      "timestamp": 420,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0043.jpg"
+    },
+    {
+      "timestamp": 430,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0044.jpg"
+    },
+    {
+      "timestamp": 440,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0045.jpg"
+    },
+    {
+      "timestamp": 450,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0046.jpg"
+    },
+    {
+      "timestamp": 460,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0047.jpg"
+    },
+    {
+      "timestamp": 470,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0048.jpg"
+    },
+    {
+      "timestamp": 480,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0049.jpg"
+    },
+    {
+      "timestamp": 490,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0050.jpg"
+    },
+    {
+      "timestamp": 500,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0051.jpg"
+    },
+    {
+      "timestamp": 510,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0052.jpg"
+    },
+    {
+      "timestamp": 520,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0053.jpg"
+    },
+    {
+      "timestamp": 530,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0054.jpg"
+    },
+    {
+      "timestamp": 540,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0055.jpg"
+    },
+    {
+      "timestamp": 550,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0056.jpg"
+    },
+    {
+      "timestamp": 560,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0057.jpg"
+    },
+    {
+      "timestamp": 570,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0058.jpg"
+    },
+    {
+      "timestamp": 580,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0059.jpg"
+    },
+    {
+      "timestamp": 590,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0060.jpg"
+    },
+    {
+      "timestamp": 600,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0061.jpg"
+    },
+    {
+      "timestamp": 610,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0062.jpg"
+    },
+    {
+      "timestamp": 620,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0063.jpg"
+    },
+    {
+      "timestamp": 630,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0064.jpg"
+    },
+    {
+      "timestamp": 640,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0065.jpg"
+    },
+    {
+      "timestamp": 650,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0066.jpg"
+    },
+    {
+      "timestamp": 660,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0067.jpg"
+    },
+    {
+      "timestamp": 670,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0068.jpg"
+    },
+    {
+      "timestamp": 680,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0069.jpg"
+    },
+    {
+      "timestamp": 690,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0070.jpg"
+    },
+    {
+      "timestamp": 700,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0071.jpg"
+    },
+    {
+      "timestamp": 710,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0072.jpg"
+    },
+    {
+      "timestamp": 720,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0073.jpg"
+    },
+    {
+      "timestamp": 730,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0074.jpg"
+    },
+    {
+      "timestamp": 740,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0075.jpg"
+    },
+    {
+      "timestamp": 750,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0076.jpg"
+    },
+    {
+      "timestamp": 760,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0077.jpg"
+    },
+    {
+      "timestamp": 770,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0078.jpg"
+    },
+    {
+      "timestamp": 780,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0079.jpg"
+    },
+    {
+      "timestamp": 790,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0080.jpg"
+    },
+    {
+      "timestamp": 800,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0081.jpg"
+    },
+    {
+      "timestamp": 810,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0082.jpg"
+    },
+    {
+      "timestamp": 820,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0083.jpg"
+    },
+    {
+      "timestamp": 830,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0084.jpg"
+    },
+    {
+      "timestamp": 840,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0085.jpg"
+    },
+    {
+      "timestamp": 850,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0086.jpg"
+    },
+    {
+      "timestamp": 860,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0087.jpg"
+    },
+    {
+      "timestamp": 870,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0088.jpg"
+    },
+    {
+      "timestamp": 880,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0089.jpg"
+    },
+    {
+      "timestamp": 890,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0090.jpg"
+    },
+    {
+      "timestamp": 900,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0091.jpg"
+    },
+    {
+      "timestamp": 910,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0092.jpg"
+    },
+    {
+      "timestamp": 920,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0093.jpg"
+    },
+    {
+      "timestamp": 930,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0094.jpg"
+    },
+    {
+      "timestamp": 940,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0095.jpg"
+    },
+    {
+      "timestamp": 950,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0096.jpg"
+    },
+    {
+      "timestamp": 960,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0097.jpg"
+    },
+    {
+      "timestamp": 970,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0098.jpg"
+    },
+    {
+      "timestamp": 980,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0099.jpg"
+    },
+    {
+      "timestamp": 990,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0100.jpg"
+    },
+    {
+      "timestamp": 1000,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0101.jpg"
+    },
+    {
+      "timestamp": 1010,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0102.jpg"
+    },
+    {
+      "timestamp": 1020,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0103.jpg"
+    },
+    {
+      "timestamp": 1030,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0104.jpg"
+    },
+    {
+      "timestamp": 1040,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0105.jpg"
+    },
+    {
+      "timestamp": 1050,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0106.jpg"
+    },
+    {
+      "timestamp": 1060,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0107.jpg"
+    },
+    {
+      "timestamp": 1070,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0108.jpg"
+    },
+    {
+      "timestamp": 1080,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0109.jpg"
+    },
+    {
+      "timestamp": 1090,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0110.jpg"
+    },
+    {
+      "timestamp": 1100,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0111.jpg"
+    },
+    {
+      "timestamp": 1110,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0112.jpg"
+    },
+    {
+      "timestamp": 1120,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0113.jpg"
+    },
+    {
+      "timestamp": 1130,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0114.jpg"
+    },
+    {
+      "timestamp": 1140,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0115.jpg"
+    },
+    {
+      "timestamp": 1150,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0116.jpg"
+    },
+    {
+      "timestamp": 1160,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0117.jpg"
+    },
+    {
+      "timestamp": 1170,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0118.jpg"
+    },
+    {
+      "timestamp": 1180,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0119.jpg"
+    },
+    {
+      "timestamp": 1190,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0120.jpg"
+    },
+    {
+      "timestamp": 1200,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0121.jpg"
+    },
+    {
+      "timestamp": 1210,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0122.jpg"
+    },
+    {
+      "timestamp": 1220,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0123.jpg"
+    },
+    {
+      "timestamp": 1230,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0124.jpg"
+    },
+    {
+      "timestamp": 1240,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0125.jpg"
+    },
+    {
+      "timestamp": 1250,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0126.jpg"
+    },
+    {
+      "timestamp": 1260,
+      "frame_path": "/tmp/claude-watch-z0i8d72w/frames/frame_0127.jpg"
+    }
+  ],
+  "analysis": {
+    "tldr": [
+      "Explicación sobre el cultivo y manejo de nopal (cactus) en zonas áridas.",
+      "Demostración del uso del nopal como alternativa de forraje para ganado bovino.",
+      "Análisis visual de la distribución del terreno y la integración del ganado con el cultivo."
+    ],
+    "key_moments": [
+      {
+        "timestamp": "00:00:00",
+        "desc": "Vista aérea que contextualiza el entorno árido y la escala de la plantación."
+      },
+      {
+        "timestamp": "00:00:10",
+        "desc": "El presentador introduce el tema desde el interior del lote de nopal."
+      },
+      {
+        "timestamp": "00:03:50",
+        "desc": "Plano cenital mostrando la organización de los lotes y la infraestructura del campo."
+      },
+      {
+        "timestamp": "00:07:40",
+        "desc": "Aparición del ganado bovino interactuando con el entorno del cultivo."
+      },
+      {
+        "timestamp": "00:17:00",
+        "desc": "El experto se traslada a una zona con árboles para continuar su explicación."
+      }
+    ],
+    "key_facts": [
+      "El terreno presenta condiciones de aridez, requiriendo cultivos adaptados como el nopal.",
+      "El nopal está plantado en hileras organizadas para optimizar el espacio y el manejo.",
+      "Se utiliza ganado bovino de raza adaptada al calor en conjunto con este sistema forrajero."
+    ],
+    "quotable": [],
+    "entities": [
+      "Nopal (Opuntia)",
+      "Ganado bovino"
+    ],
+    "concepts": [
+      "Agricultura de secano",
+      "Forraje estratégico",
+      "Sistemas silvopastoriles o agropastoriles en zonas áridas"
+    ],
+    "tema_sugerido": "agropecuario",
+    "skill_proposal": null
+  },
+  "tema": "agropecuario",
+  "llm_model": "google/gemini-3.1-pro-preview",
+  "analyzed_at": "2026-10-17T02:22:05.766069+00:00",
+  "indexed_in_qdrant": false,
+  "qdrant_points": 0,
+  "obsidian_path": "obsidian-vault/videos/yt-4ZnbLylfzKA.md"
+}
