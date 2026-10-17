@@ -217,6 +217,13 @@
       "lote": "lote 4",
       "resultado": "ok",
       "nota": "autónomo Hermes (flash abierto + grounding local)"
+    },
+    {
+      "fecha": "2026-10-17T01:19",
+      "hermano": "zootecnista",
+      "lote": "lote 5",
+      "resultado": "ok",
+      "nota": "autónomo Hermes (flash abierto + grounding local)"
     }
   ]
 }
